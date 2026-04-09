@@ -47,7 +47,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             <Stethoscope className="w-5 h-5 text-sidebar-primary-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-sm truncate">DentaCare</h1>
+            <h1 className="font-bold text-sm truncate">DivineLink</h1>
             <p className="text-xs text-sidebar-foreground/60 truncate">{user?.name} • {user?.role}</p>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
