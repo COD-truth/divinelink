@@ -11,12 +11,12 @@ const LangContext = createContext<LangCtx | null>(null);
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>(() => {
-    return (localStorage.getItem("dentacare-lang") as Lang) || "fr";
+    return (localStorage.getItem("divinelink-lang") as Lang) || "fr";
   });
 
   const handleSetLang = (l: Lang) => {
     setLang(l);
-    localStorage.setItem("dentacare-lang", l);
+    localStorage.setItem("divinelink-lang", l);
   };
 
   const translate = (key: string) => t(key, lang);

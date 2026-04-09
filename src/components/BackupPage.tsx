@@ -34,13 +34,13 @@ export function BackupPage() {
       const encrypted = CryptoJS.AES.encrypt(json, exportPwd).toString();
 
       const zip = new JSZip();
-      zip.file("dentacare_backup.enc", encrypted);
+      zip.file("divinelink_backup.enc", encrypted);
 
       const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `dentacare_backup_${new Date().toISOString().split("T")[0]}.zip`;
+      a.download = `divinelink_backup_${new Date().toISOString().split("T")[0]}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success(t("backup.success"));
@@ -56,7 +56,7 @@ export function BackupPage() {
     try {
       const file = e.target.files[0];
       const zip = await JSZip.loadAsync(file);
-      const encFile = zip.file("dentacare_backup.enc");
+      const encFile = zip.file("divinelink_backup.enc");
       if (!encFile) throw new Error("Invalid backup file");
 
       const encrypted = await encFile.async("string");

@@ -70,7 +70,7 @@ class DentaDB extends Dexie {
   documents!: Table<Document>;
 
   constructor() {
-    super("DentaCareDB");
+    super("DivineLinkDB");
     this.version(1).stores({
       users: "++id, name, role, pinHash",
       patients: "++id, patientId, firstName, lastName, phone",

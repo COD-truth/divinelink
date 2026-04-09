@@ -2,7 +2,7 @@ export type Lang = "en" | "fr";
 
 const translations: Record<string, Record<Lang, string>> = {
   // Auth
-  "auth.title": { en: "DentaCare EMR", fr: "DentaCare DME" },
+  "auth.title": { en: "DivineLink", fr: "DivineLink" },
   "auth.subtitle": { en: "Dental Clinic Management", fr: "Gestion de Cabinet Dentaire" },
   "auth.pin": { en: "Enter your PIN", fr: "Entrez votre PIN" },
   "auth.login": { en: "Login", fr: "Connexion" },

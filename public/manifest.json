@@ -1,6 +1,6 @@
 {
-  "name": "DentaCare EMR",
-  "short_name": "DentaCare",
+  "name": "DivineLink",
+  "short_name": "DivineLink",
   "description": "Offline Dental Clinic Electronic Medical Record",
   "start_url": "/",
   "display": "standalone",

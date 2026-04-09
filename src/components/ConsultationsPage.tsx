@@ -154,7 +154,7 @@ export function ConsultationsPage() {
       {/* Print-only prescription */}
       {printDialog && (
         <div className="hidden print:block p-8" ref={printRef}>
-          <h1 className="text-xl font-bold mb-1">DentaCare — {t("consult.prescription")}</h1>
+          <h1 className="text-xl font-bold mb-1">DivineLink — {t("consult.prescription")}</h1>
           <p className="text-sm mb-4">{new Date(printDialog.date).toLocaleDateString()}</p>
           <p><strong>{t("consult.diagnosis")}:</strong> {printDialog.diagnosis}</p>
           <p><strong>{t("consult.treatment")}:</strong> {printDialog.treatmentPlan}</p>
