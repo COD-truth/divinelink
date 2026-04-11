@@ -78,8 +78,20 @@ class DentaDB extends Dexie {
       users: "++id, name, role, pinHash",
       patients: "++id, patientId, firstName, lastName, phone",
       appointments: "++id, patientId, dentistId, date, status",
+      consultations: "++id, patientId, dentistId, date",
+      documents: "++id, patientId, name",
+    });
+    this.version(2).stores({
+      users: "++id, name, role, pinHash",
+      patients: "++id, patientId, firstName, lastName, phone",
+      appointments: "++id, patientId, dentistId, date, status",
       consultations: "++id, patientId, dentistId, date, parentId, originalId, isLatest",
       documents: "++id, patientId, name",
+    }).upgrade(tx => {
+      // Mark all existing consultations as latest
+      return tx.table("consultations").toCollection().modify(c => {
+        c.isLatest = true;
+      });
     });
   }
 }
