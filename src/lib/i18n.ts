@@ -50,6 +50,8 @@ const translations: Record<string, Record<Lang, string>> = {
   
   // Consultations
   "consult.new": { en: "New Consultation", fr: "Nouvelle consultation" },
+  "consult.edit": { en: "Edit Consultation", fr: "Modifier la consultation" },
+  "consult.updated": { en: "Consultation updated (new version)", fr: "Consultation modifiée (nouvelle version)" },
   "consult.symptoms": { en: "Symptoms", fr: "Symptômes" },
   "consult.diagnosis": { en: "Diagnosis", fr: "Diagnostic" },
   "consult.treatment": { en: "Treatment Plan", fr: "Plan de traitement" },
@@ -57,6 +59,12 @@ const translations: Record<string, Record<Lang, string>> = {
   "consult.print": { en: "Print Prescription", fr: "Imprimer l'ordonnance" },
   "consult.toothChart": { en: "Tooth Chart", fr: "Schéma dentaire" },
   "consult.notes": { en: "Notes", fr: "Notes" },
+  "consult.confirmDelete": { en: "Delete Consultation?", fr: "Supprimer la consultation ?" },
+  "consult.deleteWarning": { en: "This will delete this consultation and all its versions.", fr: "Cela supprimera cette consultation et toutes ses versions." },
+  "consult.history": { en: "Version History", fr: "Historique des versions" },
+  "consult.currentVersion": { en: "Current version", fr: "Version actuelle" },
+  "consult.olderVersion": { en: "Previous version", fr: "Version précédente" },
+  "consult.modified": { en: "Modified", fr: "Modifiée" },
   
   // Tooth conditions
   "tooth.healthy": { en: "Healthy", fr: "Sain" },
