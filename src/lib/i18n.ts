@@ -32,6 +32,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "patient.edit": { en: "Edit Patient", fr: "Modifier le patient" },
   "patient.details": { en: "Patient Details", fr: "Détails du patient" },
   "patient.noResults": { en: "No patients found", fr: "Aucun patient trouvé" },
+  "patient.confirmDelete": { en: "Delete Patient?", fr: "Supprimer le patient ?" },
+  "patient.deleteWarning": { en: "This will permanently delete this patient and all related consultations, appointments and documents.", fr: "Cela supprimera définitivement ce patient et toutes ses consultations, rendez-vous et documents." },
   
   // Appointments
   "apt.create": { en: "New Appointment", fr: "Nouveau rendez-vous" },
