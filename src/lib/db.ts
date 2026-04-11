@@ -50,6 +50,9 @@ export interface Consultation {
   notes: string;
   toothChart: Record<string, ToothCondition>;
   createdAt: string;
+  parentId?: number;    // ID of the previous version (direct parent)
+  originalId?: number;  // ID of the very first version in the chain
+  isLatest?: boolean;   // true if this is the most recent version
 }
 
 export interface Document {
@@ -75,7 +78,7 @@ class DentaDB extends Dexie {
       users: "++id, name, role, pinHash",
       patients: "++id, patientId, firstName, lastName, phone",
       appointments: "++id, patientId, dentistId, date, status",
-      consultations: "++id, patientId, dentistId, date",
+      consultations: "++id, patientId, dentistId, date, parentId, originalId, isLatest",
       documents: "++id, patientId, name",
     });
   }
