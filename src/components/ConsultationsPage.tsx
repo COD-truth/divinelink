@@ -5,20 +5,25 @@ import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToothChart } from "@/components/ToothChart";
-import { Plus, Printer, Stethoscope } from "lucide-react";
+import { Plus, Printer, Edit, Trash2, History, AlertTriangle, Badge } from "lucide-react";
 import { toast } from "sonner";
+
+type ConsultationWithMeta = Consultation & { patientName: string };
 
 export function ConsultationsPage() {
   const { user } = useAuth();
   const { t } = useLang();
-  const [consultations, setConsultations] = useState<(Consultation & { patientName: string })[]>([]);
+  const [consultations, setConsultations] = useState<ConsultationWithMeta[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null); // ID of consultation being edited (creates new version)
   const [printDialog, setPrintDialog] = useState<Consultation | null>(null);
+  const [historyDialog, setHistoryDialog] = useState<ConsultationWithMeta[] | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [form, setForm] = useState({
     patientId: "",
     symptoms: "",
@@ -28,42 +33,122 @@ export function ConsultationsPage() {
     notes: "",
     toothChart: {} as Record<string, ToothCondition>,
   });
-  const printRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
     const allPatients = await db.patients.toArray();
     setPatients(allPatients);
-    const all = await db.consultations.reverse().toArray();
-    setConsultations(all.map(c => ({
-      ...c,
-      patientName: allPatients.find(p => p.id === c.patientId)?.firstName + " " + (allPatients.find(p => p.id === c.patientId)?.lastName || ""),
-    })));
+    // Show only latest versions
+    const all = await db.consultations.where("isLatest").equals(1).reverse().toArray();
+    const fallback = all.length === 0 ? await db.consultations.reverse().toArray() : all;
+    setConsultations(fallback.filter(c => c.isLatest !== false).map(c => {
+      const p = allPatients.find(p => p.id === c.patientId);
+      return { ...c, patientName: p ? `${p.firstName} ${p.lastName}` : "—" };
+    }));
   };
 
   useEffect(() => { load(); }, []);
 
   const openNew = () => {
+    setEditingId(null);
     setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", toothChart: {} });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (c: Consultation) => {
+    setEditingId(c.id!);
+    setForm({
+      patientId: c.patientId.toString(),
+      symptoms: c.symptoms,
+      diagnosis: c.diagnosis,
+      treatmentPlan: c.treatmentPlan,
+      prescription: c.prescription,
+      notes: c.notes,
+      toothChart: c.toothChart || {},
+    });
     setDialogOpen(true);
   };
 
   const save = async () => {
     if (!form.patientId) return;
-    await db.consultations.add({
-      patientId: parseInt(form.patientId),
-      dentistId: user!.id!,
-      date: new Date().toISOString(),
-      symptoms: form.symptoms,
-      diagnosis: form.diagnosis,
-      treatmentPlan: form.treatmentPlan,
-      prescription: form.prescription,
-      notes: form.notes,
-      toothChart: form.toothChart,
-      createdAt: new Date().toISOString(),
-    });
-    toast.success(t("consult.new"));
+    const now = new Date().toISOString();
+
+    if (editingId) {
+      // Versioning: mark old as not latest, create new version
+      const old = await db.consultations.get(editingId);
+      if (old) {
+        await db.consultations.update(editingId, { isLatest: false });
+        const originalId = old.originalId || old.id!;
+        await db.consultations.add({
+          patientId: parseInt(form.patientId),
+          dentistId: user!.id!,
+          date: now,
+          symptoms: form.symptoms,
+          diagnosis: form.diagnosis,
+          treatmentPlan: form.treatmentPlan,
+          prescription: form.prescription,
+          notes: form.notes,
+          toothChart: form.toothChart,
+          createdAt: now,
+          parentId: editingId,
+          originalId,
+          isLatest: true,
+        });
+      }
+      toast.success(t("consult.updated"));
+    } else {
+      const id = await db.consultations.add({
+        patientId: parseInt(form.patientId),
+        dentistId: user!.id!,
+        date: now,
+        symptoms: form.symptoms,
+        diagnosis: form.diagnosis,
+        treatmentPlan: form.treatmentPlan,
+        prescription: form.prescription,
+        notes: form.notes,
+        toothChart: form.toothChart,
+        createdAt: now,
+        isLatest: true,
+      });
+      // Set originalId to self for first version
+      await db.consultations.update(id as number, { originalId: id as number });
+      toast.success(t("consult.new"));
+    }
     setDialogOpen(false);
     load();
+  };
+
+  const handleDelete = async (id: number) => {
+    // Delete the consultation and all its versions
+    const c = await db.consultations.get(id);
+    if (c) {
+      const origId = c.originalId || c.id!;
+      // Delete all versions in the chain
+      await db.consultations.where("originalId").equals(origId).delete();
+      // Also delete the original itself if it has no originalId set
+      await db.consultations.delete(origId);
+    }
+    setDeleteConfirm(null);
+    toast.success(t("common.delete"));
+    load();
+  };
+
+  const showHistory = async (c: Consultation) => {
+    const origId = c.originalId || c.id!;
+    const allPatients = await db.patients.toArray();
+    const versions = await db.consultations
+      .where("originalId").equals(origId)
+      .reverse()
+      .toArray();
+    // Also include the original if it doesn't have originalId pointing to itself
+    const orig = await db.consultations.get(origId);
+    const allVersions = orig && !versions.find(v => v.id === orig.id)
+      ? [...versions, orig]
+      : versions;
+    
+    setHistoryDialog(allVersions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(v => {
+      const p = allPatients.find(p => p.id === v.patientId);
+      return { ...v, patientName: p ? `${p.firstName} ${p.lastName}` : "—" };
+    }));
   };
 
   const handlePrint = (c: Consultation) => {
@@ -84,18 +169,36 @@ export function ConsultationsPage() {
           {consultations.map(c => (
             <Card key={c.id}>
               <CardContent className="p-4 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
                     <p className="font-medium">{c.patientName}</p>
                     <p className="text-sm text-muted-foreground">{new Date(c.date).toLocaleDateString()}</p>
+                    {c.parentId && (
+                      <span className="inline-flex items-center gap-1 text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full mt-1">
+                        {t("consult.modified")}
+                      </span>
+                    )}
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => handlePrint(c)} className="gap-1 no-print">
-                    <Printer className="w-3 h-3" /> {t("consult.print")}
-                  </Button>
+                  <div className="flex gap-1 no-print flex-shrink-0">
+                    {(c.originalId || c.parentId) && (
+                      <Button variant="ghost" size="sm" onClick={() => showHistory(c)} title={t("consult.history")}>
+                        <History className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(c)} title={t("common.edit")}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handlePrint(c)} title={t("consult.print")}>
+                      <Printer className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(c.id!)} className="text-destructive" title={t("common.delete")}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 {c.diagnosis && <p className="text-sm"><span className="font-medium">{t("consult.diagnosis")}:</span> {c.diagnosis}</p>}
                 {c.treatmentPlan && <p className="text-sm"><span className="font-medium">{t("consult.treatment")}:</span> {c.treatmentPlan}</p>}
-                {Object.keys(c.toothChart).length > 0 && (
+                {Object.keys(c.toothChart || {}).length > 0 && (
                   <ToothChart chart={c.toothChart} onChange={() => {}} readOnly />
                 )}
               </CardContent>
@@ -104,13 +207,16 @@ export function ConsultationsPage() {
         </div>
       )}
 
+      {/* New / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{t("consult.new")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingId ? t("consult.edit") : t("consult.new")}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>{t("apt.patient")} *</Label>
-              <Select value={form.patientId} onValueChange={v => setForm(f => ({ ...f, patientId: v }))}>
+              <Select value={form.patientId} onValueChange={v => setForm(f => ({ ...f, patientId: v }))} disabled={!!editingId}>
                 <SelectTrigger><SelectValue placeholder="..." /></SelectTrigger>
                 <SelectContent>
                   {patients.map(p => (
@@ -151,9 +257,48 @@ export function ConsultationsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete confirmation */}
+      <Dialog open={deleteConfirm !== null} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("consult.confirmDelete")}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            {t("consult.deleteWarning")}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>{t("common.delete")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Version history dialog */}
+      <Dialog open={historyDialog !== null} onOpenChange={() => setHistoryDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t("consult.history")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {historyDialog?.map((v, idx) => (
+              <Card key={v.id} className={v.isLatest ? "border-primary" : "opacity-70"}>
+                <CardContent className="p-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {v.isLatest ? t("consult.currentVersion") : t("consult.olderVersion")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{new Date(v.date).toLocaleString()}</span>
+                  </div>
+                  {v.diagnosis && <p className="text-sm"><strong>{t("consult.diagnosis")}:</strong> {v.diagnosis}</p>}
+                  {v.treatmentPlan && <p className="text-sm"><strong>{t("consult.treatment")}:</strong> {v.treatmentPlan}</p>}
+                  {v.prescription && <p className="text-sm"><strong>{t("consult.prescription")}:</strong> {v.prescription}</p>}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Print-only prescription */}
       {printDialog && (
-        <div className="hidden print:block p-8" ref={printRef}>
+        <div className="hidden print:block p-8">
           <h1 className="text-xl font-bold mb-1">DivineLink — {t("consult.prescription")}</h1>
           <p className="text-sm mb-4">{new Date(printDialog.date).toLocaleDateString()}</p>
           <p><strong>{t("consult.diagnosis")}:</strong> {printDialog.diagnosis}</p>

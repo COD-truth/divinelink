@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function PatientsPage() {
@@ -15,6 +15,7 @@ export function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "" });
 
@@ -58,6 +59,19 @@ export function PatientsPage() {
     load();
   };
 
+  const handleDelete = async (id: number) => {
+    // Delete patient and related data
+    await db.transaction("rw", [db.patients, db.consultations, db.appointments, db.documents], async () => {
+      await db.consultations.where("patientId").equals(id).delete();
+      await db.appointments.where("patientId").equals(id).delete();
+      await db.documents.where("patientId").equals(id).delete();
+      await db.patients.delete(id);
+    });
+    setDeleteConfirm(null);
+    toast.success(t("common.delete"));
+    load();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
@@ -75,19 +89,24 @@ export function PatientsPage() {
       ) : (
         <div className="grid gap-3">
           {filtered.map(p => (
-            <Card key={p.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => openEdit(p)}>
+            <Card key={p.id} className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm cursor-pointer" onClick={() => openEdit(p)}>
                   {p.firstName[0]}{p.lastName[0]}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEdit(p)}>
                   <p className="font-medium truncate">{p.firstName} {p.lastName}</p>
                   <p className="text-sm text-muted-foreground">{p.patientId} • {p.phone || "—"}</p>
                 </div>
                 {p.medicalAlerts && (
                   <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
                 )}
-                <Edit className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(p.id!)} className="text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </CardContent>
             </Card>
           ))}
@@ -130,6 +149,21 @@ export function PatientsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={save}>{t("common.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={deleteConfirm !== null} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("patient.confirmDelete")}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            {t("patient.deleteWarning")}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>{t("common.delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
