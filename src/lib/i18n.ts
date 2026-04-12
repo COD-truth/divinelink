@@ -3,7 +3,7 @@ export type Lang = "en" | "fr";
 const translations: Record<string, Record<Lang, string>> = {
   // Auth
   "auth.title": { en: "DivineLink", fr: "DivineLink" },
-  "auth.subtitle": { en: "Dental Clinic Management", fr: "Gestion de Cabinet Dentaire" },
+  "auth.subtitle": { en: "Medical Clinic Management", fr: "Gestion de Cabinet Médical" },
   "auth.pin": { en: "Enter your PIN", fr: "Entrez votre PIN" },
   "auth.login": { en: "Login", fr: "Connexion" },
   "auth.error": { en: "Invalid PIN", fr: "PIN invalide" },
@@ -39,7 +39,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "apt.create": { en: "New Appointment", fr: "Nouveau rendez-vous" },
   "apt.edit": { en: "Edit Appointment", fr: "Modifier le rendez-vous" },
   "apt.patient": { en: "Patient", fr: "Patient" },
-  "apt.dentist": { en: "Dentist", fr: "Dentiste" },
+  "apt.doctor": { en: "Doctor", fr: "Médecin" },
   "apt.date": { en: "Date", fr: "Date" },
   "apt.time": { en: "Time", fr: "Heure" },
   "apt.reason": { en: "Reason", fr: "Motif" },
@@ -59,7 +59,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "consult.treatment": { en: "Treatment Plan", fr: "Plan de traitement" },
   "consult.prescription": { en: "Prescription", fr: "Ordonnance" },
   "consult.print": { en: "Print Prescription", fr: "Imprimer l'ordonnance" },
-  "consult.toothChart": { en: "Tooth Chart", fr: "Schéma dentaire" },
+  
   "consult.notes": { en: "Notes", fr: "Notes" },
   "consult.confirmDelete": { en: "Delete Consultation?", fr: "Supprimer la consultation ?" },
   "consult.deleteWarning": { en: "This will delete this consultation and all its versions.", fr: "Cela supprimera cette consultation et toutes ses versions." },
@@ -67,13 +67,12 @@ const translations: Record<string, Record<Lang, string>> = {
   "consult.currentVersion": { en: "Current version", fr: "Version actuelle" },
   "consult.olderVersion": { en: "Previous version", fr: "Version précédente" },
   "consult.modified": { en: "Modified", fr: "Modifiée" },
+  "consult.version": { en: "Version", fr: "Version" },
+  "consult.editedBy": { en: "Edited by", fr: "Modifié par" },
+  "consult.viewVersions": { en: "View versions", fr: "Voir les versions" },
+  "consult.original": { en: "Original", fr: "Original" },
+  "consult.revision": { en: "Revision", fr: "Révision" },
   
-  // Tooth conditions
-  "tooth.healthy": { en: "Healthy", fr: "Sain" },
-  "tooth.caries": { en: "Caries", fr: "Carie" },
-  "tooth.filled": { en: "Filled", fr: "Obturé" },
-  "tooth.extracted": { en: "Extracted", fr: "Extrait" },
-  "tooth.crown": { en: "Crown", fr: "Couronne" },
   
   // Documents
   "doc.upload": { en: "Upload Image", fr: "Téléverser une image" },
@@ -87,7 +86,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "user.role": { en: "Role", fr: "Rôle" },
   "user.pin": { en: "PIN (4-6 digits)", fr: "PIN (4-6 chiffres)" },
   "user.admin": { en: "Admin", fr: "Administrateur" },
-  "user.dentist": { en: "Dentist", fr: "Dentiste" },
+  "user.doctor": { en: "Doctor", fr: "Médecin" },
   "user.receptionist": { en: "Receptionist", fr: "Réceptionniste" },
   
   // Backup
