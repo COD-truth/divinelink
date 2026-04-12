@@ -1,7 +1,6 @@
 import Dexie, { type Table } from "dexie";
 
-export type UserRole = "admin" | "dentist" | "receptionist";
-export type ToothCondition = "healthy" | "caries" | "filled" | "extracted" | "crown";
+export type UserRole = "admin" | "doctor" | "receptionist";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "noshow";
 
 export interface User {
@@ -29,7 +28,7 @@ export interface Patient {
 export interface Appointment {
   id?: number;
   patientId: number;
-  dentistId: number;
+  doctorId: number;
   date: string;
   time: string;
   reason: string;
@@ -41,18 +40,20 @@ export interface Appointment {
 export interface Consultation {
   id?: number;
   patientId: number;
-  dentistId: number;
+  doctorId: number;
   date: string;
   symptoms: string;
   diagnosis: string;
   treatmentPlan: string;
   prescription: string;
   notes: string;
-  toothChart: Record<string, ToothCondition>;
   createdAt: string;
-  parentId?: number;    // ID of the previous version (direct parent)
-  originalId?: number;  // ID of the very first version in the chain
-  isLatest?: boolean;   // true if this is the most recent version
+  parentId?: number;
+  originalId?: number;
+  isLatest?: boolean;
+  versionNumber?: number;
+  editedAt?: string;
+  editedBy?: string;
 }
 
 export interface Document {
@@ -88,9 +89,37 @@ class DentaDB extends Dexie {
       consultations: "++id, patientId, dentistId, date, parentId, originalId, isLatest",
       documents: "++id, patientId, name",
     }).upgrade(tx => {
-      // Mark all existing consultations as latest
       return tx.table("consultations").toCollection().modify(c => {
         c.isLatest = true;
+      });
+    });
+    this.version(3).stores({
+      users: "++id, name, role, pinHash",
+      patients: "++id, patientId, firstName, lastName, phone",
+      appointments: "++id, patientId, doctorId, date, status",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest",
+      documents: "++id, patientId, name",
+    }).upgrade(tx => {
+      // Rename dentistId to doctorId
+      tx.table("appointments").toCollection().modify(a => {
+        if (a.dentistId !== undefined) {
+          a.doctorId = a.dentistId;
+          delete a.dentistId;
+        }
+      });
+      tx.table("consultations").toCollection().modify(c => {
+        if (c.dentistId !== undefined) {
+          c.doctorId = c.dentistId;
+          delete c.dentistId;
+        }
+        // Remove toothChart
+        delete c.toothChart;
+        // Add versionNumber to existing
+        if (!c.versionNumber) c.versionNumber = 1;
+      });
+      // Rename dentist role to doctor
+      tx.table("users").toCollection().modify(u => {
+        if (u.role === "dentist") u.role = "doctor";
       });
     });
   }

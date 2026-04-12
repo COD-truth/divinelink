@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const roleBadge: Record<UserRole, string> = {
   admin: "bg-destructive text-destructive-foreground",
-  dentist: "bg-primary text-primary-foreground",
+  doctor: "bg-primary text-primary-foreground",
   receptionist: "bg-secondary text-secondary-foreground",
 };
 
@@ -97,7 +97,7 @@ export function UsersPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">{t("user.admin")}</SelectItem>
-                  <SelectItem value="dentist">{t("user.dentist")}</SelectItem>
+                  <SelectItem value="doctor">{t("user.doctor")}</SelectItem>
                   <SelectItem value="receptionist">{t("user.receptionist")}</SelectItem>
                 </SelectContent>
               </Select>
