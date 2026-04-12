@@ -22,11 +22,11 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navItems: { page: Page; icon: React.ReactNode; label: string; roles: string[] }[] = [
-    { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "dentist", "receptionist"] },
-    { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "dentist", "receptionist"] },
-    { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "dentist", "receptionist"] },
-    { page: "consultations", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "dentist"] },
-    { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "dentist"] },
+    { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "consultations", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
+    { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
     { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
     { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
   ];
