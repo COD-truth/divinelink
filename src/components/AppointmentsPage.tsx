@@ -22,28 +22,28 @@ const statusColors: Record<AppointmentStatus, string> = {
 export function AppointmentsPage() {
   const { user } = useAuth();
   const { t } = useLang();
-  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; dentistName: string })[]>([]);
+  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; doctorName: string })[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [dentists, setDentists] = useState<User[]>([]);
+  const [doctors, setDoctors] = useState<User[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ patientId: "", dentistId: "", date: "", time: "", reason: "", status: "scheduled" as AppointmentStatus });
+  const [form, setForm] = useState({ patientId: "", doctorId: "", date: "", time: "", reason: "", status: "scheduled" as AppointmentStatus });
 
   const load = async () => {
     const allPatients = await db.patients.toArray();
-    const allDentists = await db.users.where("role").anyOf(["dentist", "admin"]).toArray();
+    const allDoctors = await db.users.where("role").anyOf(["doctor", "admin"]).toArray();
     setPatients(allPatients);
-    setDentists(allDentists);
+    setDoctors(allDoctors);
 
     let appts = await db.appointments.where("date").equals(selectedDate).toArray();
-    if (user?.role === "dentist") {
-      appts = appts.filter(a => a.dentistId === user.id);
+    if (user?.role === "doctor") {
+      appts = appts.filter(a => a.doctorId === user.id);
     }
 
     const enriched = appts.map(a => ({
       ...a,
       patientName: allPatients.find(p => p.id === a.patientId)?.firstName + " " + (allPatients.find(p => p.id === a.patientId)?.lastName || ""),
-      dentistName: allDentists.find(d => d.id === a.dentistId)?.name || "—",
+      doctorName: allDoctors.find(d => d.id === a.doctorId)?.name || "—",
     })).sort((a, b) => a.time.localeCompare(b.time));
 
     setAppointments(enriched);
@@ -58,16 +58,16 @@ export function AppointmentsPage() {
   };
 
   const openNew = () => {
-    setForm({ patientId: "", dentistId: user?.id?.toString() || "", date: selectedDate, time: "09:00", reason: "", status: "scheduled" });
+    setForm({ patientId: "", doctorId: user?.id?.toString() || "", date: selectedDate, time: "09:00", reason: "", status: "scheduled" });
     setDialogOpen(true);
   };
 
   const save = async () => {
-    if (!form.patientId || !form.dentistId || !form.date) return;
+    if (!form.patientId || !form.doctorId || !form.date) return;
     const now = new Date().toISOString();
     await db.appointments.add({
       patientId: parseInt(form.patientId),
-      dentistId: parseInt(form.dentistId),
+      doctorId: parseInt(form.doctorId),
       date: form.date,
       time: form.time,
       reason: form.reason,
@@ -116,7 +116,7 @@ export function AppointmentsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{a.patientName}</p>
-                  <p className="text-sm text-muted-foreground truncate">{a.reason || "—"} • Dr. {a.dentistName}</p>
+                  <p className="text-sm text-muted-foreground truncate">{a.reason || "—"} • Dr. {a.doctorName}</p>
                 </div>
                 <Select value={a.status} onValueChange={(v) => updateStatus(a.id!, v as AppointmentStatus)}>
                   <SelectTrigger className="w-auto">
@@ -150,11 +150,11 @@ export function AppointmentsPage() {
               </Select>
             </div>
             <div>
-              <Label>{t("apt.dentist")} *</Label>
-              <Select value={form.dentistId} onValueChange={v => setForm(f => ({ ...f, dentistId: v }))}>
+              <Label>{t("apt.doctor")} *</Label>
+              <Select value={form.doctorId} onValueChange={v => setForm(f => ({ ...f, doctorId: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {dentists.map(d => (
+                  {doctors.map(d => (
                     <SelectItem key={d.id} value={d.id!.toString()}>{d.name}</SelectItem>
                   ))}
                 </SelectContent>
