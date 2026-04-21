@@ -55,6 +55,7 @@ export function BackupPage() {
     }
     setExporting(false);
     refreshStorage();
+  };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!importPwd || !e.target.files?.[0]) return;
