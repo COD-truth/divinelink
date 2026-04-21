@@ -21,8 +21,20 @@ export interface Patient {
   dob: string;
   address: string;
   medicalAlerts: string;
+  /** Optional profile photo as base64 data URL */
+  photo?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Image attached to a consultation */
+export interface ConsultationImage {
+  id: string;
+  filename: string;
+  /** base64 data URL */
+  data: string;
+  uploadedAt: string;
+  caption?: string;
 }
 
 export interface Appointment {
@@ -47,6 +59,8 @@ export interface Consultation {
   treatmentPlan: string;
   prescription: string;
   notes: string;
+  /** Images attached to this consultation */
+  images?: ConsultationImage[];
   createdAt: string;
   parentId?: number;
   originalId?: number;
@@ -56,6 +70,8 @@ export interface Consultation {
   editedBy?: string;
 }
 
+export type DocumentTag = "lab" | "referral" | "xray" | "other";
+
 export interface Document {
   id?: number;
   patientId: number;
@@ -63,6 +79,8 @@ export interface Document {
   type: string;
   data: string; // base64
   size: number;
+  /** Optional category tag */
+  tag?: DocumentTag;
   createdAt: string;
 }
 
