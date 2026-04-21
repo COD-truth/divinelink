@@ -104,8 +104,12 @@ export function PatientsPage() {
           {filtered.map(p => (
             <Card key={p.id} className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm cursor-pointer" onClick={() => openEdit(p)}>
-                  {p.firstName[0]}{p.lastName[0]}
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm cursor-pointer overflow-hidden" onClick={() => openEdit(p)}>
+                  {p.photo ? (
+                    <img src={p.photo} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <>{p.firstName[0]}{p.lastName[0]}</>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEdit(p)}>
                   <p className="font-medium truncate">{p.firstName} {p.lastName}</p>
@@ -132,6 +136,30 @@ export function PatientsPage() {
             <DialogTitle>{editing ? t("patient.edit") : t("patient.register")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* Profile photo */}
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center text-muted-foreground text-xs">
+                {form.photo ? (
+                  <img src={form.photo} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{t("doc.profilePhoto")}</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button asChild size="sm" variant="outline" type="button">
+                  <label className="cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {form.photo ? t("doc.changePhoto") : t("doc.profilePhoto")}
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  </label>
+                </Button>
+                {form.photo && (
+                  <Button size="sm" variant="ghost" type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))}>
+                    <X className="w-4 h-4 mr-1" /> {t("doc.removePhoto")}
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>{t("patient.firstName")} *</Label>
