@@ -148,6 +148,8 @@ class DentaDB extends Dexie {
       consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest",
       documents: "++id, patientId, name, tag, createdAt",
     });
+  }
+}
 
 export const db = new DentaDB();
 
