@@ -278,6 +278,50 @@ export function ConsultationsPage() {
               <Label>{t("consult.notes")}</Label>
               <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
+
+            {/* Images attached to consultation */}
+            <div>
+              <div className="flex items-center justify-between">
+                <Label>{t("doc.images")}</Label>
+                <Button asChild size="sm" variant="outline" type="button">
+                  <label className="cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {t("doc.addImages")}
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleAddImages} />
+                  </label>
+                </Button>
+              </div>
+              {form.images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {form.images.map(img => (
+                    <div key={img.id} className="relative group">
+                      <button
+                        type="button"
+                        className="block w-full aspect-square rounded overflow-hidden bg-muted"
+                        onClick={() => setPreviewImg(img)}
+                      >
+                        <img src={img.data} alt={img.filename} className="w-full h-full object-cover" />
+                      </button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeImage(img.id)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                      <Input
+                        className="mt-1 h-7 text-xs"
+                        placeholder={t("doc.caption")}
+                        value={img.caption || ""}
+                        onChange={e => updateCaption(img.id, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
