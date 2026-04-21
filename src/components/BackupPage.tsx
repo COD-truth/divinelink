@@ -1,14 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { db } from "@/lib/db";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Upload, AlertTriangle, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Download, Upload, AlertTriangle, Loader2, HardDrive } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import CryptoJS from "crypto-js";
+import { getStorageEstimate, formatBytes } from "@/lib/imageUtils";
 
 export function BackupPage() {
   const { t } = useLang();
@@ -16,6 +18,10 @@ export function BackupPage() {
   const [importPwd, setImportPwd] = useState("");
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [storage, setStorage] = useState<{ usage: number; quota: number; percent: number } | null>(null);
+
+  const refreshStorage = async () => setStorage(await getStorageEstimate());
+  useEffect(() => { refreshStorage(); }, []);
 
   const handleExport = async () => {
     if (!exportPwd) return;
