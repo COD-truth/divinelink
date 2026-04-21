@@ -120,6 +120,7 @@ export function ConsultationsPage() {
           prescription: form.prescription,
           notes: form.notes,
           images: form.images,
+          createdAt: now,
           originalId,
           isLatest: true,
           versionNumber: currentVersion + 1,
@@ -139,6 +140,7 @@ export function ConsultationsPage() {
         prescription: form.prescription,
         notes: form.notes,
         images: form.images,
+        createdAt: now,
         versionNumber: 1,
       });
       await db.consultations.update(id as number, { originalId: id as number });
