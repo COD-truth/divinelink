@@ -35,14 +35,26 @@ export function PatientsPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "" });
+    setForm({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (p: Patient) => {
     setEditing(p);
-    setForm({ firstName: p.firstName, lastName: p.lastName, phone: p.phone, dob: p.dob, address: p.address, medicalAlerts: p.medicalAlerts });
+    setForm({ firstName: p.firstName, lastName: p.lastName, phone: p.phone, dob: p.dob, address: p.address, medicalAlerts: p.medicalAlerts, photo: p.photo || "" });
     setDialogOpen(true);
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await compressImage(file);
+      setForm(f => ({ ...f, photo: data }));
+    } catch {
+      toast.error("Image error");
+    }
+    e.target.value = "";
   };
 
   const save = async () => {
