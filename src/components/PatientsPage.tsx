@@ -4,11 +4,12 @@ import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageUtils";
 
 export function PatientsPage() {
   const { t } = useLang();
@@ -17,7 +18,7 @@ export function PatientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<Patient | null>(null);
-  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" as string | undefined });
 
   const load = async () => {
     const all = await db.patients.reverse().toArray();
