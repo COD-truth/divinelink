@@ -60,12 +60,13 @@ export function PatientsPage() {
   const save = async () => {
     if (!form.firstName || !form.lastName) return;
     const now = new Date().toISOString();
+    const payload = { ...form, photo: form.photo || undefined };
     if (editing?.id) {
-      await db.patients.update(editing.id, { ...form, updatedAt: now });
+      await db.patients.update(editing.id, { ...payload, updatedAt: now });
       toast.success(t("common.save"));
     } else {
       const patientId = await generatePatientId();
-      await db.patients.add({ ...form, patientId, createdAt: now, updatedAt: now });
+      await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
       toast.success(t("patient.register"));
     }
     setDialogOpen(false);
