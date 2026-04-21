@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { db, type Consultation, type Patient } from "@/lib/db";
+import { db, type Consultation, type ConsultationImage, type Patient } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Printer, Edit, Trash2, History, AlertTriangle } from "lucide-react";
+import { Plus, Printer, Edit, Trash2, History, AlertTriangle, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { compressImage } from "@/lib/imageUtils";
 
 type ConsultationWithMeta = Consultation & { patientName: string };
 
@@ -31,7 +33,9 @@ export function ConsultationsPage() {
     treatmentPlan: "",
     prescription: "",
     notes: "",
+    images: [] as ConsultationImage[],
   });
+  const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
 
   const load = async () => {
     const allPatients = await db.patients.toArray();
@@ -48,7 +52,7 @@ export function ConsultationsPage() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "" });
+    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [] });
     setDialogOpen(true);
   };
 
@@ -61,8 +65,39 @@ export function ConsultationsPage() {
       treatmentPlan: c.treatmentPlan,
       prescription: c.prescription,
       notes: c.notes,
+      images: c.images || [],
     });
     setDialogOpen(true);
+  };
+
+  const handleAddImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    try {
+      const newImages: ConsultationImage[] = [];
+      for (const file of files) {
+        const data = await compressImage(file);
+        newImages.push({
+          id: crypto.randomUUID(),
+          filename: file.name,
+          data,
+          uploadedAt: new Date().toISOString(),
+          caption: "",
+        });
+      }
+      setForm(f => ({ ...f, images: [...f.images, ...newImages] }));
+    } catch {
+      toast.error("Image error");
+    }
+    e.target.value = "";
+  };
+
+  const removeImage = (id: string) => {
+    setForm(f => ({ ...f, images: f.images.filter(i => i.id !== id) }));
+  };
+
+  const updateCaption = (id: string, caption: string) => {
+    setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, caption } : i) }));
   };
 
   const save = async () => {
@@ -84,8 +119,8 @@ export function ConsultationsPage() {
           treatmentPlan: form.treatmentPlan,
           prescription: form.prescription,
           notes: form.notes,
+          images: form.images,
           createdAt: now,
-          parentId: editingId,
           originalId,
           isLatest: true,
           versionNumber: currentVersion + 1,
@@ -104,8 +139,8 @@ export function ConsultationsPage() {
         treatmentPlan: form.treatmentPlan,
         prescription: form.prescription,
         notes: form.notes,
+        images: form.images,
         createdAt: now,
-        isLatest: true,
         versionNumber: 1,
       });
       await db.consultations.update(id as number, { originalId: id as number });
@@ -243,6 +278,50 @@ export function ConsultationsPage() {
               <Label>{t("consult.notes")}</Label>
               <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
+
+            {/* Images attached to consultation */}
+            <div>
+              <div className="flex items-center justify-between">
+                <Label>{t("doc.images")}</Label>
+                <Button asChild size="sm" variant="outline" type="button">
+                  <label className="cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {t("doc.addImages")}
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleAddImages} />
+                  </label>
+                </Button>
+              </div>
+              {form.images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {form.images.map(img => (
+                    <div key={img.id} className="relative group">
+                      <button
+                        type="button"
+                        className="block w-full aspect-square rounded overflow-hidden bg-muted"
+                        onClick={() => setPreviewImg(img)}
+                      >
+                        <img src={img.data} alt={img.filename} className="w-full h-full object-cover" />
+                      </button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeImage(img.id)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                      <Input
+                        className="mt-1 h-7 text-xs"
+                        placeholder={t("doc.caption")}
+                        value={img.caption || ""}
+                        onChange={e => updateCaption(img.id, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
@@ -314,6 +393,19 @@ export function ConsultationsPage() {
           </div>
         </div>
       )}
+
+      {/* Image preview */}
+      <Dialog open={!!previewImg} onOpenChange={() => setPreviewImg(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>{previewImg?.filename}</DialogTitle></DialogHeader>
+          {previewImg && (
+            <>
+              <img src={previewImg.data} alt={previewImg.filename} className="w-full rounded" />
+              {previewImg.caption && <p className="text-sm text-muted-foreground mt-2">{previewImg.caption}</p>}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,14 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { db } from "@/lib/db";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Upload, AlertTriangle, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Download, Upload, AlertTriangle, Loader2, HardDrive } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import CryptoJS from "crypto-js";
+import { getStorageEstimate, formatBytes } from "@/lib/imageUtils";
 
 export function BackupPage() {
   const { t } = useLang();
@@ -16,6 +18,10 @@ export function BackupPage() {
   const [importPwd, setImportPwd] = useState("");
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [storage, setStorage] = useState<{ usage: number; quota: number; percent: number } | null>(null);
+
+  const refreshStorage = async () => setStorage(await getStorageEstimate());
+  useEffect(() => { refreshStorage(); }, []);
 
   const handleExport = async () => {
     if (!exportPwd) return;
@@ -48,7 +54,7 @@ export function BackupPage() {
       toast.error(String(e));
     }
     setExporting(false);
-  };
+    refreshStorage();
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!importPwd || !e.target.files?.[0]) return;
@@ -87,10 +93,34 @@ export function BackupPage() {
     }
     setImporting(false);
     e.target.value = "";
+    refreshStorage();
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
+      {/* Storage gauge */}
+      {storage && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><HardDrive className="w-5 h-5" />{t("storage.title")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Progress value={Math.min(100, storage.percent)} />
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>{t("storage.used")}: {formatBytes(storage.usage)}</span>
+              <span>{storage.percent.toFixed(1)}% {t("storage.of")} {formatBytes(storage.quota)}</span>
+            </div>
+            {storage.percent >= 70 && (
+              <div className="flex items-center gap-2 text-sm text-warning">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                {t("storage.warning")}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Download className="w-5 h-5" />{t("backup.export")}</CardTitle>
@@ -129,6 +159,7 @@ export function BackupPage() {
           </Button>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

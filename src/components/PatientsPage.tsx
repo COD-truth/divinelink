@@ -4,11 +4,12 @@ import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageUtils";
 
 export function PatientsPage() {
   const { t } = useLang();
@@ -17,7 +18,7 @@ export function PatientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<Patient | null>(null);
-  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" as string | undefined });
 
   const load = async () => {
     const all = await db.patients.reverse().toArray();
@@ -34,25 +35,38 @@ export function PatientsPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "" });
+    setForm({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (p: Patient) => {
     setEditing(p);
-    setForm({ firstName: p.firstName, lastName: p.lastName, phone: p.phone, dob: p.dob, address: p.address, medicalAlerts: p.medicalAlerts });
+    setForm({ firstName: p.firstName, lastName: p.lastName, phone: p.phone, dob: p.dob, address: p.address, medicalAlerts: p.medicalAlerts, photo: p.photo || "" });
     setDialogOpen(true);
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await compressImage(file);
+      setForm(f => ({ ...f, photo: data }));
+    } catch {
+      toast.error("Image error");
+    }
+    e.target.value = "";
   };
 
   const save = async () => {
     if (!form.firstName || !form.lastName) return;
     const now = new Date().toISOString();
+    const payload = { ...form, photo: form.photo || undefined };
     if (editing?.id) {
-      await db.patients.update(editing.id, { ...form, updatedAt: now });
+      await db.patients.update(editing.id, { ...payload, updatedAt: now });
       toast.success(t("common.save"));
     } else {
       const patientId = await generatePatientId();
-      await db.patients.add({ ...form, patientId, createdAt: now, updatedAt: now });
+      await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
       toast.success(t("patient.register"));
     }
     setDialogOpen(false);
@@ -91,8 +105,12 @@ export function PatientsPage() {
           {filtered.map(p => (
             <Card key={p.id} className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm cursor-pointer" onClick={() => openEdit(p)}>
-                  {p.firstName[0]}{p.lastName[0]}
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm cursor-pointer overflow-hidden" onClick={() => openEdit(p)}>
+                  {p.photo ? (
+                    <img src={p.photo} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <>{p.firstName[0]}{p.lastName[0]}</>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEdit(p)}>
                   <p className="font-medium truncate">{p.firstName} {p.lastName}</p>
@@ -119,6 +137,30 @@ export function PatientsPage() {
             <DialogTitle>{editing ? t("patient.edit") : t("patient.register")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* Profile photo */}
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center text-muted-foreground text-xs">
+                {form.photo ? (
+                  <img src={form.photo} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{t("doc.profilePhoto")}</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button asChild size="sm" variant="outline" type="button">
+                  <label className="cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {form.photo ? t("doc.changePhoto") : t("doc.profilePhoto")}
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  </label>
+                </Button>
+                {form.photo && (
+                  <Button size="sm" variant="ghost" type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))}>
+                    <X className="w-4 h-4 mr-1" /> {t("doc.removePhoto")}
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>{t("patient.firstName")} *</Label>
