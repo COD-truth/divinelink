@@ -96,7 +96,30 @@ export function BackupPage() {
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
+      {/* Storage gauge */}
+      {storage && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><HardDrive className="w-5 h-5" />{t("storage.title")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Progress value={Math.min(100, storage.percent)} />
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>{t("storage.used")}: {formatBytes(storage.usage)}</span>
+              <span>{storage.percent.toFixed(1)}% {t("storage.of")} {formatBytes(storage.quota)}</span>
+            </div>
+            {storage.percent >= 70 && (
+              <div className="flex items-center gap-2 text-sm text-warning">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                {t("storage.warning")}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Download className="w-5 h-5" />{t("backup.export")}</CardTitle>
@@ -135,6 +158,7 @@ export function BackupPage() {
           </Button>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
