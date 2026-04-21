@@ -393,6 +393,19 @@ export function ConsultationsPage() {
           </div>
         </div>
       )}
+
+      {/* Image preview */}
+      <Dialog open={!!previewImg} onOpenChange={() => setPreviewImg(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>{previewImg?.filename}</DialogTitle></DialogHeader>
+          {previewImg && (
+            <>
+              <img src={previewImg.data} alt={previewImg.filename} className="w-full rounded" />
+              {previewImg.caption && <p className="text-sm text-muted-foreground mt-2">{previewImg.caption}</p>}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
