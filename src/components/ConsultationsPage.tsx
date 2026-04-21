@@ -31,7 +31,9 @@ export function ConsultationsPage() {
     treatmentPlan: "",
     prescription: "",
     notes: "",
+    images: [] as ConsultationImage[],
   });
+  const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
 
   const load = async () => {
     const allPatients = await db.patients.toArray();
