@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage,
@@ -87,9 +88,12 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden">
             <Menu className="w-5 h-5" />
           </button>
-          <h2 className="font-semibold text-lg flex-1">
+          <h2 className="font-semibold text-lg hidden md:block">
             {visibleItems.find(i => i.page === currentPage)?.label}
           </h2>
+          <div className="flex-1 flex justify-center md:justify-end">
+            <GlobalSearch onNavigate={onNavigate} />
+          </div>
           <LangToggle />
         </header>
         <div className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
