@@ -54,7 +54,7 @@ export function BackupPage() {
       toast.error(String(e));
     }
     setExporting(false);
-  };
+    refreshStorage();
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!importPwd || !e.target.files?.[0]) return;
@@ -93,6 +93,7 @@ export function BackupPage() {
     }
     setImporting(false);
     e.target.value = "";
+    refreshStorage();
   };
 
   return (
