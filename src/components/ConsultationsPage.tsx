@@ -52,7 +52,7 @@ export function ConsultationsPage() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "" });
+    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [] });
     setDialogOpen(true);
   };
 
@@ -65,8 +65,39 @@ export function ConsultationsPage() {
       treatmentPlan: c.treatmentPlan,
       prescription: c.prescription,
       notes: c.notes,
+      images: c.images || [],
     });
     setDialogOpen(true);
+  };
+
+  const handleAddImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    try {
+      const newImages: ConsultationImage[] = [];
+      for (const file of files) {
+        const data = await compressImage(file);
+        newImages.push({
+          id: crypto.randomUUID(),
+          filename: file.name,
+          data,
+          uploadedAt: new Date().toISOString(),
+          caption: "",
+        });
+      }
+      setForm(f => ({ ...f, images: [...f.images, ...newImages] }));
+    } catch {
+      toast.error("Image error");
+    }
+    e.target.value = "";
+  };
+
+  const removeImage = (id: string) => {
+    setForm(f => ({ ...f, images: f.images.filter(i => i.id !== id) }));
+  };
+
+  const updateCaption = (id: string, caption: string) => {
+    setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, caption } : i) }));
   };
 
   const save = async () => {
