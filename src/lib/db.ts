@@ -140,8 +140,14 @@ class DentaDB extends Dexie {
         if (u.role === "dentist") u.role = "doctor";
       });
     });
-  }
-}
+    // v4: add tag index for documents (for filtering)
+    this.version(4).stores({
+      users: "++id, name, role, pinHash",
+      patients: "++id, patientId, firstName, lastName, phone",
+      appointments: "++id, patientId, doctorId, date, status",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest",
+      documents: "++id, patientId, name, tag, createdAt",
+    });
 
 export const db = new DentaDB();
 
