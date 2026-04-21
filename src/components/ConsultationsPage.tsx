@@ -119,8 +119,7 @@ export function ConsultationsPage() {
           treatmentPlan: form.treatmentPlan,
           prescription: form.prescription,
           notes: form.notes,
-          createdAt: now,
-          parentId: editingId,
+          images: form.images,
           originalId,
           isLatest: true,
           versionNumber: currentVersion + 1,
@@ -139,8 +138,7 @@ export function ConsultationsPage() {
         treatmentPlan: form.treatmentPlan,
         prescription: form.prescription,
         notes: form.notes,
-        createdAt: now,
-        isLatest: true,
+        images: form.images,
         versionNumber: 1,
       });
       await db.consultations.update(id as number, { originalId: id as number });
