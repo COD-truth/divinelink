@@ -76,9 +76,36 @@ const translations: Record<string, Record<Lang, string>> = {
   
   // Documents
   "doc.upload": { en: "Upload Image", fr: "Téléverser une image" },
+  "doc.uploadFile": { en: "Upload File", fr: "Téléverser un fichier" },
   "doc.maxSize": { en: "Max 5MB per file", fr: "Max 5 Mo par fichier" },
   "doc.noFiles": { en: "No documents uploaded", fr: "Aucun document téléversé" },
   "doc.delete": { en: "Delete", fr: "Supprimer" },
+  "doc.tag": { en: "Tag", fr: "Étiquette" },
+  "doc.tag.lab": { en: "Lab result", fr: "Résultat de labo" },
+  "doc.tag.referral": { en: "Referral", fr: "Référence" },
+  "doc.tag.xray": { en: "X-ray", fr: "Radiographie" },
+  "doc.tag.other": { en: "Other", fr: "Autre" },
+  "doc.search": { en: "Search documents...", fr: "Rechercher des documents..." },
+  "doc.allTags": { en: "All tags", fr: "Toutes les étiquettes" },
+  "doc.caption": { en: "Caption", fr: "Légende" },
+  "doc.images": { en: "Images", fr: "Images" },
+  "doc.addImages": { en: "Add images", fr: "Ajouter des images" },
+  "doc.profilePhoto": { en: "Profile photo", fr: "Photo de profil" },
+  "doc.changePhoto": { en: "Change photo", fr: "Changer la photo" },
+  "doc.removePhoto": { en: "Remove photo", fr: "Supprimer la photo" },
+
+  // Global search
+  "search.global": { en: "Search patients, notes, documents...", fr: "Rechercher patients, notes, documents..." },
+  "search.patients": { en: "Patients", fr: "Patients" },
+  "search.consultations": { en: "Consultations", fr: "Consultations" },
+  "search.documents": { en: "Documents", fr: "Documents" },
+  "search.noResults": { en: "No results", fr: "Aucun résultat" },
+
+  // Storage
+  "storage.title": { en: "Storage usage", fr: "Utilisation du stockage" },
+  "storage.used": { en: "Used", fr: "Utilisé" },
+  "storage.of": { en: "of", fr: "sur" },
+  "storage.warning": { en: "Storage is over 70% full. Consider exporting and clearing old data.", fr: "Le stockage est rempli à plus de 70%. Pensez à exporter et nettoyer les anciennes données." },
   
   // Users
   "user.add": { en: "Add Staff", fr: "Ajouter du personnel" },
