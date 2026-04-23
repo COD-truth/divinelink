@@ -123,7 +123,7 @@ export function DocumentsPage() {
             <Button asChild className="gap-2">
               <label>
                 <Upload className="w-4 h-4" /> {t("doc.uploadFile")}
-                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileSelect} />
+                <input type="file" className="hidden" onChange={handleFileSelect} />
               </label>
             </Button>
           </div>

@@ -9,8 +9,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Upload, Paperclip } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
 
 const statusColors: Record<AppointmentStatus, string> = {
   scheduled: "bg-info text-info-foreground",
@@ -28,6 +29,7 @@ export function AppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ patientId: "", doctorId: "", date: "", time: "", reason: "", status: "scheduled" as AppointmentStatus });
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const load = async () => {
     const allPatients = await db.patients.toArray();
@@ -59,14 +61,22 @@ export function AppointmentsPage() {
 
   const openNew = () => {
     setForm({ patientId: "", doctorId: user?.id?.toString() || "", date: selectedDate, time: "09:00", reason: "", status: "scheduled" });
+    setPendingFiles([]);
     setDialogOpen(true);
+  };
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setPendingFiles(prev => [...prev, ...files]);
+    e.target.value = "";
   };
 
   const save = async () => {
     if (!form.patientId || !form.doctorId || !form.date) return;
     const now = new Date().toISOString();
+    const patientIdNum = parseInt(form.patientId);
     await db.appointments.add({
-      patientId: parseInt(form.patientId),
+      patientId: patientIdNum,
       doctorId: parseInt(form.doctorId),
       date: form.date,
       time: form.time,
@@ -75,7 +85,25 @@ export function AppointmentsPage() {
       createdAt: now,
       updatedAt: now,
     });
+    // Save attachments to documents table linked to the patient
+    for (const file of pendingFiles) {
+      try {
+        const data = file.type.startsWith("image/") ? await compressImage(file) : await fileToDataUrl(file);
+        await db.documents.add({
+          patientId: patientIdNum,
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          data,
+          size: file.size,
+          tag: "referral",
+          createdAt: now,
+        });
+      } catch {
+        toast.error(`Upload failed: ${file.name}`);
+      }
+    }
     toast.success(t("apt.create"));
+    setPendingFiles([]);
     setDialogOpen(false);
     load();
   };
@@ -173,6 +201,26 @@ export function AppointmentsPage() {
             <div>
               <Label>{t("apt.reason")}</Label>
               <Input value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="flex items-center gap-2"><Paperclip className="w-4 h-4" />Attachments</Label>
+              <Button asChild size="sm" variant="outline" type="button" className="mt-1">
+                <label className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Add files
+                  <input type="file" multiple className="hidden" onChange={handleFiles} />
+                </label>
+              </Button>
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {pendingFiles.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{f.name}</span>
+                      <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} className="text-destructive">×</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
           <DialogFooter>
