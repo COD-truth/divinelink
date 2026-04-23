@@ -287,7 +287,7 @@ export function ConsultationsPage() {
                   <label className="cursor-pointer">
                     <Upload className="w-4 h-4 mr-2" />
                     {t("doc.addImages")}
-                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleAddImages} />
+                    <input type="file" accept="image/*" multiple capture={undefined} className="hidden" onChange={handleAddImages} />
                   </label>
                 </Button>
               </div>
