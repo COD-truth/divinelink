@@ -36,8 +36,8 @@ function b64decode(s: string): Uint8Array {
 }
 
 async function hmacSha256(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
-  const k = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", k, data);
+  const k = await crypto.subtle.importKey("raw", key.slice().buffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", k, data.slice().buffer);
   return new Uint8Array(sig);
 }
 
@@ -78,9 +78,9 @@ export async function initCrypto(): Promise<void> {
   // For a fully offline app this offers protection-at-rest equivalent to
   // disk encryption keyed by the device.
   const passphrase = new TextEncoder().encode("divinelink-app-v1-passphrase");
-  const baseKey = await crypto.subtle.importKey("raw", passphrase, { name: "PBKDF2" }, false, ["deriveBits"]);
+  const baseKey = await crypto.subtle.importKey("raw", passphrase.slice().buffer, { name: "PBKDF2" }, false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt.slice().buffer, iterations: 100_000, hash: "SHA-256" },
     baseKey,
     256
   );
