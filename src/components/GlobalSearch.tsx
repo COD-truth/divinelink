@@ -4,6 +4,7 @@ import { useLang } from "@/contexts/LangContext";
 import { Input } from "@/components/ui/input";
 import { Search, User, Stethoscope, FileImage } from "lucide-react";
 import type { Page } from "@/components/AppLayout";
+import { decryptPatients } from "@/lib/patientCrypto";
 
 interface Props {
   onNavigate: (page: Page) => void;
@@ -36,11 +37,12 @@ export function GlobalSearch({ onNavigate }: Props) {
     const q = query.trim().toLowerCase();
     if (!q) { setHits([]); return; }
     (async () => {
-      const [patients, consultations, documents] = await Promise.all([
+      const [patientsRaw, consultations, documents] = await Promise.all([
         db.patients.toArray(),
         db.consultations.toArray(),
         db.documents.toArray(),
       ]);
+      const patients = await decryptPatients(patientsRaw);
       if (cancelled) return;
       const patById = new Map(patients.map(p => [p.id!, p]));
 

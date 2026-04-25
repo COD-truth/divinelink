@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, ChevronLeft, ChevronRight, Upload, Paperclip, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
+import { decryptPatients } from "@/lib/patientCrypto";
 
 const statusColors: Record<AppointmentStatus, string> = {
   scheduled: "bg-info text-info-foreground",
@@ -32,7 +33,7 @@ export function AppointmentsPage() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const load = async () => {
-    const allPatients = await db.patients.toArray();
+    const allPatients = await decryptPatients(await db.patients.toArray());
     const allDoctors = await db.users.where("role").anyOf(["doctor", "admin"]).toArray();
     setPatients(allPatients);
     setDoctors(allDoctors);
