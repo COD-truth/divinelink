@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip } from "lucide-react";
 import { toast } from "sonner";
-import { compressImage } from "@/lib/imageUtils";
+import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
 
 export function PatientsPage() {
   const { t } = useLang();
