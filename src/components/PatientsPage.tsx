@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
+import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
 
 export function PatientsPage() {
   const { t } = useLang();
@@ -23,7 +24,7 @@ export function PatientsPage() {
 
   const load = async () => {
     const all = await db.patients.reverse().toArray();
-    setPatients(all);
+    setPatients(await decryptPatients(all));
   };
 
   useEffect(() => { load(); }, []);
@@ -69,7 +70,8 @@ export function PatientsPage() {
   const save = async () => {
     if (!form.firstName || !form.lastName) return;
     const now = new Date().toISOString();
-    const payload = { ...form, photo: form.photo || undefined };
+    const encrypted = await encryptPatientForSave({ ...form, photo: form.photo || undefined });
+    const payload = encrypted as typeof form & { photo: string | undefined };
     let savedId: number | undefined;
     if (editing?.id) {
       await db.patients.update(editing.id, { ...payload, updatedAt: now });
