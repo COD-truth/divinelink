@@ -117,6 +117,20 @@ export function AppointmentsPage() {
     load();
   };
 
+  const sendWhatsApp = (a: typeof appointments[number]) => {
+    if (!a.patientPhone) {
+      toast.error(t("wa.noPhone"));
+      return;
+    }
+    const msg = t("wa.message")
+      .replace("{date}", a.date)
+      .replace("{time}", a.time)
+      .replace("{doctor}", a.doctorName)
+      .replace("{reason}", a.reason || "—");
+    const phone = a.patientPhone.replace(/[^\d+]/g, "").replace(/^\+/, "");
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
 
   return (
