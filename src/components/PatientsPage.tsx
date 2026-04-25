@@ -218,6 +218,26 @@ export function PatientsPage() {
               <Label>{t("patient.alerts")}</Label>
               <Textarea value={form.medicalAlerts} onChange={e => setForm(f => ({ ...f, medicalAlerts: e.target.value }))} placeholder="Allergies, conditions..." />
             </div>
+            <div>
+              <Label className="flex items-center gap-2"><Paperclip className="w-4 h-4" />{t("patient.attachments")}</Label>
+              <Button asChild size="sm" variant="outline" type="button" className="mt-1">
+                <label className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-2" />
+                  {t("patient.attachFiles")}
+                  <input type="file" multiple className="hidden" onChange={handleAttachFiles} />
+                </label>
+              </Button>
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {pendingFiles.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{f.name}</span>
+                      <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} className="text-destructive">×</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
