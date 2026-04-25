@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import CryptoJS from "crypto-js";
 import { getStorageEstimate, formatBytes } from "@/lib/imageUtils";
+import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
 
 export function BackupPage() {
   const { t } = useLang();
@@ -29,7 +30,7 @@ export function BackupPage() {
     try {
       const data = {
         users: await db.users.toArray(),
-        patients: await db.patients.toArray(),
+        patients: await decryptPatients(await db.patients.toArray()),
         appointments: await db.appointments.toArray(),
         consultations: await db.consultations.toArray(),
         documents: await db.documents.toArray(),
@@ -82,7 +83,10 @@ export function BackupPage() {
         await db.documents.clear();
 
         if (data.users?.length) await db.users.bulkAdd(data.users);
-        if (data.patients?.length) await db.patients.bulkAdd(data.patients);
+        if (data.patients?.length) {
+          const reEnc = await Promise.all(data.patients.map((p: any) => encryptPatientForSave(p)));
+          await db.patients.bulkAdd(reEnc);
+        }
         if (data.appointments?.length) await db.appointments.bulkAdd(data.appointments);
         if (data.consultations?.length) await db.consultations.bulkAdd(data.consultations);
         if (data.documents?.length) await db.documents.bulkAdd(data.documents);
