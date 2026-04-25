@@ -70,14 +70,36 @@ export function PatientsPage() {
     if (!form.firstName || !form.lastName) return;
     const now = new Date().toISOString();
     const payload = { ...form, photo: form.photo || undefined };
+    let savedId: number | undefined;
     if (editing?.id) {
       await db.patients.update(editing.id, { ...payload, updatedAt: now });
+      savedId = editing.id;
       toast.success(t("common.save"));
     } else {
       const patientId = await generatePatientId();
-      await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
+      savedId = await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
       toast.success(t("patient.register"));
     }
+    // Save attachments to documents linked to this patient
+    if (savedId && pendingFiles.length) {
+      for (const file of pendingFiles) {
+        try {
+          const data = file.type.startsWith("image/") ? await compressImage(file) : await fileToDataUrl(file);
+          await db.documents.add({
+            patientId: savedId,
+            name: file.name,
+            type: file.type || "application/octet-stream",
+            data,
+            size: file.size,
+            tag: "other",
+            createdAt: now,
+          });
+        } catch {
+          toast.error(`Upload failed: ${file.name}`);
+        }
+      }
+    }
+    setPendingFiles([]);
     setDialogOpen(false);
     load();
   };
