@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (found && found.active) {
       setUser(found);
       setLastActivity(Date.now());
+      const roleLabel = found.role.charAt(0).toUpperCase() + found.role.slice(1);
+      toast.success(`Welcome ${found.name}`, { description: `Logged in as ${roleLabel}` });
       return true;
     }
     return false;
