@@ -23,9 +23,45 @@ interface Props {
 }
 
 export function AppLayout({ currentPage, onNavigate, children }: Props) {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, hasRole, login } = useAuth();
   const { t } = useLang();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [pickedUser, setPickedUser] = useState<User | null>(null);
+  const [switchPin, setSwitchPin] = useState("");
+  const [switchErr, setSwitchErr] = useState(false);
+
+  useEffect(() => {
+    if (switchOpen) {
+      db.users.toArray().then(all => setUsers(all.filter(u => u.active !== false)));
+      setPickedUser(null);
+      setSwitchPin("");
+      setSwitchErr(false);
+    }
+  }, [switchOpen]);
+
+  const handleSwitch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pickedUser) return;
+    const expected = await hashPin(switchPin);
+    if (expected === pickedUser.pinHash) {
+      // Re-login with this PIN
+      const ok = await login(switchPin);
+      if (ok) {
+        setSwitchOpen(false);
+      } else {
+        setSwitchErr(true);
+      }
+    } else {
+      setSwitchErr(true);
+    }
+  };
+
+  const roleBadgeClass = (r?: UserRole) =>
+    r === "admin" ? "bg-destructive text-destructive-foreground"
+    : r === "doctor" ? "bg-primary text-primary-foreground"
+    : "bg-secondary text-secondary-foreground";
 
   const navItems: { page: Page; icon: React.ReactNode; label: string; roles: string[] }[] = [
     { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "doctor", "receptionist"] },
