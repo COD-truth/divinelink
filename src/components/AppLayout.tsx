@@ -150,7 +150,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={logout}
+            onClick={() => setSwitchOpen(true)}
             title={t("role.switchUser")}
             aria-label={t("role.switchUser")}
           >
@@ -162,6 +162,60 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           {children}
         </div>
       </main>
+
+      {/* Switch account dialog */}
+      <Dialog open={switchOpen} onOpenChange={setSwitchOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("role.switchUser")}</DialogTitle>
+          </DialogHeader>
+          {!pickedUser ? (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {users.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => { setPickedUser(u); setSwitchPin(""); setSwitchErr(false); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-accent transition-colors text-left"
+                >
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <UserCog className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{u.name}</p>
+                  </div>
+                  <Badge className={roleBadgeClass(u.role)}>{t(`role.${u.role}`)}</Badge>
+                </button>
+              ))}
+              <Button variant="outline" className="w-full mt-2" onClick={() => { setSwitchOpen(false); logout(); }}>
+                <LogOut className="w-4 h-4 mr-2" />{t("auth.logout")}
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleSwitch} className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center">{pickedUser.name}</p>
+              <Input
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={switchPin}
+                onChange={e => { setSwitchPin(e.target.value.replace(/\D/g, "")); setSwitchErr(false); }}
+                placeholder={t("auth.pin")}
+                className="text-center text-xl tracking-[0.4em] h-12"
+                autoFocus
+              />
+              {switchErr && <p className="text-destructive text-sm text-center">{t("auth.error")}</p>}
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setPickedUser(null)}>
+                  {t("common.back") || "Back"}
+                </Button>
+                <Button type="submit" className="flex-1" disabled={switchPin.length < 4}>
+                  {t("auth.login")}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
