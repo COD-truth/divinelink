@@ -19,6 +19,7 @@ export function PatientsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" as string | undefined });
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const load = async () => {
     const all = await db.patients.reverse().toArray();
