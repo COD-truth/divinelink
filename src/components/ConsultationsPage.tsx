@@ -38,7 +38,7 @@ export function ConsultationsPage() {
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
 
   const load = async () => {
-    const allPatients = await db.patients.toArray();
+    const allPatients = await decryptPatients(await db.patients.toArray());
     setPatients(allPatients);
     const all = await db.consultations.where("isLatest").equals(1).reverse().toArray();
     const fallback = all.length === 0 ? await db.consultations.reverse().toArray() : all;
@@ -164,7 +164,7 @@ export function ConsultationsPage() {
 
   const showHistory = async (c: Consultation) => {
     const origId = c.originalId || c.id!;
-    const allPatients = await db.patients.toArray();
+    const allPatients = await decryptPatients(await db.patients.toArray());
     const versions = await db.consultations
       .where("originalId").equals(origId)
       .reverse()

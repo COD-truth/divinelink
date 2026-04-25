@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, Trash2, Search, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl, formatBytes } from "@/lib/imageUtils";
+import { decryptPatients } from "@/lib/patientCrypto";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
@@ -29,7 +30,7 @@ export function DocumentsPage() {
   const [pendingTag, setPendingTag] = useState<DocumentTag>("other");
 
   const load = async () => {
-    setPatients(await db.patients.toArray());
+    setPatients(await decryptPatients(await db.patients.toArray()));
     if (selectedPatient) {
       setDocs(await db.documents.where("patientId").equals(parseInt(selectedPatient)).reverse().toArray());
     } else {
