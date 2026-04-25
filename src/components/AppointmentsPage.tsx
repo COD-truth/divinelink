@@ -164,6 +164,16 @@ export function AppointmentsPage() {
                   <p className="font-medium truncate">{a.patientName}</p>
                   <p className="text-sm text-muted-foreground truncate">{a.reason || "—"} • Dr. {a.doctorName}</p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => sendWhatsApp(a)}
+                  title={t("wa.remind")}
+                  aria-label={t("wa.remind")}
+                  className="text-success"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </Button>
                 <Select value={a.status} onValueChange={(v) => updateStatus(a.id!, v as AppointmentStatus)}>
                   <SelectTrigger className="w-auto">
                     <Badge className={statusColors[a.status]}>{t(`apt.${a.status}`)}</Badge>
