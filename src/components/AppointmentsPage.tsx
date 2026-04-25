@@ -42,11 +42,15 @@ export function AppointmentsPage() {
       appts = appts.filter(a => a.doctorId === user.id);
     }
 
-    const enriched = appts.map(a => ({
-      ...a,
-      patientName: allPatients.find(p => p.id === a.patientId)?.firstName + " " + (allPatients.find(p => p.id === a.patientId)?.lastName || ""),
-      doctorName: allDoctors.find(d => d.id === a.doctorId)?.name || "—",
-    })).sort((a, b) => a.time.localeCompare(b.time));
+    const enriched = appts.map(a => {
+      const pat = allPatients.find(p => p.id === a.patientId);
+      return {
+        ...a,
+        patientName: (pat?.firstName || "") + " " + (pat?.lastName || ""),
+        patientPhone: pat?.phone || "",
+        doctorName: allDoctors.find(d => d.id === a.doctorId)?.name || "—",
+      };
+    }).sort((a, b) => a.time.localeCompare(b.time));
 
     setAppointments(enriched);
   };
