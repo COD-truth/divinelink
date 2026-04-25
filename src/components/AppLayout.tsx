@@ -6,8 +6,9 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage,
-  UserCog, Database, LogOut, Menu, X, ChevronRight
+  UserCog, Database, LogOut, Menu, X, ChevronRight, RefreshCw
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export type Page = "dashboard" | "patients" | "appointments" | "consultations" | "documents" | "users" | "backup";
 
