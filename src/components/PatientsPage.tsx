@@ -37,13 +37,21 @@ export function PatientsPage() {
   const openNew = () => {
     setEditing(null);
     setForm({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" });
+    setPendingFiles([]);
     setDialogOpen(true);
   };
 
   const openEdit = (p: Patient) => {
     setEditing(p);
     setForm({ firstName: p.firstName, lastName: p.lastName, phone: p.phone, dob: p.dob, address: p.address, medicalAlerts: p.medicalAlerts, photo: p.photo || "" });
+    setPendingFiles([]);
     setDialogOpen(true);
+  };
+
+  const handleAttachFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setPendingFiles(prev => [...prev, ...files]);
+    e.target.value = "";
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
