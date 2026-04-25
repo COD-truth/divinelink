@@ -13,6 +13,7 @@ import { Plus, Printer, Edit, Trash2, History, AlertTriangle, Upload, X } from "
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { compressImage } from "@/lib/imageUtils";
+import { decryptPatients } from "@/lib/patientCrypto";
 
 type ConsultationWithMeta = Consultation & { patientName: string };
 
