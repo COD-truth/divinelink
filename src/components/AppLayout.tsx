@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
@@ -9,6 +9,10 @@ import {
   UserCog, Database, LogOut, Menu, X, ChevronRight, RefreshCw
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { db, hashPin, type User, type UserRole } from "@/lib/db";
+import { toast } from "sonner";
 
 export type Page = "dashboard" | "patients" | "appointments" | "consultations" | "documents" | "users" | "backup";
 
