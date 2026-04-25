@@ -23,7 +23,7 @@ const statusColors: Record<AppointmentStatus, string> = {
 export function AppointmentsPage() {
   const { user } = useAuth();
   const { t } = useLang();
-  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; doctorName: string })[]>([]);
+  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; doctorName: string; patientPhone: string })[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<User[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
