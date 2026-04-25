@@ -92,9 +92,30 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           <h2 className="font-semibold text-lg hidden md:block">
             {visibleItems.find(i => i.page === currentPage)?.label}
           </h2>
+          <Badge
+            className={
+              user?.role === "admin"
+                ? "bg-destructive text-destructive-foreground"
+                : user?.role === "doctor"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground"
+            }
+            title={t("role.loggedInAs") + " " + (user?.name || "")}
+          >
+            {t(`role.${user?.role}`)}
+          </Badge>
           <div className="flex-1 flex justify-center md:justify-end">
             <GlobalSearch onNavigate={onNavigate} />
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={logout}
+            title={t("role.switchUser")}
+            aria-label={t("role.switchUser")}
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
           <LangToggle />
         </header>
         <div className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
