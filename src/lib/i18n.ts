@@ -140,6 +140,27 @@ const translations: Record<string, Record<Lang, string>> = {
   "common.view": { en: "View", fr: "Voir" },
   "common.actions": { en: "Actions", fr: "Actions" },
   
+  // Role
+  "role.admin": { en: "Admin", fr: "Administrateur" },
+  "role.doctor": { en: "Doctor", fr: "Médecin" },
+  "role.receptionist": { en: "Receptionist", fr: "Réceptionniste" },
+  "role.loggedInAs": { en: "Logged in as", fr: "Connecté en tant que" },
+  "role.switchUser": { en: "Switch user", fr: "Changer d'utilisateur" },
+
+  // WhatsApp
+  "wa.remind": { en: "WhatsApp reminder", fr: "Rappel WhatsApp" },
+  "wa.patient": { en: "Send to patient", fr: "Envoyer au patient" },
+  "wa.doctor": { en: "Send to doctor", fr: "Envoyer au médecin" },
+  "wa.noPhone": { en: "No phone number on file", fr: "Aucun numéro de téléphone" },
+  "wa.message": { en: "Reminder: appointment on {date} at {time} with Dr. {doctor}. Reason: {reason}.", fr: "Rappel : rendez-vous le {date} à {time} avec Dr. {doctor}. Motif : {reason}." },
+
+  // Patient docs at registration
+  "patient.attachments": { en: "Attachments (optional)", fr: "Pièces jointes (optionnel)" },
+  "patient.attachFiles": { en: "Attach files", fr: "Joindre des fichiers" },
+
+  // Install
+  "install.hint": { en: "Tip: Install this app on your phone via your browser menu → 'Add to Home Screen' for offline use.", fr: "Astuce : Installez cette app sur votre téléphone via le menu du navigateur → 'Ajouter à l'écran d'accueil' pour une utilisation hors ligne." },
+
   // Dashboard
   "dash.welcome": { en: "Welcome", fr: "Bienvenue" },
   "dash.totalPatients": { en: "Total Patients", fr: "Total des patients" },

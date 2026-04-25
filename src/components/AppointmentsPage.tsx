@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Upload, Paperclip } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Upload, Paperclip, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
 
@@ -23,7 +23,7 @@ const statusColors: Record<AppointmentStatus, string> = {
 export function AppointmentsPage() {
   const { user } = useAuth();
   const { t } = useLang();
-  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; doctorName: string })[]>([]);
+  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; doctorName: string; patientPhone: string })[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<User[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -42,11 +42,15 @@ export function AppointmentsPage() {
       appts = appts.filter(a => a.doctorId === user.id);
     }
 
-    const enriched = appts.map(a => ({
-      ...a,
-      patientName: allPatients.find(p => p.id === a.patientId)?.firstName + " " + (allPatients.find(p => p.id === a.patientId)?.lastName || ""),
-      doctorName: allDoctors.find(d => d.id === a.doctorId)?.name || "—",
-    })).sort((a, b) => a.time.localeCompare(b.time));
+    const enriched = appts.map(a => {
+      const pat = allPatients.find(p => p.id === a.patientId);
+      return {
+        ...a,
+        patientName: (pat?.firstName || "") + " " + (pat?.lastName || ""),
+        patientPhone: pat?.phone || "",
+        doctorName: allDoctors.find(d => d.id === a.doctorId)?.name || "—",
+      };
+    }).sort((a, b) => a.time.localeCompare(b.time));
 
     setAppointments(enriched);
   };
@@ -113,6 +117,20 @@ export function AppointmentsPage() {
     load();
   };
 
+  const sendWhatsApp = (a: typeof appointments[number]) => {
+    if (!a.patientPhone) {
+      toast.error(t("wa.noPhone"));
+      return;
+    }
+    const msg = t("wa.message")
+      .replace("{date}", a.date)
+      .replace("{time}", a.time)
+      .replace("{doctor}", a.doctorName)
+      .replace("{reason}", a.reason || "—");
+    const phone = a.patientPhone.replace(/[^\d+]/g, "").replace(/^\+/, "");
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
 
   return (
@@ -146,6 +164,16 @@ export function AppointmentsPage() {
                   <p className="font-medium truncate">{a.patientName}</p>
                   <p className="text-sm text-muted-foreground truncate">{a.reason || "—"} • Dr. {a.doctorName}</p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => sendWhatsApp(a)}
+                  title={t("wa.remind")}
+                  aria-label={t("wa.remind")}
+                  className="text-success"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </Button>
                 <Select value={a.status} onValueChange={(v) => updateStatus(a.id!, v as AppointmentStatus)}>
                   <SelectTrigger className="w-auto">
                     <Badge className={statusColors[a.status]}>{t(`apt.${a.status}`)}</Badge>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
+import { toast } from "sonner";
 
 interface AuthCtx {
   user: User | null;
@@ -42,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (found && found.active) {
       setUser(found);
       setLastActivity(Date.now());
+      const roleLabel = found.role.charAt(0).toUpperCase() + found.role.slice(1);
+      toast.success(`Welcome ${found.name}`, { description: `Logged in as ${roleLabel}` });
       return true;
     }
     return false;

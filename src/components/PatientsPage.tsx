@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip } from "lucide-react";
 import { toast } from "sonner";
-import { compressImage } from "@/lib/imageUtils";
+import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
 
 export function PatientsPage() {
   const { t } = useLang();
@@ -19,6 +19,7 @@ export function PatientsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" as string | undefined });
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const load = async () => {
     const all = await db.patients.reverse().toArray();
@@ -36,13 +37,21 @@ export function PatientsPage() {
   const openNew = () => {
     setEditing(null);
     setForm({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" });
+    setPendingFiles([]);
     setDialogOpen(true);
   };
 
   const openEdit = (p: Patient) => {
     setEditing(p);
     setForm({ firstName: p.firstName, lastName: p.lastName, phone: p.phone, dob: p.dob, address: p.address, medicalAlerts: p.medicalAlerts, photo: p.photo || "" });
+    setPendingFiles([]);
     setDialogOpen(true);
+  };
+
+  const handleAttachFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setPendingFiles(prev => [...prev, ...files]);
+    e.target.value = "";
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,14 +70,36 @@ export function PatientsPage() {
     if (!form.firstName || !form.lastName) return;
     const now = new Date().toISOString();
     const payload = { ...form, photo: form.photo || undefined };
+    let savedId: number | undefined;
     if (editing?.id) {
       await db.patients.update(editing.id, { ...payload, updatedAt: now });
+      savedId = editing.id;
       toast.success(t("common.save"));
     } else {
       const patientId = await generatePatientId();
-      await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
+      savedId = await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
       toast.success(t("patient.register"));
     }
+    // Save attachments to documents linked to this patient
+    if (savedId && pendingFiles.length) {
+      for (const file of pendingFiles) {
+        try {
+          const data = file.type.startsWith("image/") ? await compressImage(file) : await fileToDataUrl(file);
+          await db.documents.add({
+            patientId: savedId,
+            name: file.name,
+            type: file.type || "application/octet-stream",
+            data,
+            size: file.size,
+            tag: "other",
+            createdAt: now,
+          });
+        } catch {
+          toast.error(`Upload failed: ${file.name}`);
+        }
+      }
+    }
+    setPendingFiles([]);
     setDialogOpen(false);
     load();
   };
@@ -186,6 +217,26 @@ export function PatientsPage() {
             <div>
               <Label>{t("patient.alerts")}</Label>
               <Textarea value={form.medicalAlerts} onChange={e => setForm(f => ({ ...f, medicalAlerts: e.target.value }))} placeholder="Allergies, conditions..." />
+            </div>
+            <div>
+              <Label className="flex items-center gap-2"><Paperclip className="w-4 h-4" />{t("patient.attachments")}</Label>
+              <Button asChild size="sm" variant="outline" type="button" className="mt-1">
+                <label className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-2" />
+                  {t("patient.attachFiles")}
+                  <input type="file" multiple className="hidden" onChange={handleAttachFiles} />
+                </label>
+              </Button>
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {pendingFiles.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{f.name}</span>
+                      <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} className="text-destructive">×</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
           <DialogFooter>
