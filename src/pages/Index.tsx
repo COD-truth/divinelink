@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { seedDatabase } from "@/lib/db";
+import { initCrypto } from "@/lib/crypto";
+import { migrateEncryption } from "@/lib/patientCrypto";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LangProvider } from "@/contexts/LangContext";
 import { LoginScreen } from "@/components/LoginScreen";
@@ -36,7 +38,13 @@ function AppContent() {
 }
 
 const Index = () => {
-  useEffect(() => { seedDatabase(); }, []);
+  useEffect(() => {
+    (async () => {
+      await initCrypto();
+      await seedDatabase();
+      await migrateEncryption();
+    })();
+  }, []);
 
   return (
     <LangProvider>
