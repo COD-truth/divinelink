@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
+import { toast } from "sonner";
 
 interface AuthCtx {
   user: User | null;
