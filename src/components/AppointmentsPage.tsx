@@ -204,6 +204,10 @@ export function AppointmentsPage() {
                     <DropdownMenuItem onClick={() => sendWhatsApp(a, "doctor")}>
                       {t("wa.doctor")}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openReminders(a)}>
+                      <Settings2 className="w-4 h-4 mr-2" />
+                      {t("reminder.open")}…
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Select value={a.status} onValueChange={(v) => updateStatus(a.id!, v as AppointmentStatus)}>
@@ -289,6 +293,8 @@ export function AppointmentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RemindersPanel open={reminderOpen} onOpenChange={setReminderOpen} context={reminderCtx} />
     </div>
   );
 }
