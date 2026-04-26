@@ -115,6 +115,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "user.admin": { en: "Admin", fr: "Administrateur" },
   "user.doctor": { en: "Doctor", fr: "Médecin" },
   "user.receptionist": { en: "Receptionist", fr: "Réceptionniste" },
+  "user.phone": { en: "Phone / WhatsApp", fr: "Téléphone / WhatsApp" },
+  "user.phoneHint": { en: "for reminders", fr: "pour les rappels" },
   
   // Backup
   "backup.export": { en: "Export Data", fr: "Exporter les données" },

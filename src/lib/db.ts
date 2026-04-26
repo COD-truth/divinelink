@@ -9,6 +9,8 @@ export interface User {
   role: UserRole;
   pinHash: string;
   active: boolean;
+  /** Optional WhatsApp / phone number for doctor reminders */
+  phone?: string;
   createdAt: string;
 }
 

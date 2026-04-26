@@ -22,27 +22,27 @@ export function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
-  const [form, setForm] = useState({ name: "", role: "receptionist" as UserRole, pin: "" });
+  const [form, setForm] = useState({ name: "", role: "receptionist" as UserRole, pin: "", phone: "" });
 
   const load = async () => setUsers(await db.users.toArray());
   useEffect(() => { load(); }, []);
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", role: "receptionist", pin: "" });
+    setForm({ name: "", role: "receptionist", pin: "", phone: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (u: User) => {
     setEditing(u);
-    setForm({ name: u.name, role: u.role, pin: "" });
+    setForm({ name: u.name, role: u.role, pin: "", phone: u.phone || "" });
     setDialogOpen(true);
   };
 
   const save = async () => {
     if (!form.name) return;
     if (editing?.id) {
-      const update: Partial<User> = { name: form.name, role: form.role };
+      const update: Partial<User> = { name: form.name, role: form.role, phone: form.phone };
       if (form.pin.length >= 4) update.pinHash = await hashPin(form.pin);
       await db.users.update(editing.id, update);
     } else {
@@ -50,6 +50,7 @@ export function UsersPage() {
       await db.users.add({
         name: form.name,
         role: form.role,
+        phone: form.phone,
         pinHash: await hashPin(form.pin),
         active: true,
         createdAt: new Date().toISOString(),
@@ -101,6 +102,10 @@ export function UsersPage() {
                   <SelectItem value="receptionist">{t("user.receptionist")}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>{t("user.phone")} ({t("user.phoneHint")})</Label>
+              <Input type="tel" placeholder="+237..." value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
             </div>
             <div>
               <Label>{t("user.pin")} {editing ? "(leave blank to keep)" : "*"}</Label>
