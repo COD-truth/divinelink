@@ -112,7 +112,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "user.name": { en: "Full Name", fr: "Nom complet" },
   "user.role": { en: "Role", fr: "Rôle" },
   "user.pin": { en: "PIN (4-6 digits)", fr: "PIN (4-6 chiffres)" },
-  "user.admin": { en: "Admin", fr: "Administrateur" },
+  "user.admin": { en: "Admin", fr: "Admin" },
   "user.doctor": { en: "Doctor", fr: "Médecin" },
   "user.receptionist": { en: "Receptionist", fr: "Réceptionniste" },
   "user.phone": { en: "Phone / WhatsApp", fr: "Téléphone / WhatsApp" },
@@ -143,7 +143,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "common.actions": { en: "Actions", fr: "Actions" },
   
   // Role
-  "role.admin": { en: "Admin", fr: "Administrateur" },
+  "role.admin": { en: "Admin", fr: "Admin" },
   "role.doctor": { en: "Doctor", fr: "Médecin" },
   "role.receptionist": { en: "Receptionist", fr: "Réceptionniste" },
   "role.loggedInAs": { en: "Logged in as", fr: "Connecté en tant que" },
