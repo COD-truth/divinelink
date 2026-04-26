@@ -156,6 +156,24 @@ const translations: Record<string, Record<Lang, string>> = {
   "wa.noPhone": { en: "No phone number on file", fr: "Aucun numéro de téléphone" },
   "wa.message": { en: "Reminder: appointment on {date} at {time} with Dr. {doctor}. Reason: {reason}.", fr: "Rappel : rendez-vous le {date} à {time} avec Dr. {doctor}. Motif : {reason}." },
 
+  // Reminders panel
+  "reminder.title": { en: "Appointment reminders", fr: "Rappels de rendez-vous" },
+  "reminder.subtitle": { en: "Configure WhatsApp/SMS templates and preview them offline.", fr: "Configurez les modèles WhatsApp/SMS et prévisualisez-les hors ligne." },
+  "reminder.template": { en: "Message template", fr: "Modèle de message" },
+  "reminder.placeholders": { en: "Available placeholders", fr: "Variables disponibles" },
+  "reminder.channel": { en: "Channel", fr: "Canal" },
+  "reminder.preview": { en: "Preview", fr: "Aperçu" },
+  "reminder.send": { en: "Open & send", fr: "Ouvrir et envoyer" },
+  "reminder.copy": { en: "Copy", fr: "Copier" },
+  "reminder.copied": { en: "Message copied", fr: "Message copié" },
+  "reminder.copyFail": { en: "Could not copy", fr: "Impossible de copier" },
+  "reminder.reset": { en: "Reset defaults", fr: "Réinitialiser" },
+  "reminder.online": { en: "Online", fr: "En ligne" },
+  "reminder.offline": { en: "Offline preview", fr: "Aperçu hors ligne" },
+  "reminder.offlineHint": { en: "You're offline — message can be previewed and copied; sending opens when back online.", fr: "Vous êtes hors ligne — le message peut être prévisualisé et copié ; l'envoi s'ouvrira une fois reconnecté." },
+  "reminder.chars": { en: "chars", fr: "car." },
+  "reminder.open": { en: "Reminders", fr: "Rappels" },
+
   // Patient docs at registration
   "patient.attachments": { en: "Attachments (optional)", fr: "Pièces jointes (optionnel)" },
   "patient.attachFiles": { en: "Attach files", fr: "Joindre des fichiers" },
