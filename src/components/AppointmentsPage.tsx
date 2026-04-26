@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, ChevronLeft, ChevronRight, Upload, Paperclip, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
@@ -24,7 +25,7 @@ const statusColors: Record<AppointmentStatus, string> = {
 export function AppointmentsPage() {
   const { user } = useAuth();
   const { t } = useLang();
-  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; doctorName: string; patientPhone: string })[]>([]);
+  const [appointments, setAppointments] = useState<(Appointment & { patientName: string; doctorName: string; patientPhone: string; doctorPhone: string })[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<User[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -45,11 +46,13 @@ export function AppointmentsPage() {
 
     const enriched = appts.map(a => {
       const pat = allPatients.find(p => p.id === a.patientId);
+      const doc = allDoctors.find(d => d.id === a.doctorId);
       return {
         ...a,
         patientName: (pat?.firstName || "") + " " + (pat?.lastName || ""),
         patientPhone: pat?.phone || "",
-        doctorName: allDoctors.find(d => d.id === a.doctorId)?.name || "—",
+        doctorName: doc?.name || "—",
+        doctorPhone: doc?.phone || "",
       };
     }).sort((a, b) => a.time.localeCompare(b.time));
 
@@ -118,8 +121,9 @@ export function AppointmentsPage() {
     load();
   };
 
-  const sendWhatsApp = (a: typeof appointments[number]) => {
-    if (!a.patientPhone) {
+  const sendWhatsApp = (a: typeof appointments[number], target: "patient" | "doctor") => {
+    const phoneRaw = target === "patient" ? a.patientPhone : a.doctorPhone;
+    if (!phoneRaw) {
       toast.error(t("wa.noPhone"));
       return;
     }
@@ -128,7 +132,7 @@ export function AppointmentsPage() {
       .replace("{time}", a.time)
       .replace("{doctor}", a.doctorName)
       .replace("{reason}", a.reason || "—");
-    const phone = a.patientPhone.replace(/[^\d+]/g, "").replace(/^\+/, "");
+    const phone = phoneRaw.replace(/[^\d+]/g, "").replace(/^\+/, "");
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -165,16 +169,27 @@ export function AppointmentsPage() {
                   <p className="font-medium truncate">{a.patientName}</p>
                   <p className="text-sm text-muted-foreground truncate">{a.reason || "—"} • Dr. {a.doctorName}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => sendWhatsApp(a)}
-                  title={t("wa.remind")}
-                  aria-label={t("wa.remind")}
-                  className="text-success"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title={t("wa.remind")}
+                      aria-label={t("wa.remind")}
+                      className="text-success"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => sendWhatsApp(a, "patient")}>
+                      {t("wa.patient")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => sendWhatsApp(a, "doctor")}>
+                      {t("wa.doctor")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Select value={a.status} onValueChange={(v) => updateStatus(a.id!, v as AppointmentStatus)}>
                   <SelectTrigger className="w-auto">
                     <Badge className={statusColors[a.status]}>{t(`apt.${a.status}`)}</Badge>
