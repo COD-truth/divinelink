@@ -115,7 +115,11 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-sidebar-border">
+        <div className="p-3 border-t border-sidebar-border space-y-1">
+          <Button variant="ghost" className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50" onClick={() => setSwitchOpen(true)}>
+            <RefreshCw className="w-5 h-5" />
+            {t("role.switchUser")}
+          </Button>
           <Button variant="ghost" className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50" onClick={logout}>
             <LogOut className="w-5 h-5" />
             {t("auth.logout")}
@@ -147,15 +151,6 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           <div className="flex-1 flex justify-center md:justify-end">
             <GlobalSearch onNavigate={onNavigate} />
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSwitchOpen(true)}
-            title={t("role.switchUser")}
-            aria-label={t("role.switchUser")}
-          >
-            <RefreshCw className="w-4 h-4" />
-          </Button>
           <LangToggle />
         </header>
         <div className="flex-1 p-4 md:p-6 overflow-auto animate-fade-in">
