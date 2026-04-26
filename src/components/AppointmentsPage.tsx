@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, ChevronLeft, ChevronRight, Upload, Paperclip, MessageCircle } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Upload, Paperclip, MessageCircle, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
+import { RemindersPanel, type ReminderContext } from "@/components/RemindersPanel";
 
 const statusColors: Record<AppointmentStatus, string> = {
   scheduled: "bg-info text-info-foreground",
@@ -32,6 +33,8 @@ export function AppointmentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ patientId: "", doctorId: "", date: "", time: "", reason: "", status: "scheduled" as AppointmentStatus });
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderCtx, setReminderCtx] = useState<ReminderContext | null>(null);
 
   const load = async () => {
     const allPatients = await decryptPatients(await db.patients.toArray());
@@ -134,6 +137,19 @@ export function AppointmentsPage() {
       .replace("{reason}", a.reason || "—");
     const phone = phoneRaw.replace(/[^\d+]/g, "").replace(/^\+/, "");
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  const openReminders = (a: typeof appointments[number]) => {
+    setReminderCtx({
+      patientName: a.patientName.trim() || "—",
+      patientPhone: a.patientPhone || "",
+      doctorName: a.doctorName || "—",
+      doctorPhone: a.doctorPhone || "",
+      date: a.date,
+      time: a.time,
+      reason: a.reason || "—",
+    });
+    setReminderOpen(true);
   };
 
   const isToday = selectedDate === new Date().toISOString().split("T")[0];
