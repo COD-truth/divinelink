@@ -1,8 +1,13 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { checkAndHandleWipeUrl } from "@/lib/wipe";
 
-createRoot(document.getElementById("root")!).render(<App />);
+(async () => {
+  const wiped = await checkAndHandleWipeUrl();
+  if (wiped) return;
+  createRoot(document.getElementById("root")!).render(<App />);
+})();
 
 // Register PWA service worker only in production and outside Lovable preview iframes.
 const isInIframe = (() => {

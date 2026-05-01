@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import { toast } from "sonner";
 
 interface AuthCtx {
@@ -11,7 +12,7 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
-const TIMEOUT_MS = 15 * 60 * 1000;
+const TIMEOUT_MS = 5 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -45,8 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLastActivity(Date.now());
       const roleLabel = found.role.charAt(0).toUpperCase() + found.role.slice(1);
       toast.success(`Welcome ${found.name}`, { description: `Logged in as ${roleLabel}` });
+      logAudit("login", found.name);
       return true;
     }
+    logAudit("login_fail", "(unknown)", { message: "Invalid PIN attempt" });
     return false;
   };
 

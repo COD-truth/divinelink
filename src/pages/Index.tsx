@@ -13,6 +13,8 @@ import { ConsultationsPage } from "@/components/ConsultationsPage";
 import { DocumentsPage } from "@/components/DocumentsPage";
 import { UsersPage } from "@/components/UsersPage";
 import { BackupPage } from "@/components/BackupPage";
+import { AuditLogPage } from "@/components/AuditLogPage";
+import { SecurityPage } from "@/components/SecurityPage";
 
 function AppContent() {
   const { user } = useAuth();
@@ -28,6 +30,8 @@ function AppContent() {
     documents: <DocumentsPage />,
     users: <UsersPage />,
     backup: <BackupPage />,
+    audit: <AuditLogPage />,
+    security: <SecurityPage />,
   };
 
   return (

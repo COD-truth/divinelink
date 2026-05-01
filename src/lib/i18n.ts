@@ -17,6 +17,8 @@ const translations: Record<string, Record<Lang, string>> = {
   "nav.documents": { en: "Documents", fr: "Documents" },
   "nav.users": { en: "User Management", fr: "Gestion des utilisateurs" },
   "nav.backup": { en: "Backup & Restore", fr: "Sauvegarde et restauration" },
+  "nav.audit": { en: "Audit log", fr: "Journal d'audit" },
+  "nav.security": { en: "Security", fr: "Sécurité" },
   "nav.settings": { en: "Settings", fr: "Paramètres" },
   
   // Patients
@@ -187,6 +189,45 @@ const translations: Record<string, Record<Lang, string>> = {
   "dash.todayAppts": { en: "Today's Appointments", fr: "Rendez-vous du jour" },
   "dash.thisWeek": { en: "This Week", fr: "Cette semaine" },
   "dash.recentPatients": { en: "Recent Patients", fr: "Patients récents" },
+
+  // Audit log
+  "audit.title": { en: "Audit log", fr: "Journal d'audit" },
+  "audit.search": { en: "Search...", fr: "Rechercher..." },
+  "audit.allTypes": { en: "All event types", fr: "Tous les types" },
+  "audit.entries": { en: "entries", fr: "entrées" },
+  "audit.time": { en: "Time", fr: "Date" },
+  "audit.user": { en: "User", fr: "Utilisateur" },
+  "audit.type": { en: "Event", fr: "Événement" },
+  "audit.resource": { en: "Resource", fr: "Ressource" },
+  "audit.message": { en: "Message", fr: "Message" },
+  "audit.purge": { en: "Purge all", fr: "Tout effacer" },
+  "audit.confirmPurge": { en: "Delete all audit log entries?", fr: "Supprimer toutes les entrées du journal ?" },
+  "audit.purged": { en: "Audit log cleared", fr: "Journal effacé" },
+
+  // Security page
+  "sec.masterPin": { en: "Master encryption PIN", fr: "PIN maître de chiffrement" },
+  "sec.masterPinDesc": { en: "Used to derive the encryption key for all sensitive patient data.", fr: "Utilisé pour dériver la clé de chiffrement de toutes les données patient sensibles." },
+  "sec.masterPinNote": { en: "Default is 1234. Changing this re-encrypts all data on this device.", fr: "Par défaut 1234. Le changer ré-chiffre toutes les données sur cet appareil." },
+  "sec.newPin": { en: "New PIN", fr: "Nouveau PIN" },
+  "sec.confirmPin": { en: "Confirm PIN", fr: "Confirmer le PIN" },
+  "sec.changePin": { en: "Change master PIN", fr: "Changer le PIN maître" },
+  "sec.pinMismatch": { en: "PINs do not match (min 4 digits).", fr: "Les PIN ne correspondent pas (4 chiffres min)." },
+  "sec.pinChanged": { en: "Master PIN changed and data re-encrypted.", fr: "PIN maître changé et données ré-chiffrées." },
+  "sec.remoteWipe": { en: "Remote wipe", fr: "Effacement à distance" },
+  "sec.remoteWipeDesc": { en: "Generate a secret URL. Opening it on this device erases all local data.", fr: "Générez une URL secrète. Son ouverture sur cet appareil efface toutes les données locales." },
+  "sec.wipeToken": { en: "Wipe token", fr: "Jeton d'effacement" },
+  "sec.wipeUrl": { en: "Wipe URL", fr: "URL d'effacement" },
+  "sec.wipeUrlHint": { en: "Share manually with the device owner. Opening the URL erases everything.", fr: "À partager manuellement avec le propriétaire de l'appareil. L'ouverture efface tout." },
+  "sec.noWipeSecret": { en: "No wipe secret configured yet.", fr: "Aucun secret d'effacement configuré." },
+  "sec.generate": { en: "Generate secret", fr: "Générer un secret" },
+  "sec.regenerate": { en: "Regenerate secret", fr: "Régénérer le secret" },
+  "sec.wipeGenerated": { en: "Wipe secret saved on this device.", fr: "Secret d'effacement enregistré sur cet appareil." },
+  "sec.wipeNow": { en: "Wipe this device now", fr: "Effacer cet appareil maintenant" },
+  "sec.wipeConfirm": { en: "This will erase ALL data on this device. Continue?", fr: "Cela effacera TOUTES les données de cet appareil. Continuer ?" },
+  "sec.wipeConfirm2": { en: "Really? This cannot be undone.", fr: "Vraiment ? Cette action est irréversible." },
+  "sec.report": { en: "Security report", fr: "Rapport de sécurité" },
+  "sec.reportDesc": { en: "Bilingual overview of the app's security architecture.", fr: "Aperçu bilingue de l'architecture de sécurité." },
+  "sec.openReport": { en: "Open report", fr: "Ouvrir le rapport" },
 };
 
 export function t(key: string, lang: Lang): string {
