@@ -173,6 +173,15 @@ class DentaDB extends Dexie {
       consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest",
       documents: "++id, patientId, name, tag, createdAt",
     });
+    // v5: audit log table
+    this.version(5).stores({
+      users: "++id, name, role, pinHash",
+      patients: "++id, patientId, firstName, lastName, phone",
+      appointments: "++id, patientId, doctorId, date, status",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest",
+      documents: "++id, patientId, name, tag, createdAt",
+      auditLogs: "++id, timestamp, userName, type, resource",
+    });
   }
 }
 
