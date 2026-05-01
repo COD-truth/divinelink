@@ -86,12 +86,35 @@ export interface Document {
   createdAt: string;
 }
 
+export type AuditEventType =
+  | "login" | "login_fail" | "logout"
+  | "patient_create" | "patient_update" | "patient_delete" | "patient_view"
+  | "consult_create" | "consult_update" | "consult_delete" | "consult_view"
+  | "prescription_print"
+  | "appointment_create" | "appointment_update" | "appointment_delete"
+  | "user_create" | "user_update" | "user_delete"
+  | "backup_export" | "backup_import"
+  | "wipe_secret_generated" | "wipe_secret_changed"
+  | "master_pin_changed"
+  | "audit_export";
+
+export interface AuditLog {
+  id?: number;
+  timestamp: string;
+  userName: string;
+  type: AuditEventType;
+  resource?: string;
+  resourceId?: string;
+  message?: string;
+}
+
 class DentaDB extends Dexie {
   users!: Table<User>;
   patients!: Table<Patient>;
   appointments!: Table<Appointment>;
   consultations!: Table<Consultation>;
   documents!: Table<Document>;
+  auditLogs!: Table<AuditLog>;
 
   constructor() {
     super("DivineLinkDB");
