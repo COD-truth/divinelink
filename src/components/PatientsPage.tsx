@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip, Lock } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip, Lock, Download } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
 import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
+import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 
 export function PatientsPage() {
   const { t } = useLang();
@@ -119,6 +120,24 @@ export function PatientsPage() {
     load();
   };
 
+  const exportAll = async () => {
+    if (!patients.length) { toast.info(t("download.empty")); return; }
+    const rows = patients.map(p => ({
+      patientId: p.patientId,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      phone: p.phone || "",
+      dob: p.dob || "",
+      address: p.address || "",
+      medicalAlerts: p.medicalAlerts || "",
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    }));
+    const csv = toCsv(rows as unknown as Record<string, unknown>[]);
+    const ok = await saveFile(withDateStamp("patients.csv"), csv, "csv");
+    if (ok) toast.success(t("download.done"));
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
@@ -126,6 +145,9 @@ export function PatientsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={t("patient.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
+        <Button variant="outline" onClick={exportAll} className="gap-2">
+          <Download className="w-4 h-4" /> {t("download.patients")}
+        </Button>
         <Button onClick={openNew} className="gap-2">
           <Plus className="w-4 h-4" /> {t("patient.register")}
         </Button>

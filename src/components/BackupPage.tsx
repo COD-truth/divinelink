@@ -6,20 +6,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Download, Upload, AlertTriangle, Loader2, HardDrive } from "lucide-react";
+import { Download, Upload, AlertTriangle, Loader2, HardDrive, RefreshCw, FileDown, FileUp } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import CryptoJS from "crypto-js";
 import { getStorageEstimate, formatBytes } from "@/lib/imageUtils";
 import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
+import {
+  buildSyncBundle, encryptSyncBundle, decryptSyncBundle, mergeSyncBundle,
+  getLastSyncTime, setLastSyncTime, SYNC_EXTENSION, type MergeReport,
+} from "@/lib/sync";
+import { saveFile, withDateStamp } from "@/lib/download";
+import { logAudit } from "@/lib/audit";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function BackupPage() {
   const { t } = useLang();
+  const { user } = useAuth();
   const [exportPwd, setExportPwd] = useState("");
   const [importPwd, setImportPwd] = useState("");
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [storage, setStorage] = useState<{ usage: number; quota: number; percent: number } | null>(null);
+
+  // Sync state
+  const [syncPwd, setSyncPwd] = useState("");
+  const [syncBusyExport, setSyncBusyExport] = useState(false);
+  const [syncBusyImport, setSyncBusyImport] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(getLastSyncTime());
+  const [mergeReport, setMergeReport] = useState<MergeReport | null>(null);
 
   const refreshStorage = async () => setStorage(await getStorageEstimate());
   useEffect(() => { refreshStorage(); }, []);
@@ -101,8 +116,61 @@ export function BackupPage() {
     refreshStorage();
   };
 
+  const handleSyncExport = async () => {
+    if (!syncPwd) return;
+    setSyncBusyExport(true);
+    setMergeReport(null);
+    try {
+      const bundle = await buildSyncBundle();
+      const total = Object.values(bundle.counts).reduce((a, b) => a + b, 0);
+      if (total === 0) {
+        toast.info(t("sync.exportNothing"));
+        setSyncBusyExport(false);
+        return;
+      }
+      const cipher = encryptSyncBundle(bundle, syncPwd);
+      const ok = await saveFile(withDateStamp(`divinelink_changes${SYNC_EXTENSION}`), cipher, "text");
+      if (ok) {
+        const now = new Date().toISOString();
+        setLastSyncTime(now);
+        setLastSync(now);
+        if (user) await logAudit("backup_export", user.name, { message: `sync export: ${JSON.stringify(bundle.counts)}` });
+        toast.success(t("backup.success"));
+      }
+    } catch (e) {
+      toast.error(String(e));
+    }
+    setSyncBusyExport(false);
+  };
+
+  const handleSyncImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !syncPwd) return;
+    setSyncBusyImport(true);
+    setMergeReport(null);
+    try {
+      const text = await file.text();
+      const bundle = decryptSyncBundle(text, syncPwd);
+      const report = await mergeSyncBundle(bundle);
+      setMergeReport(report);
+      if (user) await logAudit("backup_import", user.name, { message: `sync merge: ${JSON.stringify(report)}` });
+      toast.success(t("backup.success"));
+      refreshStorage();
+    } catch (err) {
+      toast.error(t("sync.bad"));
+    }
+    setSyncBusyImport(false);
+    e.target.value = "";
+  };
+
+  const resetSyncMarker = () => {
+    localStorage.removeItem("dl.sync.lastExport.v1");
+    setLastSync(null);
+    toast.success("OK");
+  };
+
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       {/* Storage gauge */}
       {storage && (
         <Card>
@@ -165,6 +233,52 @@ export function BackupPage() {
         </CardContent>
       </Card>
       </div>
+
+      {/* Manual sync between devices */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><RefreshCw className="w-5 h-5" />{t("sync.title")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">{t("sync.desc")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("sync.lastExport")}: <span className="font-mono">{lastSync ? new Date(lastSync).toLocaleString() : t("sync.never")}</span>
+          </p>
+          <div>
+            <Label>{t("sync.passphrase")}</Label>
+            <Input type="password" value={syncPwd} onChange={e => setSyncPwd(e.target.value)} placeholder="1234" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleSyncExport} disabled={!syncPwd || syncBusyExport} className="gap-2">
+              {syncBusyExport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              {syncBusyExport ? t("sync.exporting") : t("sync.exportBtn")}
+            </Button>
+            <Button asChild variant="outline" disabled={!syncPwd || syncBusyImport} className="gap-2">
+              <label className={!syncPwd || syncBusyImport ? "pointer-events-none opacity-50" : "cursor-pointer"}>
+                {syncBusyImport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                {syncBusyImport ? t("sync.importing") : t("sync.importBtn")}
+                <input type="file" accept=".divinesync,application/octet-stream,text/plain" className="hidden" onChange={handleSyncImport} />
+              </label>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={resetSyncMarker} className="ml-auto text-xs">
+              {t("sync.resetMarker")}
+            </Button>
+          </div>
+          {mergeReport && (
+            <div className="rounded border p-3 text-sm space-y-1 bg-muted/30">
+              <div className="font-medium mb-1">{t("sync.summary")}</div>
+              {(["patients", "consultations", "appointments", "documents", "users"] as const).map(k => (
+                <div key={k} className="flex justify-between">
+                  <span className="capitalize">{k}</span>
+                  <span className="text-muted-foreground">
+                    +{mergeReport[k].added} {t("sync.added")} • ~{mergeReport[k].updated} {t("sync.updated")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
