@@ -233,6 +233,52 @@ export function BackupPage() {
         </CardContent>
       </Card>
       </div>
+
+      {/* Manual sync between devices */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><RefreshCw className="w-5 h-5" />{t("sync.title")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">{t("sync.desc")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("sync.lastExport")}: <span className="font-mono">{lastSync ? new Date(lastSync).toLocaleString() : t("sync.never")}</span>
+          </p>
+          <div>
+            <Label>{t("sync.passphrase")}</Label>
+            <Input type="password" value={syncPwd} onChange={e => setSyncPwd(e.target.value)} placeholder="1234" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleSyncExport} disabled={!syncPwd || syncBusyExport} className="gap-2">
+              {syncBusyExport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              {syncBusyExport ? t("sync.exporting") : t("sync.exportBtn")}
+            </Button>
+            <Button asChild variant="outline" disabled={!syncPwd || syncBusyImport} className="gap-2">
+              <label className={!syncPwd || syncBusyImport ? "pointer-events-none opacity-50" : "cursor-pointer"}>
+                {syncBusyImport ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                {syncBusyImport ? t("sync.importing") : t("sync.importBtn")}
+                <input type="file" accept=".divinesync,application/octet-stream,text/plain" className="hidden" onChange={handleSyncImport} />
+              </label>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={resetSyncMarker} className="ml-auto text-xs">
+              {t("sync.resetMarker")}
+            </Button>
+          </div>
+          {mergeReport && (
+            <div className="rounded border p-3 text-sm space-y-1 bg-muted/30">
+              <div className="font-medium mb-1">{t("sync.summary")}</div>
+              {(["patients", "consultations", "appointments", "documents", "users"] as const).map(k => (
+                <div key={k} className="flex justify-between">
+                  <span className="capitalize">{k}</span>
+                  <span className="text-muted-foreground">
+                    +{mergeReport[k].added} {t("sync.added")} • ~{mergeReport[k].updated} {t("sync.updated")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
