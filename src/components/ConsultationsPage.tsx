@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { db, type Consultation, type ConsultationImage, type Patient } from "@/lib/db";
+import React, { useEffect, useMemo, useState } from "react";
+import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Printer, Edit, Trash2, History, AlertTriangle, Upload, X } from "lucide-react";
+import { Plus, Printer, Edit, Trash2, History, AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { compressImage } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
+import { AnnotateImageModal } from "@/components/AnnotateImageModal";
+import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
+import { saveFile, withDateStamp } from "@/lib/download";
 
 type ConsultationWithMeta = Consultation & { patientName: string };
 
@@ -37,6 +40,9 @@ export function ConsultationsPage() {
     images: [] as ConsultationImage[],
   });
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
+  const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
+  const [annotateImg, setAnnotateImg] = useState<ConsultationImage | null>(null);
+  const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
 
   const load = async () => {
     const allPatients = await decryptPatients(await db.patients.toArray());
@@ -84,6 +90,7 @@ export function ConsultationsPage() {
           data,
           uploadedAt: new Date().toISOString(),
           caption: "",
+          imgType: "other",
         });
       }
       setForm(f => ({ ...f, images: [...f.images, ...newImages] }));
@@ -94,11 +101,89 @@ export function ConsultationsPage() {
   };
 
   const removeImage = (id: string) => {
-    setForm(f => ({ ...f, images: f.images.filter(i => i.id !== id) }));
+    setForm(f => ({
+      ...f,
+      images: f.images
+        .filter(i => i.id !== id)
+        // also unpair anything that pointed to it
+        .map(i => i.pairedWith === id ? { ...i, pairedWith: undefined } : i),
+    }));
+    setSelectedImgIds(s => s.filter(x => x !== id));
   };
 
   const updateCaption = (id: string, caption: string) => {
     setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, caption } : i) }));
+  };
+
+  const updateImgType = (id: string, imgType: ConsultationImageType) => {
+    setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, imgType } : i) }));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedImgIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  };
+
+  const canPair = useMemo(() => {
+    if (selectedImgIds.length !== 2) return false;
+    const sel = form.images.filter(i => selectedImgIds.includes(i.id));
+    const types = sel.map(i => i.imgType).sort();
+    return types[0] === "after" && types[1] === "before";
+  }, [selectedImgIds, form.images]);
+
+  const pairSelected = () => {
+    if (!canPair) return;
+    const [a, b] = form.images.filter(i => selectedImgIds.includes(i.id));
+    setForm(f => ({
+      ...f,
+      images: f.images.map(i =>
+        i.id === a.id ? { ...i, pairedWith: b.id }
+        : i.id === b.id ? { ...i, pairedWith: a.id }
+        : i),
+    }));
+    setSelectedImgIds([]);
+    toast.success(t("img.paired"));
+  };
+
+  const unpair = (id: string) => {
+    const target = form.images.find(i => i.id === id);
+    if (!target?.pairedWith) return;
+    const otherId = target.pairedWith;
+    setForm(f => ({
+      ...f,
+      images: f.images.map(i =>
+        (i.id === id || i.id === otherId) ? { ...i, pairedWith: undefined } : i),
+    }));
+  };
+
+  const openCompare = (img: ConsultationImage) => {
+    if (!img.pairedWith) return;
+    const other = form.images.find(i => i.id === img.pairedWith);
+    if (!other) return;
+    const before = img.imgType === "before" ? img : other;
+    const after = img.imgType === "after" ? img : other;
+    setCompareDialog({ before, after });
+  };
+
+  const saveAnnotation = (dataUrl: string) => {
+    if (!annotateImg) return;
+    const newImg: ConsultationImage = {
+      id: crypto.randomUUID(),
+      filename: `annotation-${annotateImg.filename}`,
+      data: dataUrl,
+      uploadedAt: new Date().toISOString(),
+      caption: `Annotation of ${annotateImg.filename}`,
+      imgType: "annotation",
+      annotationOf: annotateImg.id,
+    };
+    setForm(f => ({ ...f, images: [...f.images, newImg] }));
+    setAnnotateImg(null);
+    toast.success(t("annotate.save"));
+  };
+
+  const exportConsultJson = async (c: ConsultationWithMeta) => {
+    const json = JSON.stringify(c, null, 2);
+    const ok = await saveFile(withDateStamp(`consultation_${c.patientName.replace(/\s+/g, "_")}.json`), json, "json");
+    if (ok) toast.success(t("download.done"));
   };
 
   const save = async () => {
