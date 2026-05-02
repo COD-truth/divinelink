@@ -116,8 +116,61 @@ export function BackupPage() {
     refreshStorage();
   };
 
+  const handleSyncExport = async () => {
+    if (!syncPwd) return;
+    setSyncBusyExport(true);
+    setMergeReport(null);
+    try {
+      const bundle = await buildSyncBundle();
+      const total = Object.values(bundle.counts).reduce((a, b) => a + b, 0);
+      if (total === 0) {
+        toast.info(t("sync.exportNothing"));
+        setSyncBusyExport(false);
+        return;
+      }
+      const cipher = encryptSyncBundle(bundle, syncPwd);
+      const ok = await saveFile(withDateStamp(`divinelink_changes${SYNC_EXTENSION}`), cipher, "text");
+      if (ok) {
+        const now = new Date().toISOString();
+        setLastSyncTime(now);
+        setLastSync(now);
+        if (user) await logAudit("backup_export", user.name, { message: `sync export: ${JSON.stringify(bundle.counts)}` });
+        toast.success(t("backup.success"));
+      }
+    } catch (e) {
+      toast.error(String(e));
+    }
+    setSyncBusyExport(false);
+  };
+
+  const handleSyncImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !syncPwd) return;
+    setSyncBusyImport(true);
+    setMergeReport(null);
+    try {
+      const text = await file.text();
+      const bundle = decryptSyncBundle(text, syncPwd);
+      const report = await mergeSyncBundle(bundle);
+      setMergeReport(report);
+      if (user) await logAudit("backup_import", user.name, { message: `sync merge: ${JSON.stringify(report)}` });
+      toast.success(t("backup.success"));
+      refreshStorage();
+    } catch (err) {
+      toast.error(t("sync.bad"));
+    }
+    setSyncBusyImport(false);
+    e.target.value = "";
+  };
+
+  const resetSyncMarker = () => {
+    localStorage.removeItem("dl.sync.lastExport.v1");
+    setLastSync(null);
+    toast.success("OK");
+  };
+
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       {/* Storage gauge */}
       {storage && (
         <Card>
