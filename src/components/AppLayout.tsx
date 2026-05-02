@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage,
   UserCog, Database, LogOut, Menu, X, ChevronRight, RefreshCw,
-  ScrollText, ShieldCheck
+  ScrollText, ShieldCheck, BarChart3
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
 import { toast } from "sonner";
 
-export type Page = "dashboard" | "patients" | "appointments" | "consultations" | "documents" | "users" | "backup" | "audit" | "security";
+export type Page = "dashboard" | "patients" | "appointments" | "consultations" | "documents" | "users" | "backup" | "audit" | "security" | "research";
 
 interface Props {
   currentPage: Page;
@@ -70,6 +70,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
     { page: "consultations", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
     { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
+    { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.research"), roles: ["admin", "doctor"] },
     { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
     { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
     { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },

@@ -122,7 +122,7 @@ export function ResearchPage() {
 
   const exportCsv = async () => {
     if (!results?.length) return;
-    const csv = toCsv(results, ["patientId", "patientName", "age", "date", "diagnosis", "prescription", "doctor"]);
+    const csv = toCsv(results as unknown as Record<string, unknown>[], ["patientId", "patientName", "age", "date", "diagnosis", "prescription", "doctor"]);
     const ok = await saveFile(withDateStamp("research_results.csv"), csv, "csv");
     if (ok) toast.success(t("research.exported"));
   };
