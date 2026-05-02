@@ -60,6 +60,7 @@ export function ConsultationsPage() {
   const openNew = () => {
     setEditingId(null);
     setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [] });
+    setSelectedImgIds([]);
     setDialogOpen(true);
   };
 
@@ -72,8 +73,9 @@ export function ConsultationsPage() {
       treatmentPlan: c.treatmentPlan,
       prescription: c.prescription,
       notes: c.notes,
-      images: c.images || [],
+      images: (c.images || []).map(i => ({ ...i, imgType: i.imgType ?? "other" })),
     });
+    setSelectedImgIds([]);
     setDialogOpen(true);
   };
 
@@ -310,6 +312,9 @@ export function ConsultationsPage() {
                     <Button variant="ghost" size="sm" onClick={() => openEdit(c)} title={t("common.edit")}>
                       <Edit className="w-4 h-4" />
                     </Button>
+                    <Button variant="ghost" size="sm" onClick={() => exportConsultJson(c)} title={t("download.consultJson")}>
+                      <Download className="w-4 h-4" />
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => handlePrint(c)} title={t("consult.print")}>
                       <Printer className="w-4 h-4" />
                     </Button>
@@ -367,44 +372,95 @@ export function ConsultationsPage() {
 
             {/* Images attached to consultation */}
             <div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <Label>{t("doc.images")}</Label>
-                <Button asChild size="sm" variant="outline" type="button">
-                  <label className="cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    {t("doc.addImages")}
-                    <input type="file" accept="image/*" multiple capture={undefined} className="hidden" onChange={handleAddImages} />
-                  </label>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!canPair}
+                    onClick={pairSelected}
+                    title={t("img.pairHint")}
+                  >
+                    <GitCompareArrows className="w-4 h-4 mr-1" />{t("img.pair")}
+                  </Button>
+                  <Button asChild size="sm" variant="outline" type="button">
+                    <label className="cursor-pointer">
+                      <Upload className="w-4 h-4 mr-2" />
+                      {t("doc.addImages")}
+                      <input type="file" accept="image/*" multiple capture={undefined} className="hidden" onChange={handleAddImages} />
+                    </label>
+                  </Button>
+                </div>
               </div>
+              {selectedImgIds.length > 0 && !canPair && (
+                <p className="text-xs text-muted-foreground mt-1">{t("img.pairHint")}</p>
+              )}
               {form.images.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {form.images.map(img => (
-                    <div key={img.id} className="relative group">
-                      <button
-                        type="button"
-                        className="block w-full aspect-square rounded overflow-hidden bg-muted"
-                        onClick={() => setPreviewImg(img)}
-                      >
-                        <img src={img.data} alt={img.filename} className="w-full h-full object-cover" />
-                      </button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeImage(img.id)}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                      <Input
-                        className="mt-1 h-7 text-xs"
-                        placeholder={t("doc.caption")}
-                        value={img.caption || ""}
-                        onChange={e => updateCaption(img.id, e.target.value)}
-                      />
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                  {form.images.map(img => {
+                    const selected = selectedImgIds.includes(img.id);
+                    return (
+                      <div key={img.id} className={`relative rounded border p-2 space-y-2 ${selected ? "border-primary ring-2 ring-primary/30" : ""}`}>
+                        <button
+                          type="button"
+                          className="block w-full aspect-square rounded overflow-hidden bg-muted"
+                          onClick={() => toggleSelect(img.id)}
+                          title="Click to select"
+                        >
+                          <img src={img.data} alt={img.filename} className="w-full h-full object-cover" />
+                        </button>
+
+                        <div className="flex flex-wrap items-center gap-1">
+                          {img.pairedWith && <Badge variant="secondary">{t("img.paired")}</Badge>}
+                          {img.annotationOf && <Badge variant="outline">{t("img.type.annotation")}</Badge>}
+                        </div>
+
+                        <Select value={img.imgType ?? "other"} onValueChange={v => updateImgType(img.id, v as ConsultationImageType)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="before">{t("img.type.before")}</SelectItem>
+                            <SelectItem value="after">{t("img.type.after")}</SelectItem>
+                            <SelectItem value="other">{t("img.type.other")}</SelectItem>
+                            <SelectItem value="annotation">{t("img.type.annotation")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Input
+                          className="h-7 text-xs"
+                          placeholder={t("doc.caption")}
+                          value={img.caption || ""}
+                          onChange={e => updateCaption(img.id, e.target.value)}
+                        />
+
+                        <div className="flex flex-wrap gap-1">
+                          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setAnnotateImg(img)}>
+                            <Pencil className="w-3 h-3 mr-1" />{t("img.annotate")}
+                          </Button>
+                          {img.pairedWith ? (
+                            <>
+                              <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => openCompare(img)}>
+                                <GitCompareArrows className="w-3 h-3 mr-1" />{t("img.compare")}
+                              </Button>
+                              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => unpair(img.id)}>
+                                {t("img.unpair")}
+                              </Button>
+                            </>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs ml-auto text-destructive"
+                            onClick={() => removeImage(img.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -413,6 +469,29 @@ export function ConsultationsPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={save}>{t("common.save")}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Annotation modal */}
+      <AnnotateImageModal
+        open={!!annotateImg}
+        src={annotateImg?.data ?? null}
+        onClose={() => setAnnotateImg(null)}
+        onSave={saveAnnotation}
+      />
+
+      {/* Compare dialog */}
+      <Dialog open={!!compareDialog} onOpenChange={() => setCompareDialog(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>{t("img.compare")}</DialogTitle></DialogHeader>
+          {compareDialog && (
+            <BeforeAfterCompare
+              before={compareDialog.before.data}
+              after={compareDialog.after.data}
+              beforeLabel={t("img.type.before")}
+              afterLabel={t("img.type.after")}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
