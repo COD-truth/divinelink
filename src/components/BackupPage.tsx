@@ -6,20 +6,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Download, Upload, AlertTriangle, Loader2, HardDrive } from "lucide-react";
+import { Download, Upload, AlertTriangle, Loader2, HardDrive, RefreshCw, FileDown, FileUp } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import CryptoJS from "crypto-js";
 import { getStorageEstimate, formatBytes } from "@/lib/imageUtils";
 import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
+import {
+  buildSyncBundle, encryptSyncBundle, decryptSyncBundle, mergeSyncBundle,
+  getLastSyncTime, setLastSyncTime, SYNC_EXTENSION, type MergeReport,
+} from "@/lib/sync";
+import { saveFile, withDateStamp } from "@/lib/download";
+import { logAudit } from "@/lib/audit";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function BackupPage() {
   const { t } = useLang();
+  const { user } = useAuth();
   const [exportPwd, setExportPwd] = useState("");
   const [importPwd, setImportPwd] = useState("");
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [storage, setStorage] = useState<{ usage: number; quota: number; percent: number } | null>(null);
+
+  // Sync state
+  const [syncPwd, setSyncPwd] = useState("");
+  const [syncBusyExport, setSyncBusyExport] = useState(false);
+  const [syncBusyImport, setSyncBusyImport] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(getLastSyncTime());
+  const [mergeReport, setMergeReport] = useState<MergeReport | null>(null);
 
   const refreshStorage = async () => setStorage(await getStorageEstimate());
   useEffect(() => { refreshStorage(); }, []);
