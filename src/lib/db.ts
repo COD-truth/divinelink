@@ -30,6 +30,8 @@ export interface Patient {
 }
 
 /** Image attached to a consultation */
+export type ConsultationImageType = "before" | "after" | "other" | "annotation";
+
 export interface ConsultationImage {
   id: string;
   filename: string;
@@ -37,6 +39,12 @@ export interface ConsultationImage {
   data: string;
   uploadedAt: string;
   caption?: string;
+  /** before / after / other / annotation */
+  imgType?: ConsultationImageType;
+  /** id of the image this one is paired with (before<->after) */
+  pairedWith?: string;
+  /** id of the source image when this one is an annotation overlay */
+  annotationOf?: string;
 }
 
 export interface Appointment {
