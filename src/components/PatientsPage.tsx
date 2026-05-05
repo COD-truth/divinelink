@@ -20,6 +20,7 @@ export function PatientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<Patient | null>(null);
+  const [referral, setReferral] = useState<Patient | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" as string | undefined });
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
@@ -33,8 +34,23 @@ export function PatientsPage() {
   const filtered = patients.filter(p => {
     const q = search.toLowerCase();
     return p.firstName.toLowerCase().includes(q) || p.lastName.toLowerCase().includes(q) ||
-      p.phone.includes(q) || p.patientId.toLowerCase().includes(q);
+      p.phone.includes(q) || p.patientId.toLowerCase().includes(q) ||
+      (p.anonCode || "").toLowerCase().includes(q);
   });
+
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const copyText = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success(t("patient.copied")); }
+    catch { toast.error("Copy failed"); }
+  };
+
+  const buildReferral = (p: Patient) =>
+    `DivineLink Referral\n--------------------\nAnonymous ID: ${p.anonCode || p.patientId}\nMedical alerts: ${p.medicalAlerts || "—"}\nDate: ${new Date().toLocaleDateString()}\n\n(No identifying personal data is shared.)`;
 
   const openNew = () => {
     setEditing(null);
