@@ -317,6 +317,24 @@ export function PatientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Referral card */}
+      <Dialog open={!!referral} onOpenChange={() => setReferral(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("patient.referral")}</DialogTitle></DialogHeader>
+          {referral && (
+            <>
+              <pre className="text-xs bg-muted p-3 rounded whitespace-pre-wrap font-mono">{buildReferral(referral)}</pre>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setReferral(null)}>{t("common.cancel")}</Button>
+                <Button onClick={() => copyText(buildReferral(referral))} className="gap-2">
+                  <Copy className="w-4 h-4" />{t("patient.referralCopy")}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
