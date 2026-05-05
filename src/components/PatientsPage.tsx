@@ -184,13 +184,29 @@ export function PatientsPage() {
                     <>{p.firstName[0]}{p.lastName[0]}</>
                   )}
                 </div>
-                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEdit(p)}>
-                  <p className="font-medium truncate">{p.firstName} {p.lastName}</p>
-                  <p className="text-sm text-muted-foreground">{p.patientId} • {p.phone || "—"}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="cursor-pointer" onClick={() => openEdit(p)}>
+                    <p className="font-medium truncate">{p.firstName} {p.lastName}</p>
+                    <p className="text-xs text-muted-foreground">{p.patientId} • {p.phone || "—"}</p>
+                  </div>
+                  {p.anonCode && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <code className="text-[10px] bg-accent px-1.5 py-0.5 rounded font-mono">{p.anonCode}</code>
+                      <Button variant="ghost" size="icon" className="w-6 h-6" onClick={() => copyText(p.anonCode!)} title={t("patient.copyCode")}>
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {t("patient.created")}: {fmtDate(p.createdAt)}
+                  </p>
                 </div>
                 {p.medicalAlerts && (
                   <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
                 )}
+                <Button variant="ghost" size="sm" onClick={() => setReferral(p)} title={t("patient.referral")}>
+                  <Share2 className="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>
                   <Edit className="w-4 h-4" />
                 </Button>
