@@ -103,6 +103,76 @@ export function SecurityPage() {
 
   return (
     <div className="space-y-4 max-w-3xl">
+      {/* Wipe countdown banner */}
+      {wipeCountdown != null && (
+        <Card className="border-destructive">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Trash2 className="w-6 h-6 text-destructive" />
+            <div className="flex-1">
+              <p className="font-semibold text-destructive">{t("sec.wipeCountdown")} {wipeCountdown}s</p>
+              <p className="text-xs text-muted-foreground">{t("sec.wipeConfirm")}</p>
+            </div>
+            <Button variant="outline" onClick={() => setWipeCountdown(null)}>
+              {t("sec.wipeCountdownCancel")}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Encryption badge */}
+      <Card>
+        <CardContent className="p-4 flex items-start gap-3">
+          <Badge className="bg-emerald-600 text-white"><ShieldCheck className="w-3 h-3 mr-1" />{t("sec.encryptedBadge")}</Badge>
+          <div className="text-sm">
+            <p>{t("sec.encryptedDesc")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("sec.notEncrypted")}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Auto-lock setting */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5" />{t("sec.autoLock")}</CardTitle>
+          <CardDescription>{t("sec.autoLockDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={autolockMin} onValueChange={setAutolockMin}>
+            <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {["1", "2", "5", "10", "30"].map(m => (
+                <SelectItem key={m} value={m}>{m} {t("sec.minutes")}</SelectItem>
+              ))}
+              <SelectItem value="0">{t("sec.never")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Session log */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><ListChecks className="w-5 h-5" />{t("sec.sessionLog")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sessionLog.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("common.noData")}</p>
+          ) : (
+            <ul className="text-sm divide-y">
+              {sessionLog.map((s, i) => (
+                <li key={i} className="py-2 flex items-center gap-2">
+                  <Badge variant={s.type === "login_fail" ? "destructive" : "secondary"} className="text-[10px]">
+                    {s.type === "login_fail" ? t("sec.failed") : s.type}
+                  </Badge>
+                  <span className="font-medium">{s.user}</span>
+                  <span className="text-muted-foreground ml-auto text-xs">{new Date(s.ts).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Master PIN */}
       <Card>
         <CardHeader>
