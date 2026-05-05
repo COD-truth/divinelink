@@ -9,7 +9,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Trash2, FileText, Copy, RefreshCw, ShieldCheck } from "lucide-react";
+import { Lock, Trash2, FileText, Copy, RefreshCw, ShieldCheck, Clock, ListChecks } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { db } from "@/lib/db";
 import { toast } from "sonner";
 import { changeMasterPin } from "@/lib/crypto";
 import {
@@ -27,12 +29,36 @@ export function SecurityPage() {
   const [wipeSecret, setSecret] = useState<string | null>(null);
   const [wipeUrl, setWipeUrl] = useState<string>("");
   const [reportOpen, setReportOpen] = useState(false);
+  const [autolockMin, setAutolockMin] = useState<string>(() => localStorage.getItem("dl.autolock.minutes.v1") ?? "5");
+  const [sessionLog, setSessionLog] = useState<{ ts: string; user: string; type: string; ok: boolean }[]>([]);
+  const [wipeCountdown, setWipeCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     const s = getWipeSecret();
     setSecret(s);
     if (s) setWipeUrl(buildWipeUrl(s));
+    (async () => {
+      const recent = await db.auditLogs
+        .where("type").anyOf("login", "login_fail", "logout")
+        .reverse().limit(10).toArray();
+      setSessionLog(recent.map(r => ({ ts: r.timestamp, user: r.userName, type: r.type, ok: r.type === "login" || r.type === "logout" })));
+    })();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("dl.autolock.minutes.v1", autolockMin);
+  }, [autolockMin]);
+
+  // Wipe countdown ticker
+  useEffect(() => {
+    if (wipeCountdown == null) return;
+    if (wipeCountdown === 0) {
+      (async () => { await performWipe(); location.reload(); })();
+      return;
+    }
+    const id = setTimeout(() => setWipeCountdown(c => (c == null ? null : c - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [wipeCountdown]);
 
   const handleChangePin = async () => {
     if (pin1.length < 4 || pin1 !== pin2) {
@@ -72,8 +98,7 @@ export function SecurityPage() {
   const handleWipeNow = async () => {
     if (!confirm(t("sec.wipeConfirm"))) return;
     if (!confirm(t("sec.wipeConfirm2"))) return;
-    await performWipe();
-    location.reload();
+    setWipeCountdown(5);
   };
 
   return (
