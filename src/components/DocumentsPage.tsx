@@ -1,17 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { db, type Document as Doc, type DocumentTag, type Patient } from "@/lib/db";
+import { db, type Document as Doc, type DocumentTag, type Patient, type Consultation } from "@/lib/db";
 import { useLang } from "@/contexts/LangContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Trash2, Search, FileText } from "lucide-react";
+import { Upload, Trash2, Search, FileText, Clock, LayoutGrid, ListTree, Link2, Tag as TagIcon, Download } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl, formatBytes } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
