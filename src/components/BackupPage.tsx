@@ -394,6 +394,88 @@ export function BackupPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Full JSON backup + Device Sync */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><FileJson className="w-5 h-5" />{t("backup.json.export")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {counts && (
+            <p className="text-sm text-muted-foreground">
+              {t("backup.json.summary")}: {counts.patients} {t("backup.summary.patients")} • {counts.consultations} {t("backup.summary.consultations")} • {counts.documents} {t("backup.summary.documents")} • {counts.appointments} {t("backup.summary.appointments")}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleJsonExport} disabled={jsonBusy} className="gap-2">
+              {jsonBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {t("backup.json.export")}
+            </Button>
+            <Button asChild variant="outline" className="gap-2">
+              <label className="cursor-pointer">
+                <Upload className="w-4 h-4" />{t("backup.json.import")}
+                <input type="file" accept="application/json,.json" className="hidden" onChange={handleJsonFilePick} />
+              </label>
+            </Button>
+          </div>
+
+          <div className="border-t pt-4 space-y-2">
+            <p className="font-medium text-sm">{t("backup.deviceSync")}</p>
+            <p className="text-xs text-muted-foreground">{t("backup.shareHint")}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleJsonShare} variant="secondary" className="gap-2">
+                <Share2 className="w-4 h-4" />{t("backup.share")}
+              </Button>
+              <Button asChild variant="outline" className="gap-2">
+                <label className="cursor-pointer">
+                  <FileUp className="w-4 h-4" />{t("backup.receive")}
+                  <input type="file" accept="application/json,.json" className="hidden" onChange={handleJsonFilePick} />
+                </label>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* JSON import preview dialog */}
+      <Dialog open={!!jsonPreview} onOpenChange={o => !o && !jsonImporting && setJsonPreview(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("backup.json.preview")}</DialogTitle></DialogHeader>
+          {jsonPreview && (
+            <div className="space-y-3">
+              <div className="text-sm bg-muted/40 p-3 rounded space-y-1">
+                <p>{t("backup.json.summary")}:</p>
+                <ul className="list-disc list-inside text-muted-foreground">
+                  <li>{jsonPreview.data.data.patients?.length || 0} {t("backup.summary.patients")}</li>
+                  <li>{jsonPreview.data.data.consultations?.length || 0} {t("backup.summary.consultations")}</li>
+                  <li>{jsonPreview.data.data.documents?.length || 0} {t("backup.summary.documents")}</li>
+                  <li>{jsonPreview.data.data.appointments?.length || 0} {t("backup.summary.appointments")}</li>
+                </ul>
+                {jsonPreview.data.generatedAt && (
+                  <p className="text-xs">{t("backup.json.from")} {new Date(jsonPreview.data.generatedAt).toLocaleString()}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Mode</Label>
+                {(["merge", "replace", "patientsOnly"] as const).map(m => (
+                  <label key={m} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="json-mode" checked={jsonMode === m} onChange={() => setJsonMode(m)} />
+                    {t(`backup.${m === "patientsOnly" ? "patientsOnly" : m}`)}
+                  </label>
+                ))}
+              </div>
+              {jsonImporting && <Progress value={jsonProgress} />}
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setJsonPreview(null)} disabled={jsonImporting}>{t("common.cancel")}</Button>
+                <Button onClick={runJsonImport} disabled={jsonImporting}>
+                  {jsonImporting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  {t("backup.json.import")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
