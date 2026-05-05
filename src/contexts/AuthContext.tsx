@@ -12,7 +12,14 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
-const TIMEOUT_MS = 5 * 60 * 1000;
+const AUTOLOCK_KEY = "dl.autolock.minutes.v1";
+function getAutolockMs(): number {
+  const raw = localStorage.getItem(AUTOLOCK_KEY);
+  const m = raw == null ? 5 : parseInt(raw, 10);
+  if (isNaN(m) || m < 0) return 5 * 60 * 1000;
+  if (m === 0) return Number.POSITIVE_INFINITY; // Never
+  return m * 60 * 1000;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -24,7 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     const interval = setInterval(() => {
-      if (Date.now() - lastActivity > TIMEOUT_MS) logout();
+      const ms = getAutolockMs();
+      if (Number.isFinite(ms) && Date.now() - lastActivity > ms) logout();
     }, 30000);
     return () => clearInterval(interval);
   }, [user, lastActivity, logout]);
