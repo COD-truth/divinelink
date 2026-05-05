@@ -9,7 +9,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Trash2, FileText, Copy, RefreshCw, ShieldCheck } from "lucide-react";
+import { Lock, Trash2, FileText, Copy, RefreshCw, ShieldCheck, Clock, ListChecks } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { db } from "@/lib/db";
 import { toast } from "sonner";
 import { changeMasterPin } from "@/lib/crypto";
 import {
@@ -27,12 +29,36 @@ export function SecurityPage() {
   const [wipeSecret, setSecret] = useState<string | null>(null);
   const [wipeUrl, setWipeUrl] = useState<string>("");
   const [reportOpen, setReportOpen] = useState(false);
+  const [autolockMin, setAutolockMin] = useState<string>(() => localStorage.getItem("dl.autolock.minutes.v1") ?? "5");
+  const [sessionLog, setSessionLog] = useState<{ ts: string; user: string; type: string; ok: boolean }[]>([]);
+  const [wipeCountdown, setWipeCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     const s = getWipeSecret();
     setSecret(s);
     if (s) setWipeUrl(buildWipeUrl(s));
+    (async () => {
+      const recent = await db.auditLogs
+        .where("type").anyOf("login", "login_fail", "logout")
+        .reverse().limit(10).toArray();
+      setSessionLog(recent.map(r => ({ ts: r.timestamp, user: r.userName, type: r.type, ok: r.type === "login" || r.type === "logout" })));
+    })();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("dl.autolock.minutes.v1", autolockMin);
+  }, [autolockMin]);
+
+  // Wipe countdown ticker
+  useEffect(() => {
+    if (wipeCountdown == null) return;
+    if (wipeCountdown === 0) {
+      (async () => { await performWipe(); location.reload(); })();
+      return;
+    }
+    const id = setTimeout(() => setWipeCountdown(c => (c == null ? null : c - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [wipeCountdown]);
 
   const handleChangePin = async () => {
     if (pin1.length < 4 || pin1 !== pin2) {
@@ -72,12 +98,81 @@ export function SecurityPage() {
   const handleWipeNow = async () => {
     if (!confirm(t("sec.wipeConfirm"))) return;
     if (!confirm(t("sec.wipeConfirm2"))) return;
-    await performWipe();
-    location.reload();
+    setWipeCountdown(5);
   };
 
   return (
     <div className="space-y-4 max-w-3xl">
+      {/* Wipe countdown banner */}
+      {wipeCountdown != null && (
+        <Card className="border-destructive">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Trash2 className="w-6 h-6 text-destructive" />
+            <div className="flex-1">
+              <p className="font-semibold text-destructive">{t("sec.wipeCountdown")} {wipeCountdown}s</p>
+              <p className="text-xs text-muted-foreground">{t("sec.wipeConfirm")}</p>
+            </div>
+            <Button variant="outline" onClick={() => setWipeCountdown(null)}>
+              {t("sec.wipeCountdownCancel")}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Encryption badge */}
+      <Card>
+        <CardContent className="p-4 flex items-start gap-3">
+          <Badge className="bg-emerald-600 text-white"><ShieldCheck className="w-3 h-3 mr-1" />{t("sec.encryptedBadge")}</Badge>
+          <div className="text-sm">
+            <p>{t("sec.encryptedDesc")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("sec.notEncrypted")}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Auto-lock setting */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5" />{t("sec.autoLock")}</CardTitle>
+          <CardDescription>{t("sec.autoLockDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={autolockMin} onValueChange={setAutolockMin}>
+            <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {["1", "2", "5", "10", "30"].map(m => (
+                <SelectItem key={m} value={m}>{m} {t("sec.minutes")}</SelectItem>
+              ))}
+              <SelectItem value="0">{t("sec.never")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Session log */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><ListChecks className="w-5 h-5" />{t("sec.sessionLog")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sessionLog.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("common.noData")}</p>
+          ) : (
+            <ul className="text-sm divide-y">
+              {sessionLog.map((s, i) => (
+                <li key={i} className="py-2 flex items-center gap-2">
+                  <Badge variant={s.type === "login_fail" ? "destructive" : "secondary"} className="text-[10px]">
+                    {s.type === "login_fail" ? t("sec.failed") : s.type}
+                  </Badge>
+                  <span className="font-medium">{s.user}</span>
+                  <span className="text-muted-foreground ml-auto text-xs">{new Date(s.ts).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Master PIN */}
       <Card>
         <CardHeader>

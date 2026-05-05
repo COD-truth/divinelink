@@ -17,6 +17,7 @@ import { decryptPatients } from "@/lib/patientCrypto";
 import { AnnotateImageModal } from "@/components/AnnotateImageModal";
 import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
 import { saveFile, withDateStamp } from "@/lib/download";
+import { formatDateTime } from "@/lib/dateFormat";
 
 type ConsultationWithMeta = Consultation & { patientName: string };
 
@@ -289,8 +290,15 @@ export function ConsultationsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium">{c.patientName}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(c.date).toLocaleDateString()}</p>
-                    <div className="flex gap-2 mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      {t("ts.created")}: {formatDateTime(c.createdAt || c.date)}
+                    </p>
+                    {c.editedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("ts.lastEdited")}: {formatDateTime(c.editedAt)}{c.editedBy ? ` ${t("ts.by")} ${c.editedBy}` : ""}
+                      </p>
+                    )}
+                    <div className="flex gap-2 mt-1 flex-wrap">
                       {c.parentId && (
                         <span className="inline-flex items-center gap-1 text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
                           {t("consult.modified")}
@@ -376,12 +384,8 @@ export function ConsultationsPage() {
                 <Label>{t("doc.images")}</Label>
                 <div className="flex items-center gap-2">
                   <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!canPair}
-                    onClick={pairSelected}
-                    title={t("img.pairHint")}
+                    type="button" size="sm" variant="outline"
+                    disabled={!canPair} onClick={pairSelected} title={t("img.pairHint")}
                   >
                     <GitCompareArrows className="w-4 h-4 mr-1" />{t("img.pair")}
                   </Button>
@@ -394,6 +398,34 @@ export function ConsultationsPage() {
                   </Button>
                 </div>
               </div>
+
+              {/* Prominent Before/After CTA */}
+              <Button asChild type="button" variant="default" className="w-full mt-2 gap-2">
+                <label className="cursor-pointer">
+                  <GitCompareArrows className="w-4 h-4" />
+                  {t("ba.add")}
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
+                    const newImages: ConsultationImage[] = [];
+                    for (let i = 0; i < files.length; i++) {
+                      const data = await compressImage(files[i]);
+                      newImages.push({
+                        id: crypto.randomUUID(),
+                        filename: files[i].name,
+                        data,
+                        uploadedAt: new Date().toISOString(),
+                        caption: "",
+                        imgType: i % 2 === 0 ? "before" : "after",
+                      });
+                    }
+                    setForm(f => ({ ...f, images: [...f.images, ...newImages] }));
+                    e.target.value = "";
+                    toast.success(t("ba.add"));
+                  }} />
+                </label>
+              </Button>
+
               {selectedImgIds.length > 0 && !canPair && (
                 <p className="text-xs text-muted-foreground mt-1">{t("img.pairHint")}</p>
               )}

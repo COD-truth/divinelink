@@ -103,7 +103,13 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const allItems = [dashItem, ...visibleGroups.flatMap(g => g.items)];
   const currentLabel = allItems.find(i => i.page === currentPage)?.label || "";
 
-  const navigate = (p: Page) => { onNavigate(p); setSidebarOpen(false); };
+  const navigate = (p: Page) => {
+    onNavigate(p);
+    setSidebarOpen(false);
+    import("@/lib/metrics").then(m => m.trackNav(p));
+  };
+
+  useEffect(() => { import("@/lib/metrics").then(m => m.trackNav(currentPage)); }, [currentPage]);
 
   const sidebarWidth = collapsed ? "w-[60px]" : "w-64";
 

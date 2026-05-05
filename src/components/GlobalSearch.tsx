@@ -36,6 +36,7 @@ export function GlobalSearch({ onNavigate }: Props) {
     let cancelled = false;
     const q = query.trim().toLowerCase();
     if (!q) { setHits([]); return; }
+    const timer = setTimeout(() => { import("@/lib/metrics").then(m => m.trackSearch(q)); }, 800);
     (async () => {
       const [patientsRaw, consultations, documents] = await Promise.all([
         db.patients.toArray(),
@@ -78,7 +79,7 @@ export function GlobalSearch({ onNavigate }: Props) {
 
       setHits([...patientHits, ...consultHits, ...docHits]);
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [query, t]);
 
   const groups = {
