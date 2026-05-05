@@ -17,6 +17,7 @@ import { decryptPatients } from "@/lib/patientCrypto";
 import { AnnotateImageModal } from "@/components/AnnotateImageModal";
 import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
 import { saveFile, withDateStamp } from "@/lib/download";
+import { formatDateTime } from "@/lib/dateFormat";
 
 type ConsultationWithMeta = Consultation & { patientName: string };
 
@@ -289,8 +290,15 @@ export function ConsultationsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium">{c.patientName}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(c.date).toLocaleDateString()}</p>
-                    <div className="flex gap-2 mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      {t("ts.created")}: {formatDateTime(c.createdAt || c.date)}
+                    </p>
+                    {c.editedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("ts.lastEdited")}: {formatDateTime(c.editedAt)}{c.editedBy ? ` ${t("ts.by")} ${c.editedBy}` : ""}
+                      </p>
+                    )}
+                    <div className="flex gap-2 mt-1 flex-wrap">
                       {c.parentId && (
                         <span className="inline-flex items-center gap-1 text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
                           {t("consult.modified")}
