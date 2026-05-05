@@ -79,7 +79,7 @@ export function GlobalSearch({ onNavigate }: Props) {
 
       setHits([...patientHits, ...consultHits, ...docHits]);
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [query, t]);
 
   const groups = {
