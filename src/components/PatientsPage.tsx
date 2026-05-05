@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { db, generatePatientId, type Patient } from "@/lib/db";
+import { db, generatePatientId, generateAnonCode, type Patient } from "@/lib/db";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip, Lock, Download } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Trash2, Upload, X, Paperclip, Download, Copy, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataUrl } from "@/lib/imageUtils";
 import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
@@ -20,6 +20,7 @@ export function PatientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editing, setEditing] = useState<Patient | null>(null);
+  const [referral, setReferral] = useState<Patient | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", dob: "", address: "", medicalAlerts: "", photo: "" as string | undefined });
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
@@ -33,8 +34,23 @@ export function PatientsPage() {
   const filtered = patients.filter(p => {
     const q = search.toLowerCase();
     return p.firstName.toLowerCase().includes(q) || p.lastName.toLowerCase().includes(q) ||
-      p.phone.includes(q) || p.patientId.toLowerCase().includes(q);
+      p.phone.includes(q) || p.patientId.toLowerCase().includes(q) ||
+      (p.anonCode || "").toLowerCase().includes(q);
   });
+
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const copyText = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success(t("patient.copied")); }
+    catch { toast.error("Copy failed"); }
+  };
+
+  const buildReferral = (p: Patient) =>
+    `DivineLink Referral\n--------------------\nAnonymous ID: ${p.anonCode || p.patientId}\nMedical alerts: ${p.medicalAlerts || "—"}\nDate: ${new Date().toLocaleDateString()}\n\n(No identifying personal data is shared.)`;
 
   const openNew = () => {
     setEditing(null);
@@ -80,7 +96,8 @@ export function PatientsPage() {
       toast.success(t("common.save"));
     } else {
       const patientId = await generatePatientId();
-      savedId = await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
+      const anonCode = generateAnonCode();
+      savedId = await db.patients.add({ ...payload, patientId, anonCode, createdAt: now, updatedAt: now });
       toast.success(t("patient.register"));
     }
     // Save attachments to documents linked to this patient
@@ -167,13 +184,29 @@ export function PatientsPage() {
                     <>{p.firstName[0]}{p.lastName[0]}</>
                   )}
                 </div>
-                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEdit(p)}>
-                  <p className="font-medium truncate">{p.firstName} {p.lastName}</p>
-                  <p className="text-sm text-muted-foreground">{p.patientId} • {p.phone || "—"}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="cursor-pointer" onClick={() => openEdit(p)}>
+                    <p className="font-medium truncate">{p.firstName} {p.lastName}</p>
+                    <p className="text-xs text-muted-foreground">{p.patientId} • {p.phone || "—"}</p>
+                  </div>
+                  {p.anonCode && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <code className="text-[10px] bg-accent px-1.5 py-0.5 rounded font-mono">{p.anonCode}</code>
+                      <Button variant="ghost" size="icon" className="w-6 h-6" onClick={() => copyText(p.anonCode!)} title={t("patient.copyCode")}>
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {t("patient.created")}: {fmtDate(p.createdAt)}
+                  </p>
                 </div>
                 {p.medicalAlerts && (
                   <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
                 )}
+                <Button variant="ghost" size="sm" onClick={() => setReferral(p)} title={t("patient.referral")}>
+                  <Share2 className="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -282,6 +315,24 @@ export function PatientsPage() {
             <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{t("common.cancel")}</Button>
             <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>{t("common.delete")}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Referral card */}
+      <Dialog open={!!referral} onOpenChange={() => setReferral(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("patient.referral")}</DialogTitle></DialogHeader>
+          {referral && (
+            <>
+              <pre className="text-xs bg-muted p-3 rounded whitespace-pre-wrap font-mono">{buildReferral(referral)}</pre>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setReferral(null)}>{t("common.cancel")}</Button>
+                <Button onClick={() => copyText(buildReferral(referral))} className="gap-2">
+                  <Copy className="w-4 h-4" />{t("patient.referralCopy")}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -16,6 +16,7 @@ import { BackupPage } from "@/components/BackupPage";
 import { AuditLogPage } from "@/components/AuditLogPage";
 import { SecurityPage } from "@/components/SecurityPage";
 import { ResearchPage } from "@/components/ResearchPage";
+import { DiagnosisPage } from "@/components/DiagnosisPage";
 
 function AppContent() {
   const { user } = useAuth();
@@ -29,6 +30,7 @@ function AppContent() {
     appointments: <AppointmentsPage />,
     consultations: <ConsultationsPage />,
     documents: <DocumentsPage />,
+    diagnosis: <DiagnosisPage />,
     users: <UsersPage />,
     backup: <BackupPage />,
     audit: <AuditLogPage />,

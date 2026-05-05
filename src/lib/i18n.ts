@@ -303,6 +303,51 @@ const translations: Record<string, Record<Lang, string>> = {
   "sync.exportNothing": { en: "No new or modified records since last export.", fr: "Aucun enregistrement nouveau ou modifié depuis le dernier export." },
   "sync.bad": { en: "Could not decrypt this file (wrong passphrase or corrupted).", fr: "Impossible de déchiffrer ce fichier (phrase incorrecte ou corrompu)." },
   "sync.resetMarker": { en: "Reset 'last export' marker (re-exports everything next time)", fr: "Réinitialiser le marqueur (re-exporte tout la prochaine fois)" },
+
+  // Anonymous patient code
+  "patient.anonCode": { en: "Anonymous code", fr: "Code anonyme" },
+  "patient.copyCode": { en: "Copy code", fr: "Copier le code" },
+  "patient.copied": { en: "Code copied", fr: "Code copié" },
+  "patient.referral": { en: "Referral card", fr: "Fiche de référence" },
+  "patient.referralCopy": { en: "Copy referral", fr: "Copier la référence" },
+  "patient.created": { en: "Created", fr: "Créé" },
+  "patient.lastEdited": { en: "Last edited", fr: "Dernière modification" },
+
+  // Differential diagnosis
+  "nav.diagnosis": { en: "Differentials", fr: "Diagnostics différentiels" },
+  "dx.title": { en: "Differential Diagnosis", fr: "Diagnostic différentiel" },
+  "dx.pickSystem": { en: "Select a body system to begin.", fr: "Sélectionnez un système pour commencer." },
+  "dx.conditions": { en: "conditions", fr: "affections" },
+  "dx.symptoms": { en: "Symptoms", fr: "Symptômes" },
+  "dx.duration": { en: "Duration", fr: "Durée" },
+  "dx.severity": { en: "Severity", fr: "Sévérité" },
+  "dx.acute": { en: "Acute (<48 hrs)", fr: "Aiguë (<48 h)" },
+  "dx.subacute": { en: "Subacute (2-14 days)", fr: "Subaiguë (2-14 j)" },
+  "dx.chronic": { en: "Chronic (>14 days)", fr: "Chronique (>14 j)" },
+  "dx.mild": { en: "Mild", fr: "Légère" },
+  "dx.moderate": { en: "Moderate", fr: "Modérée" },
+  "dx.severe": { en: "Severe", fr: "Sévère" },
+  "dx.generate": { en: "Generate differentials", fr: "Générer les différentiels" },
+  "dx.results": { en: "Ranked diagnoses", fr: "Diagnostics classés" },
+  "dx.noMatches": { en: "No matching diseases. Try different symptoms.", fr: "Aucune correspondance. Essayez d'autres symptômes." },
+  "dx.needSymptoms": { en: "Pick at least one symptom.", fr: "Sélectionnez au moins un symptôme." },
+  "dx.keyFeatures": { en: "Key features", fr: "Caractéristiques clés" },
+  "dx.investigations": { en: "Investigations", fr: "Examens" },
+  "dx.redFlags": { en: "Red flags", fr: "Signes d'alarme" },
+  "dx.conf.high": { en: "High confidence", fr: "Confiance élevée" },
+  "dx.conf.medium": { en: "Medium confidence", fr: "Confiance moyenne" },
+  "dx.conf.low": { en: "Low confidence", fr: "Faible confiance" },
+  "dx.save": { en: "Save", fr: "Enregistrer" },
+  "dx.saveTitle": { en: "Save to consultation", fr: "Enregistrer dans une consultation" },
+  "dx.savedToConsult": { en: "Diagnosis saved to consultation", fr: "Diagnostic enregistré" },
+  "dx.clear": { en: "Clear", fr: "Effacer" },
+  "dx.history": { en: "History", fr: "Historique" },
+  "dx.clearHistory": { en: "Clear history", fr: "Effacer l'historique" },
+
+  // Sidebar groups
+  "nav.group.patients": { en: "PATIENTS", fr: "PATIENTS" },
+  "nav.group.tools": { en: "TOOLS", fr: "OUTILS" },
+  "nav.group.admin": { en: "ADMIN", fr: "ADMIN" },
 };
 
 export function t(key: string, lang: Lang): string {

@@ -17,6 +17,8 @@ export interface User {
 export interface Patient {
   id?: number;
   patientId: string;
+  /** Anonymous shareable code, e.g. DL-2026-KRTM-047 */
+  anonCode?: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -92,6 +94,8 @@ export interface Document {
   /** Optional category tag */
   tag?: DocumentTag;
   createdAt: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export type AuditEventType =
@@ -190,7 +194,33 @@ class DentaDB extends Dexie {
       documents: "++id, patientId, name, tag, createdAt",
       auditLogs: "++id, timestamp, userName, type, resource",
     });
+    // v6: anon patient code + doc updatedAt
+    this.version(6).stores({
+      users: "++id, name, role, pinHash",
+      patients: "++id, patientId, anonCode, firstName, lastName, phone",
+      appointments: "++id, patientId, doctorId, date, status",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt",
+      auditLogs: "++id, timestamp, userName, type, resource",
+    }).upgrade(async tx => {
+      await tx.table("patients").toCollection().modify(p => {
+        if (!p.anonCode) p.anonCode = generateAnonCodeSync();
+      });
+    });
   }
+}
+
+/** Synchronous anon code generator used at upgrade time. */
+function generateAnonCodeSync(): string {
+  const year = new Date().getFullYear();
+  const letters = Array.from({ length: 4 }, () =>
+    String.fromCharCode(65 + Math.floor(Math.random() * 26))).join("");
+  const digits = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+  return `DL-${year}-${letters}-${digits}`;
+}
+
+export function generateAnonCode(): string {
+  return generateAnonCodeSync();
 }
 
 export const db = new DentaDB();
