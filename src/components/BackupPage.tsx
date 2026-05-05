@@ -36,6 +36,121 @@ export function BackupPage() {
   const [lastSync, setLastSync] = useState<string | null>(getLastSyncTime());
   const [mergeReport, setMergeReport] = useState<MergeReport | null>(null);
 
+  // JSON backup state
+  const [jsonBusy, setJsonBusy] = useState(false);
+  const [jsonPreview, setJsonPreview] = useState<{ file: File; data: any } | null>(null);
+  const [jsonMode, setJsonMode] = useState<"merge" | "replace" | "patientsOnly">("merge");
+  const [jsonImporting, setJsonImporting] = useState(false);
+  const [jsonProgress, setJsonProgress] = useState(0);
+  const [counts, setCounts] = useState<{ patients: number; consultations: number; appointments: number; documents: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setCounts({
+        patients: await db.patients.count(),
+        consultations: await db.consultations.count(),
+        appointments: await db.appointments.count(),
+        documents: await db.documents.count(),
+      });
+    })();
+  }, []);
+
+  const handleJsonExport = async () => {
+    setJsonBusy(true);
+    try {
+      const payload = {
+        version: 6,
+        generatedAt: new Date().toISOString(),
+        app: "DivineLink",
+        data: {
+          users: await db.users.toArray(),
+          patients: await decryptPatients(await db.patients.toArray()),
+          appointments: await db.appointments.toArray(),
+          consultations: await db.consultations.toArray(),
+          documents: await db.documents.toArray(),
+          auditLogs: await db.auditLogs.toArray(),
+        },
+      };
+      const json = JSON.stringify(payload, null, 2);
+      const filename = `DivineLink-Backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const blob = new Blob([json], { type: "application/json" });
+
+      // Try Web Share API first (Android)
+      const file = new File([blob], filename, { type: "application/json" });
+      if ((navigator as any).canShare?.({ files: [file] })) {
+        try { await (navigator as any).share({ files: [file], title: filename }); }
+        catch { /* user cancelled */ }
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+      if (user) await logAudit("backup_export", user.name, { message: `json export v6` });
+      toast.success(t("backup.success"));
+    } catch (e) { toast.error(String(e)); }
+    setJsonBusy(false);
+  };
+
+  const handleJsonShare = handleJsonExport;
+
+  const handleJsonFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data?.data) { toast.error("Invalid backup file"); return; }
+      setJsonPreview({ file, data });
+    } catch { toast.error("Invalid JSON file"); }
+  };
+
+  const runJsonImport = async () => {
+    if (!jsonPreview) return;
+    setJsonImporting(true); setJsonProgress(5);
+    try {
+      const incoming = jsonPreview.data.data;
+
+      if (jsonMode === "replace") {
+        await db.transaction("rw", [db.users, db.patients, db.appointments, db.consultations, db.documents], async () => {
+          await db.users.clear(); await db.patients.clear(); await db.appointments.clear();
+          await db.consultations.clear(); await db.documents.clear();
+        });
+      }
+      setJsonProgress(20);
+
+      // Patients
+      if (incoming.patients?.length) {
+        const existing = new Map((await db.patients.toArray()).map(p => [p.patientId, p]));
+        for (const p of incoming.patients) {
+          if (jsonMode === "patientsOnly" || jsonMode === "merge") {
+            if (existing.has(p.patientId)) continue;
+          }
+          const enc = await encryptPatientForSave({ ...p, id: undefined as any });
+          await db.patients.add(enc as any);
+        }
+      }
+      setJsonProgress(50);
+
+      if (jsonMode !== "patientsOnly") {
+        if (incoming.consultations?.length) await db.consultations.bulkAdd(incoming.consultations.map((c: any) => ({ ...c, id: undefined })));
+        setJsonProgress(70);
+        if (incoming.appointments?.length) await db.appointments.bulkAdd(incoming.appointments.map((a: any) => ({ ...a, id: undefined })));
+        if (incoming.documents?.length) await db.documents.bulkAdd(incoming.documents.map((d: any) => ({ ...d, id: undefined })));
+        if (incoming.users?.length && jsonMode === "replace") await db.users.bulkAdd(incoming.users.map((u: any) => ({ ...u, id: undefined })));
+      }
+      setJsonProgress(100);
+
+      if (user) await logAudit("backup_import", user.name, { message: `json import mode=${jsonMode}` });
+      toast.success(t("backup.imported"));
+      setJsonPreview(null);
+      refreshStorage();
+    } catch (err) { toast.error(String(err)); }
+    setJsonImporting(false); setJsonProgress(0);
+  };
+
   const refreshStorage = async () => setStorage(await getStorageEstimate());
   useEffect(() => { refreshStorage(); }, []);
 
