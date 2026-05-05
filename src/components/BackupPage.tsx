@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Download, Upload, AlertTriangle, Loader2, HardDrive, RefreshCw, FileDown, FileUp } from "lucide-react";
+import { Download, Upload, AlertTriangle, Loader2, HardDrive, RefreshCw, FileDown, FileUp, Share2, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import CryptoJS from "crypto-js";
