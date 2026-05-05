@@ -384,12 +384,8 @@ export function ConsultationsPage() {
                 <Label>{t("doc.images")}</Label>
                 <div className="flex items-center gap-2">
                   <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!canPair}
-                    onClick={pairSelected}
-                    title={t("img.pairHint")}
+                    type="button" size="sm" variant="outline"
+                    disabled={!canPair} onClick={pairSelected} title={t("img.pairHint")}
                   >
                     <GitCompareArrows className="w-4 h-4 mr-1" />{t("img.pair")}
                   </Button>
@@ -402,6 +398,34 @@ export function ConsultationsPage() {
                   </Button>
                 </div>
               </div>
+
+              {/* Prominent Before/After CTA */}
+              <Button asChild type="button" variant="default" className="w-full mt-2 gap-2">
+                <label className="cursor-pointer">
+                  <GitCompareArrows className="w-4 h-4" />
+                  {t("ba.add")}
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
+                    const newImages: ConsultationImage[] = [];
+                    for (let i = 0; i < files.length; i++) {
+                      const data = await compressImage(files[i]);
+                      newImages.push({
+                        id: crypto.randomUUID(),
+                        filename: files[i].name,
+                        data,
+                        uploadedAt: new Date().toISOString(),
+                        caption: "",
+                        imgType: i % 2 === 0 ? "before" : "after",
+                      });
+                    }
+                    setForm(f => ({ ...f, images: [...f.images, ...newImages] }));
+                    e.target.value = "";
+                    toast.success(t("ba.add"));
+                  }} />
+                </label>
+              </Button>
+
               {selectedImgIds.length > 0 && !canPair && (
                 <p className="text-xs text-muted-foreground mt-1">{t("img.pairHint")}</p>
               )}
