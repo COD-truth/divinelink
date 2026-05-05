@@ -96,7 +96,8 @@ export function PatientsPage() {
       toast.success(t("common.save"));
     } else {
       const patientId = await generatePatientId();
-      savedId = await db.patients.add({ ...payload, patientId, createdAt: now, updatedAt: now });
+      const anonCode = generateAnonCode();
+      savedId = await db.patients.add({ ...payload, patientId, anonCode, createdAt: now, updatedAt: now });
       toast.success(t("patient.register"));
     }
     // Save attachments to documents linked to this patient
