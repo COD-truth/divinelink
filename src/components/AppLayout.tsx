@@ -35,7 +35,13 @@ interface NavGroup { id: string; label: string; items: NavItem[]; }
 const COLLAPSE_KEY = "divinelink.sidebar.collapsed";
 
 export function AppLayout({ currentPage, onNavigate, children }: Props) {
-  const { user, logout, hasRole, login } = useAuth();
+  const { user, logout, hasRole, login, lockNow, sessionExpiresAt } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceTick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
   const { t } = useLang();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
