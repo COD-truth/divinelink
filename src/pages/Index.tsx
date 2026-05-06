@@ -50,8 +50,13 @@ const Index = () => {
   useEffect(() => {
     (async () => {
       await initCrypto();
+      // Try silent restore BEFORE seeding so we don't overwrite a recovered admin.
+      await autoRestoreIfNeeded();
       await seedDatabase();
       await migrateEncryption();
+      installAutoSnapshotHooks();
+      // Take an initial snapshot once everything is ready.
+      scheduleSnapshot();
     })();
   }, []);
 
