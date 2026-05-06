@@ -8,10 +8,12 @@ import {
   LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage,
   UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw,
   ScrollText, ShieldCheck, BarChart3, PanelLeftClose, PanelLeftOpen,
-  ClipboardList,
+  ClipboardList, LayoutGrid, Lock, Home,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
 import { useIsMobile } from "@/hooks/use-mobile";
