@@ -8,10 +8,12 @@ import {
   LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage,
   UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw,
   ScrollText, ShieldCheck, BarChart3, PanelLeftClose, PanelLeftOpen,
-  ClipboardList,
+  ClipboardList, LayoutGrid, Lock, Home,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -33,7 +35,13 @@ interface NavGroup { id: string; label: string; items: NavItem[]; }
 const COLLAPSE_KEY = "divinelink.sidebar.collapsed";
 
 export function AppLayout({ currentPage, onNavigate, children }: Props) {
-  const { user, logout, hasRole, login } = useAuth();
+  const { user, logout, hasRole, login, lockNow, sessionExpiresAt } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceTick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
   const { t } = useLang();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -113,11 +121,30 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
 
   const sidebarWidth = collapsed ? "w-[60px]" : "w-64";
 
-  // ---- Mobile bottom-nav items (max 5) ----
-  const mobileBottomItems: NavItem[] = [
-    dashItem,
-    ...allItems.filter(i => i.page !== "dashboard"),
-  ].slice(0, 5);
+  // ---- Mobile bottom-nav: fixed 4 items ----
+  type BottomItem =
+    | { kind: "page"; page: Page; icon: React.ReactNode; label: string }
+    | { kind: "more"; icon: React.ReactNode; label: string };
+  const bottomNav: BottomItem[] = [
+    { kind: "page", page: "dashboard", icon: <Home className="w-[26px] h-[26px]" />, label: t("nav.home") },
+    { kind: "page", page: "patients", icon: <Users className="w-[26px] h-[26px]" />, label: t("nav.patients") },
+    { kind: "page", page: "appointments", icon: <CalendarDays className="w-[26px] h-[26px]" />, label: t("nav.agenda") },
+    { kind: "more", icon: <LayoutGrid className="w-[26px] h-[26px]" />, label: t("nav.more") },
+  ];
+
+  const moreItems = [
+    { page: "consultations" as Page, icon: <ClipboardList className="w-6 h-6" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
+    { page: "diagnosis" as Page, icon: <Stethoscope className="w-6 h-6" />, label: t("nav.diagnosis"), roles: ["admin", "doctor"] },
+    { page: "documents" as Page, icon: <FileImage className="w-6 h-6" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
+    { page: "research" as Page, icon: <BarChart3 className="w-6 h-6" />, label: t("nav.stats"), roles: ["admin", "doctor"] },
+    { page: "users" as Page, icon: <UserCog className="w-6 h-6" />, label: t("nav.users"), roles: ["admin"] },
+    { page: "backup" as Page, icon: <Database className="w-6 h-6" />, label: t("nav.backup"), roles: ["admin"] },
+    { page: "security" as Page, icon: <ShieldCheck className="w-6 h-6" />, label: t("nav.security"), roles: ["admin"] },
+    { page: "audit" as Page, icon: <ScrollText className="w-6 h-6" />, label: t("nav.audit"), roles: ["admin"] },
+  ].filter(i => hasRole(i.roles as any));
+
+  const remainingMs = sessionExpiresAt ? Math.max(0, sessionExpiresAt - Date.now()) : 0;
+  const remainingMin = Math.ceil(remainingMs / 60000);
 
   return (
     <div className="min-h-screen flex">
@@ -216,6 +243,24 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           <div className="flex-1 flex justify-end">
             <GlobalSearch onNavigate={onNavigate} />
           </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent"
+                title={t("session.locksIn")}
+              >
+                <Lock className="w-4 h-4" />
+                {sessionExpiresAt && <span className="hidden sm:inline">{remainingMin}m</span>}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="end">
+              <p className="text-sm font-medium">{t("session.locksIn")}</p>
+              <p className="text-2xl font-bold mt-1">{remainingMin} min</p>
+              <Button size="sm" variant="outline" className="w-full mt-3" onClick={lockNow}>
+                <Lock className="w-4 h-4 mr-2" />{t("session.lockNow")}
+              </Button>
+            </PopoverContent>
+          </Popover>
           <LangToggle />
         </header>
 
@@ -262,23 +307,56 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
         </>
       )}
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav (4 items) */}
       {isMobile && (
-        <nav className="fixed bottom-0 inset-x-0 z-30 bg-card border-t flex no-print">
-          {mobileBottomItems.map(item => (
-            <button
-              key={item.page}
-              onClick={() => onNavigate(item.page)}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] ${
-                currentPage === item.page ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              {item.icon}
-              <span className="truncate max-w-full px-1">{item.label}</span>
-            </button>
-          ))}
+        <nav
+          className="fixed bottom-0 inset-x-0 z-30 bg-card flex no-print"
+          style={{ height: 65, boxShadow: "0 -4px 12px hsl(var(--foreground) / 0.08)" }}
+        >
+          {bottomNav.map((item, idx) => {
+            const isActive = item.kind === "page"
+              ? currentPage === item.page
+              : moreItems.some(m => m.page === currentPage);
+            return (
+              <button
+                key={idx}
+                onClick={() => item.kind === "page" ? onNavigate(item.page) : setMoreOpen(true)}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 text-[10px] ${
+                  isActive ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                {item.icon}
+                <span className="truncate max-w-full px-1">{item.label}</span>
+                {isActive && <span className="w-1 h-1 rounded-full bg-primary" />}
+              </button>
+            );
+          })}
         </nav>
       )}
+
+      {/* More sheet */}
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>{t("nav.more")}</SheetTitle>
+          </SheetHeader>
+          <div className="grid grid-cols-2 gap-3 mt-4 pb-4">
+            {moreItems.map(m => (
+              <button
+                key={m.page}
+                onClick={() => { onNavigate(m.page); setMoreOpen(false); }}
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border active:scale-95 transition-transform ${
+                  currentPage === m.page ? "border-primary bg-primary/5 text-primary" : "bg-card"
+                }`}
+              >
+                {m.icon}
+                <span className="text-xs font-medium text-center">{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+
 
       {/* Switch account dialog */}
       <Dialog open={switchOpen} onOpenChange={setSwitchOpen}>
