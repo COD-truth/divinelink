@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { seedDatabase } from "@/lib/db";
 import { initCrypto } from "@/lib/crypto";
 import { migrateEncryption } from "@/lib/patientCrypto";
+import { autoRestoreIfNeeded, installAutoSnapshotHooks, scheduleSnapshot } from "@/lib/emergencyBackup";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LangProvider } from "@/contexts/LangContext";
 import { LoginScreen } from "@/components/LoginScreen";
@@ -49,8 +50,13 @@ const Index = () => {
   useEffect(() => {
     (async () => {
       await initCrypto();
+      // Try silent restore BEFORE seeding so we don't overwrite a recovered admin.
+      await autoRestoreIfNeeded();
       await seedDatabase();
       await migrateEncryption();
+      installAutoSnapshotHooks();
+      // Take an initial snapshot once everything is ready.
+      scheduleSnapshot();
     })();
   }, []);
 
