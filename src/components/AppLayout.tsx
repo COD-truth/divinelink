@@ -121,11 +121,30 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
 
   const sidebarWidth = collapsed ? "w-[60px]" : "w-64";
 
-  // ---- Mobile bottom-nav items (max 5) ----
-  const mobileBottomItems: NavItem[] = [
-    dashItem,
-    ...allItems.filter(i => i.page !== "dashboard"),
-  ].slice(0, 5);
+  // ---- Mobile bottom-nav: fixed 4 items ----
+  type BottomItem =
+    | { kind: "page"; page: Page; icon: React.ReactNode; label: string }
+    | { kind: "more"; icon: React.ReactNode; label: string };
+  const bottomNav: BottomItem[] = [
+    { kind: "page", page: "dashboard", icon: <Home className="w-[26px] h-[26px]" />, label: t("nav.home") },
+    { kind: "page", page: "patients", icon: <Users className="w-[26px] h-[26px]" />, label: t("nav.patients") },
+    { kind: "page", page: "appointments", icon: <CalendarDays className="w-[26px] h-[26px]" />, label: t("nav.agenda") },
+    { kind: "more", icon: <LayoutGrid className="w-[26px] h-[26px]" />, label: t("nav.more") },
+  ];
+
+  const moreItems = [
+    { page: "consultations" as Page, icon: <ClipboardList className="w-6 h-6" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
+    { page: "diagnosis" as Page, icon: <Stethoscope className="w-6 h-6" />, label: t("nav.diagnosis"), roles: ["admin", "doctor"] },
+    { page: "documents" as Page, icon: <FileImage className="w-6 h-6" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
+    { page: "research" as Page, icon: <BarChart3 className="w-6 h-6" />, label: t("nav.stats"), roles: ["admin", "doctor"] },
+    { page: "users" as Page, icon: <UserCog className="w-6 h-6" />, label: t("nav.users"), roles: ["admin"] },
+    { page: "backup" as Page, icon: <Database className="w-6 h-6" />, label: t("nav.backup"), roles: ["admin"] },
+    { page: "security" as Page, icon: <ShieldCheck className="w-6 h-6" />, label: t("nav.security"), roles: ["admin"] },
+    { page: "audit" as Page, icon: <ScrollText className="w-6 h-6" />, label: t("nav.audit"), roles: ["admin"] },
+  ].filter(i => hasRole(i.roles as any));
+
+  const remainingMs = sessionExpiresAt ? Math.max(0, sessionExpiresAt - Date.now()) : 0;
+  const remainingMin = Math.ceil(remainingMs / 60000);
 
   return (
     <div className="min-h-screen flex">
