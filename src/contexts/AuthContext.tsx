@@ -8,50 +8,114 @@ interface AuthCtx {
   login: (pin: string) => Promise<boolean>;
   logout: () => void;
   hasRole: (roles: UserRole[]) => boolean;
+  lockNow: () => void;
+  sessionExpiresAt: number | null;
+  extendSession: () => void;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
 const AUTOLOCK_KEY = "dl.autolock.minutes.v1";
+const SESSION_KEY = "dl.session.v1";
+const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes inactivity
+
 function getAutolockMs(): number {
   const raw = localStorage.getItem(AUTOLOCK_KEY);
-  const m = raw == null ? 5 : parseInt(raw, 10);
-  if (isNaN(m) || m < 0) return 5 * 60 * 1000;
-  if (m === 0) return Number.POSITIVE_INFINITY; // Never
+  const m = raw == null ? 30 : parseInt(raw, 10);
+  if (isNaN(m) || m < 0) return SESSION_TTL_MS;
+  if (m === 0) return Number.POSITIVE_INFINITY;
   return m * 60 * 1000;
+}
+
+interface SessionPayload { userId: number; expiresAt: number; }
+
+function readSession(): SessionPayload | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as SessionPayload;
+    if (!s.userId || !s.expiresAt) return null;
+    if (Date.now() > s.expiresAt) { sessionStorage.removeItem(SESSION_KEY); return null; }
+    return s;
+  } catch { return null; }
+}
+
+function writeSession(userId: number) {
+  const ttl = Math.min(getAutolockMs(), SESSION_TTL_MS);
+  const expiresAt = Date.now() + (Number.isFinite(ttl) ? ttl : SESSION_TTL_MS);
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ userId, expiresAt }));
+  return expiresAt;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [lastActivity, setLastActivity] = useState(Date.now());
+  const [hydrating, setHydrating] = useState(true);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
 
-  const logout = useCallback(() => setUser(null), []);
+  const logout = useCallback(() => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setSessionExpiresAt(null);
+    setUser(null);
+  }, []);
 
-  // Auto-logout on inactivity
+  const lockNow = logout;
+
+  // Hydrate session on mount
+  useEffect(() => {
+    (async () => {
+      const s = readSession();
+      if (s) {
+        const found = await db.users.get(s.userId);
+        if (found && found.active) {
+          setUser(found);
+          setSessionExpiresAt(s.expiresAt);
+        } else {
+          sessionStorage.removeItem(SESSION_KEY);
+        }
+      }
+      setHydrating(false);
+    })();
+  }, []);
+
+  const extendSession = useCallback(() => {
+    if (!user?.id) return;
+    const exp = writeSession(user.id);
+    setSessionExpiresAt(exp);
+  }, [user]);
+
+  // Activity tracking — extend session on interaction
   useEffect(() => {
     if (!user) return;
-    const interval = setInterval(() => {
-      const ms = getAutolockMs();
-      if (Number.isFinite(ms) && Date.now() - lastActivity > ms) logout();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [user, lastActivity, logout]);
-
-  // Track activity
-  useEffect(() => {
-    if (!user) return;
-    const handle = () => setLastActivity(Date.now());
+    let last = 0;
+    const handle = () => {
+      const now = Date.now();
+      if (now - last < 30000) return; // throttle
+      last = now;
+      extendSession();
+    };
     const events = ["mousedown", "keydown", "touchstart", "scroll"];
     events.forEach(e => window.addEventListener(e, handle, { passive: true }));
     return () => events.forEach(e => window.removeEventListener(e, handle));
-  }, [user]);
+  }, [user, extendSession]);
+
+  // Auto-logout poll
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      const s = readSession();
+      if (!s) logout();
+      else setSessionExpiresAt(s.expiresAt);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user, logout]);
 
   const login = async (pin: string): Promise<boolean> => {
     const hash = await hashPin(pin);
     const found = await db.users.where("pinHash").equals(hash).first();
-    if (found && found.active) {
+    if (found && found.active && found.id) {
       setUser(found);
-      setLastActivity(Date.now());
+      const exp = writeSession(found.id);
+      setSessionExpiresAt(exp);
       const roleLabel = found.role.charAt(0).toUpperCase() + found.role.slice(1);
       toast.success(`Welcome ${found.name}`, { description: `Logged in as ${roleLabel}` });
       logAudit("login", found.name);
@@ -63,8 +127,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasRole = (roles: UserRole[]) => !!user && roles.includes(user.role);
 
+  if (hydrating) return null;
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, hasRole }}>
+    <AuthContext.Provider value={{ user, login, logout, hasRole, lockNow, sessionExpiresAt, extendSession }}>
       {children}
     </AuthContext.Provider>
   );
