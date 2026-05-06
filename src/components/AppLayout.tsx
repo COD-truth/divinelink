@@ -243,6 +243,24 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           <div className="flex-1 flex justify-end">
             <GlobalSearch onNavigate={onNavigate} />
           </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent"
+                title={t("session.locksIn")}
+              >
+                <Lock className="w-4 h-4" />
+                {sessionExpiresAt && <span className="hidden sm:inline">{remainingMin}m</span>}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="end">
+              <p className="text-sm font-medium">{t("session.locksIn")}</p>
+              <p className="text-2xl font-bold mt-1">{remainingMin} min</p>
+              <Button size="sm" variant="outline" className="w-full mt-3" onClick={lockNow}>
+                <Lock className="w-4 h-4 mr-2" />{t("session.lockNow")}
+              </Button>
+            </PopoverContent>
+          </Popover>
           <LangToggle />
         </header>
 
