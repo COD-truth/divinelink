@@ -289,23 +289,56 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
         </>
       )}
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav (4 items) */}
       {isMobile && (
-        <nav className="fixed bottom-0 inset-x-0 z-30 bg-card border-t flex no-print">
-          {mobileBottomItems.map(item => (
-            <button
-              key={item.page}
-              onClick={() => onNavigate(item.page)}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] ${
-                currentPage === item.page ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              {item.icon}
-              <span className="truncate max-w-full px-1">{item.label}</span>
-            </button>
-          ))}
+        <nav
+          className="fixed bottom-0 inset-x-0 z-30 bg-card flex no-print"
+          style={{ height: 65, boxShadow: "0 -4px 12px hsl(var(--foreground) / 0.08)" }}
+        >
+          {bottomNav.map((item, idx) => {
+            const isActive = item.kind === "page"
+              ? currentPage === item.page
+              : moreItems.some(m => m.page === currentPage);
+            return (
+              <button
+                key={idx}
+                onClick={() => item.kind === "page" ? onNavigate(item.page) : setMoreOpen(true)}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 text-[10px] ${
+                  isActive ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                {item.icon}
+                <span className="truncate max-w-full px-1">{item.label}</span>
+                {isActive && <span className="w-1 h-1 rounded-full bg-primary" />}
+              </button>
+            );
+          })}
         </nav>
       )}
+
+      {/* More sheet */}
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>{t("nav.more")}</SheetTitle>
+          </SheetHeader>
+          <div className="grid grid-cols-2 gap-3 mt-4 pb-4">
+            {moreItems.map(m => (
+              <button
+                key={m.page}
+                onClick={() => { onNavigate(m.page); setMoreOpen(false); }}
+                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border active:scale-95 transition-transform ${
+                  currentPage === m.page ? "border-primary bg-primary/5 text-primary" : "bg-card"
+                }`}
+              >
+                {m.icon}
+                <span className="text-xs font-medium text-center">{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+
 
       {/* Switch account dialog */}
       <Dialog open={switchOpen} onOpenChange={setSwitchOpen}>
