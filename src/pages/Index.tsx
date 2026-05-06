@@ -26,7 +26,7 @@ function AppContent() {
   if (!user) return <LoginScreen />;
 
   const pages: Record<Page, React.ReactNode> = {
-    dashboard: <DashboardPage />,
+    dashboard: <DashboardPage onNavigate={setPage} />,
     patients: <PatientsPage />,
     appointments: <AppointmentsPage />,
     consultations: <ConsultationsPage />,
