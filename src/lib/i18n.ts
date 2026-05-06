@@ -185,10 +185,23 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // Dashboard
   "dash.welcome": { en: "Welcome", fr: "Bienvenue" },
-  "dash.totalPatients": { en: "Total Patients", fr: "Total des patients" },
-  "dash.todayAppts": { en: "Today's Appointments", fr: "Rendez-vous du jour" },
+  "dash.totalPatients": { en: "Patients", fr: "Patients" },
+  "dash.todayAppts": { en: "Today", fr: "Aujourd'hui" },
   "dash.thisWeek": { en: "This Week", fr: "Cette semaine" },
   "dash.recentPatients": { en: "Recent Patients", fr: "Patients récents" },
+  "dash.quickActions": { en: "Quick Actions", fr: "Actions rapides" },
+  "dash.newPatient": { en: "New Patient", fr: "Nouveau patient" },
+  "dash.newConsult": { en: "New Consultation", fr: "Nouvelle consultation" },
+  "dash.newAppt": { en: "New Appointment", fr: "Nouveau rendez-vous" },
+  "dash.searchAction": { en: "Search", fr: "Rechercher" },
+  "dash.noPatients": { en: "No patients yet", fr: "Aucun patient pour l'instant" },
+  "dash.lastVisit": { en: "Last visit", fr: "Dernière visite" },
+  "nav.home": { en: "Home", fr: "Accueil" },
+  "nav.agenda": { en: "Agenda", fr: "Agenda" },
+  "nav.more": { en: "More", fr: "Plus" },
+  "nav.stats": { en: "Stats", fr: "Statistiques" },
+  "session.locksIn": { en: "Locks in", fr: "Verrouillage dans" },
+  "session.lockNow": { en: "Lock now", fr: "Verrouiller" },
 
   // Audit log
   "audit.title": { en: "Audit log", fr: "Journal d'audit" },
