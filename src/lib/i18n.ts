@@ -197,8 +197,6 @@ const translations: Record<string, Record<Lang, string>> = {
   "dash.searchAction": { en: "Search", fr: "Rechercher" },
   "dash.noPatients": { en: "No patients yet", fr: "Aucun patient pour l'instant" },
   "dash.lastVisit": { en: "Last visit", fr: "Dernière visite" },
-  "nav.home": { en: "Home", fr: "Accueil" },
-  "nav.agenda": { en: "Agenda", fr: "Agenda" },
   "nav.more": { en: "More", fr: "Plus" },
   "nav.stats": { en: "Stats", fr: "Statistiques" },
   "session.locksIn": { en: "Locks in", fr: "Verrouillage dans" },
@@ -361,7 +359,29 @@ const translations: Record<string, Record<Lang, string>> = {
   // Sidebar groups
   "nav.group.patients": { en: "PATIENTS", fr: "PATIENTS" },
   "nav.group.tools": { en: "TOOLS", fr: "OUTILS" },
-  "nav.group.admin": { en: "ADMIN", fr: "ADMIN" },
+  "nav.group.admin": { en: "ADMINISTRATION", fr: "ADMINISTRATION" },
+
+  // Nav labels (Phase 2)
+  "nav.home": { en: "Home", fr: "Accueil" },
+  "nav.agenda": { en: "Agenda", fr: "Agenda" },
+  "nav.diagnostics": { en: "Diagnostics", fr: "Diagnostics" },
+  "nav.statistics": { en: "Statistics", fr: "Statistiques" },
+  "nav.pharmacy": { en: "Pharmacy", fr: "Pharmacie" },
+
+  // Dashboard widgets (Phase 2)
+  "dash.widget.recentPatients": { en: "Recent Patients", fr: "Patients recents" },
+  "dash.widget.todayAgenda": { en: "Today's Agenda", fr: "Agenda du jour" },
+  "dash.widget.quickStats": { en: "Quick Stats", fr: "Statistiques rapides" },
+  "dash.widget.backupReminder": { en: "Backup Reminder", fr: "Rappel sauvegarde" },
+  "dash.widget.unpaidBalances": { en: "Unpaid Balances", fr: "Soldes impayes" },
+  "dash.widget.activeAlerts": { en: "Active Alerts", fr: "Alertes actives" },
+  "dash.customize": { en: "Customize", fr: "Personnaliser" },
+  "dash.customizeTitle": { en: "Customize Dashboard", fr: "Personnaliser le tableau de bord" },
+  "dash.noAppointments": { en: "No appointments today", fr: "Aucun rendez-vous aujourd'hui" },
+  "dash.backupOk": { en: "Backup up to date", fr: "Sauvegarde a jour" },
+  "dash.backupOverdue": { en: "Last backup over 7 days ago!", fr: "Derniere sauvegarde il y a plus de 7 jours !" },
+  "dash.consultWeek": { en: "Consultations this week", fr: "Consultations cette semaine" },
+  "dash.alerts": { en: "Alerts", fr: "Alertes" },
 
   // Common timestamps
   "ts.created": { en: "Created", fr: "Créé" },

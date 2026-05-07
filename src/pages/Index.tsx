@@ -19,6 +19,7 @@ import { SecurityPage } from "@/components/SecurityPage";
 import { ResearchPage } from "@/components/ResearchPage";
 import { DiagnosisPage } from "@/components/DiagnosisPage";
 import { ClinicSettingsPage } from "@/components/ClinicSettingsPage";
+import { PharmacyPage } from "@/components/PharmacyPage";
 import { ClinicOnboarding } from "@/components/ClinicOnboarding";
 import { isClinicConfigured } from "@/lib/clinicSettings";
 
@@ -46,6 +47,7 @@ function AppContent() {
     security: <SecurityPage />,
     research: <ResearchPage />,
     clinic: <ClinicSettingsPage />,
+    pharmacy: <PharmacyPage />,
   };
 
   return (

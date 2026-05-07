@@ -4,12 +4,7 @@ import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
-import {
-  LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage,
-  UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw,
-  ScrollText, ShieldCheck, BarChart3, PanelLeftClose, PanelLeftOpen,
-  ClipboardList, LayoutGrid, Lock, Home, Building2,
-} from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -21,7 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
-  | "security" | "research" | "clinic";
+  | "security" | "research" | "clinic" | "pharmacy";
 
 interface Props {
   currentPage: Page;
@@ -30,9 +25,9 @@ interface Props {
 }
 
 interface NavItem { page: Page; icon: React.ReactNode; label: string; roles: string[]; }
-interface NavGroup { id: string; label: string; items: NavItem[]; }
 
 const COLLAPSE_KEY = "divinelink.sidebar.collapsed";
+const ADMIN_GROUP_KEY = "divinelink.sidebar.adminOpen";
 
 export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const { user, logout, hasRole, login, lockNow, sessionExpiresAt } = useAuth();
@@ -46,9 +41,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === "1");
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    patients: true, tools: true, admin: true,
-  });
+  const [adminOpen, setAdminOpen] = useState(() => localStorage.getItem(ADMIN_GROUP_KEY) === "1");
   const [switchOpen, setSwitchOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [pickedUser, setPickedUser] = useState<User | null>(null);
@@ -58,6 +51,10 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   useEffect(() => {
     localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
   }, [collapsed]);
+
+  useEffect(() => {
+    localStorage.setItem(ADMIN_GROUP_KEY, adminOpen ? "1" : "0");
+  }, [adminOpen]);
 
   useEffect(() => {
     if (switchOpen) {
@@ -83,33 +80,30 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     : r === "doctor" ? "bg-primary text-primary-foreground"
     : "bg-secondary text-secondary-foreground";
 
-  const dashItem: NavItem = { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "doctor", "receptionist"] };
-
-  const groups: NavGroup[] = [
-    { id: "patients", label: t("nav.group.patients"), items: [
-      { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "doctor", "receptionist"] },
-      { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
-      { page: "consultations", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
-    ]},
-    { id: "tools", label: t("nav.group.tools"), items: [
-      { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnosis"), roles: ["admin", "doctor"] },
-      { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
-      { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.research"), roles: ["admin", "doctor"] },
-    ]},
-    { id: "admin", label: t("nav.group.admin"), items: [
-      { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
-      { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
-      { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },
-      { page: "audit", icon: <ScrollText className="w-5 h-5" />, label: t("nav.audit"), roles: ["admin"] },
-      { page: "clinic", icon: <Building2 className="w-5 h-5" />, label: t("nav.clinic"), roles: ["admin"] },
-    ]},
+  // Flat main nav items (always visible based on role)
+  const mainNav: NavItem[] = [
+    { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "consultations", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
+    { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
+    { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
+    { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
   ];
 
-  const visibleGroups = groups
-    .map(g => ({ ...g, items: g.items.filter(i => hasRole(i.roles as any)) }))
-    .filter(g => g.items.length > 0);
+  // Collapsible admin section (collapsed by default, muted style)
+  const adminNav: NavItem[] = [
+    { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
+    { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
+    { page: "pharmacy", icon: <Pill className="w-5 h-5" />, label: t("nav.pharmacy"), roles: ["admin"] },
+    { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },
+    { page: "audit", icon: <ScrollText className="w-5 h-5" />, label: t("nav.audit"), roles: ["admin"] },
+    { page: "clinic", icon: <Building2 className="w-5 h-5" />, label: t("nav.clinic"), roles: ["admin"] },
+  ];
 
-  const allItems = [dashItem, ...visibleGroups.flatMap(g => g.items)];
+  const visibleMain = mainNav.filter(i => hasRole(i.roles as any));
+  const visibleAdmin = adminNav.filter(i => hasRole(i.roles as any));
+  const allItems = [...visibleMain, ...visibleAdmin];
   const currentLabel = allItems.find(i => i.page === currentPage)?.label || "";
 
   const navigate = (p: Page) => {
@@ -120,24 +114,25 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
 
   useEffect(() => { import("@/lib/metrics").then(m => m.trackNav(currentPage)); }, [currentPage]);
 
-  const sidebarWidth = collapsed ? "w-[60px]" : "w-64";
+  const sidebarWidth = collapsed ? "w-[60px]" : "w-[220px]";
 
-  // ---- Mobile bottom-nav: fixed 4 items ----
+  // ---- Mobile bottom-nav: 5 items ----
   type BottomItem =
     | { kind: "page"; page: Page; icon: React.ReactNode; label: string }
     | { kind: "more"; icon: React.ReactNode; label: string };
   const bottomNav: BottomItem[] = [
-    { kind: "page", page: "dashboard", icon: <Home className="w-[26px] h-[26px]" />, label: t("nav.home") },
-    { kind: "page", page: "patients", icon: <Users className="w-[26px] h-[26px]" />, label: t("nav.patients") },
-    { kind: "page", page: "appointments", icon: <CalendarDays className="w-[26px] h-[26px]" />, label: t("nav.agenda") },
-    { kind: "more", icon: <LayoutGrid className="w-[26px] h-[26px]" />, label: t("nav.more") },
+    { kind: "page", page: "dashboard", icon: <Home className="w-6 h-6" />, label: t("nav.home") },
+    { kind: "page", page: "patients", icon: <Users className="w-6 h-6" />, label: t("nav.patients") },
+    { kind: "page", page: "appointments", icon: <CalendarDays className="w-6 h-6" />, label: t("nav.agenda") },
+    { kind: "page", page: "consultations", icon: <ClipboardList className="w-6 h-6" />, label: t("nav.consultations") },
+    { kind: "more", icon: <LayoutGrid className="w-6 h-6" />, label: t("nav.more") },
   ];
 
   const moreItems = [
-    { page: "consultations" as Page, icon: <ClipboardList className="w-6 h-6" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
-    { page: "diagnosis" as Page, icon: <Stethoscope className="w-6 h-6" />, label: t("nav.diagnosis"), roles: ["admin", "doctor"] },
+    { page: "diagnosis" as Page, icon: <Stethoscope className="w-6 h-6" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
     { page: "documents" as Page, icon: <FileImage className="w-6 h-6" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
-    { page: "research" as Page, icon: <BarChart3 className="w-6 h-6" />, label: t("nav.stats"), roles: ["admin", "doctor"] },
+    { page: "research" as Page, icon: <BarChart3 className="w-6 h-6" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
+    { page: "pharmacy" as Page, icon: <Pill className="w-6 h-6" />, label: t("nav.pharmacy"), roles: ["admin"] },
     { page: "users" as Page, icon: <UserCog className="w-6 h-6" />, label: t("nav.users"), roles: ["admin"] },
     { page: "backup" as Page, icon: <Database className="w-6 h-6" />, label: t("nav.backup"), roles: ["admin"] },
     { page: "security" as Page, icon: <ShieldCheck className="w-6 h-6" />, label: t("nav.security"), roles: ["admin"] },
@@ -148,6 +143,33 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const remainingMs = sessionExpiresAt ? Math.max(0, sessionExpiresAt - Date.now()) : 0;
   const remainingMin = Math.ceil(remainingMs / 60000);
 
+  const renderSidebarNav = (isCollapsed: boolean) => (
+    <>
+      {/* Main nav — flat list */}
+      {visibleMain.map(item => (
+        <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} />
+      ))}
+
+      {/* Admin section — collapsible, muted */}
+      {visibleAdmin.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-sidebar-border/50">
+          {!isCollapsed && (
+            <button
+              onClick={() => setAdminOpen(o => !o)}
+              className="w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
+            >
+              <span className="flex items-center gap-1.5"><Settings className="w-3 h-3" />{t("nav.group.admin")}</span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${adminOpen ? "" : "-rotate-90"}`} />
+            </button>
+          )}
+          {(isCollapsed || adminOpen) && visibleAdmin.map(item => (
+            <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} muted />
+          ))}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="min-h-screen flex">
       {/* Mobile drawer overlay */}
@@ -155,7 +177,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
         <div className="fixed inset-0 bg-foreground/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar (desktop + tablet drawer) — hidden on phone */}
+      {/* Sidebar (desktop + tablet) — hidden on phone */}
       {!isMobile && (
         <aside className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
           <div className="p-3 flex items-center gap-2 border-b border-sidebar-border">
@@ -165,7 +187,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <h1 className="font-bold text-sm truncate">DivineLink</h1>
-                <p className="text-xs text-sidebar-foreground/60 truncate">{user?.name} • {user?.role}</p>
+                <p className="text-xs text-sidebar-foreground/60 truncate">{user?.name} &bull; {user?.role}</p>
               </div>
             )}
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
@@ -180,29 +202,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             </button>
           </div>
 
-          <nav className="flex-1 p-2 space-y-2 overflow-y-auto">
-            {/* Dashboard always shown */}
-            <NavBtn item={dashItem} currentPage={currentPage} collapsed={collapsed} onClick={navigate} />
-
-            {visibleGroups.map(g => {
-              const open = openGroups[g.id] ?? true;
-              return (
-                <div key={g.id} className="space-y-1">
-                  {!collapsed && (
-                    <button
-                      onClick={() => setOpenGroups(s => ({ ...s, [g.id]: !open }))}
-                      className="w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground"
-                    >
-                      <span>{g.label}</span>
-                      <ChevronDown className={`w-3 h-3 transition-transform ${open ? "" : "-rotate-90"}`} />
-                    </button>
-                  )}
-                  {(collapsed || open) && g.items.map(item => (
-                    <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={collapsed} onClick={navigate} />
-                  ))}
-                </div>
-              );
-            })}
+          <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+            {renderSidebarNav(collapsed)}
           </nav>
 
           <div className="p-2 border-t border-sidebar-border space-y-1">
@@ -286,16 +287,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
               </div>
               <button onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button>
             </div>
-            <nav className="flex-1 p-2 overflow-y-auto space-y-2">
-              <NavBtn item={dashItem} currentPage={currentPage} collapsed={false} onClick={navigate} />
-              {visibleGroups.map(g => (
-                <div key={g.id} className="space-y-1">
-                  <p className="px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/50">{g.label}</p>
-                  {g.items.map(item => (
-                    <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={false} onClick={navigate} />
-                  ))}
-                </div>
-              ))}
+            <nav className="flex-1 p-2 overflow-y-auto space-y-1">
+              {renderSidebarNav(false)}
             </nav>
             <div className="p-2 border-t border-sidebar-border space-y-1">
               <Button variant="ghost" className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50" onClick={() => { setSwitchOpen(true); setSidebarOpen(false); }}>
@@ -309,7 +302,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
         </>
       )}
 
-      {/* Mobile bottom nav (4 items) */}
+      {/* Mobile bottom nav (5 items) */}
       {isMobile && (
         <nav
           className="fixed bottom-0 inset-x-0 z-30 bg-card flex no-print"
@@ -323,12 +316,12 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
               <button
                 key={idx}
                 onClick={() => item.kind === "page" ? onNavigate(item.page) : setMoreOpen(true)}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 text-[10px] ${
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1 text-[10px] ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`}
               >
                 {item.icon}
-                <span className="truncate max-w-full px-1">{item.label}</span>
+                <span className="truncate max-w-full px-0.5">{item.label}</span>
                 {isActive && <span className="w-1 h-1 rounded-full bg-primary" />}
               </button>
             );
@@ -358,7 +351,6 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           </div>
         </SheetContent>
       </Sheet>
-
 
       {/* Switch account dialog */}
       <Dialog open={switchOpen} onOpenChange={setSwitchOpen}>
@@ -417,8 +409,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   );
 }
 
-function NavBtn({ item, currentPage, collapsed, onClick }: {
-  item: NavItem; currentPage: Page; collapsed: boolean; onClick: (p: Page) => void;
+function NavBtn({ item, currentPage, collapsed, onClick, muted }: {
+  item: NavItem; currentPage: Page; collapsed: boolean; onClick: (p: Page) => void; muted?: boolean;
 }) {
   const active = currentPage === item.page;
   return (
@@ -428,7 +420,9 @@ function NavBtn({ item, currentPage, collapsed, onClick }: {
       className={`w-full flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-lg text-sm transition-colors ${
         active
           ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-          : "hover:bg-sidebar-accent/50"
+          : muted
+            ? "text-sidebar-foreground/50 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground/80"
+            : "hover:bg-sidebar-accent/50"
       }`}
     >
       {item.icon}
