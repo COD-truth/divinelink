@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage,
   UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw,
   ScrollText, ShieldCheck, BarChart3, PanelLeftClose, PanelLeftOpen,
-  ClipboardList, LayoutGrid, Lock, Home,
+  ClipboardList, LayoutGrid, Lock, Home, Building2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,7 +21,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
-  | "security" | "research";
+  | "security" | "research" | "clinic";
 
 interface Props {
   currentPage: Page;
@@ -101,6 +101,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
       { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
       { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },
       { page: "audit", icon: <ScrollText className="w-5 h-5" />, label: t("nav.audit"), roles: ["admin"] },
+      { page: "clinic", icon: <Building2 className="w-5 h-5" />, label: t("nav.clinic"), roles: ["admin"] },
     ]},
   ];
 
@@ -141,6 +142,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "backup" as Page, icon: <Database className="w-6 h-6" />, label: t("nav.backup"), roles: ["admin"] },
     { page: "security" as Page, icon: <ShieldCheck className="w-6 h-6" />, label: t("nav.security"), roles: ["admin"] },
     { page: "audit" as Page, icon: <ScrollText className="w-6 h-6" />, label: t("nav.audit"), roles: ["admin"] },
+    { page: "clinic" as Page, icon: <Building2 className="w-6 h-6" />, label: t("nav.clinic"), roles: ["admin"] },
   ].filter(i => hasRole(i.roles as any));
 
   const remainingMs = sessionExpiresAt ? Math.max(0, sessionExpiresAt - Date.now()) : 0;

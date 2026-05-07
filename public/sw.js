@@ -1,36 +1,41 @@
-// DivineLink minimal service worker for offline PWA support.
-// Network-first for navigations, cache-first for built assets.
+/* DivineLink service worker v3 — offline-first with asset auto-discovery */
+const CACHE = "divinelink-v3";
 
-const CACHE = "divinelink-v1";
-const CORE = ["/", "/index.html", "/manifest.json"];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).catch(() => {}));
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(CACHE).then((c) =>
+      fetch("/index.html")
+        .then((r) => r.text())
+        .then((text) => {
+          const assets = [...text.matchAll(/\/assets\/[^"'\s]+/g)].map((m) => m[0]);
+          return c.addAll(["/", "/index.html", "/manifest.json", ...new Set(assets)]).catch(() => {});
+        })
+        .catch(() => {})
+    )
+  );
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys().then((k) =>
+      Promise.all(k.filter((x) => x !== CACHE).map((x) => caches.delete(x)))
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  if (req.method !== "GET") return;
-  const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
+self.addEventListener("fetch", (e) => {
+  const r = e.request;
+  if (r.method !== "GET") return;
+  const u = new URL(r.url);
+  if (u.origin !== self.location.origin) return;
 
-  // Navigation requests: network first, fallback to cached index.
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
+  if (r.mode === "navigate") {
+    e.respondWith(
+      fetch(r)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
           return res;
         })
         .catch(() => caches.match("/index.html"))
@@ -38,19 +43,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache first.
-  event.respondWith(
-    caches.match(req).then((cached) => {
+  e.respondWith(
+    caches.match(r).then((cached) => {
       if (cached) return cached;
-      return fetch(req)
+      return fetch(r)
         .then((res) => {
           if (res.status === 200) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
           }
           return res;
         })
-        .catch(() => cached);
+        .catch(() => new Response("", { status: 503 }));
     })
   );
 });

@@ -11,6 +11,7 @@ export interface User {
   active: boolean;
   /** Optional WhatsApp / phone number for doctor reminders */
   phone?: string;
+  clinicId?: string;
   createdAt: string;
 }
 
@@ -27,6 +28,7 @@ export interface Patient {
   medicalAlerts: string;
   /** Optional profile photo as base64 data URL */
   photo?: string;
+  clinicId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +59,7 @@ export interface Appointment {
   time: string;
   reason: string;
   status: AppointmentStatus;
+  clinicId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +76,7 @@ export interface Consultation {
   notes: string;
   /** Images attached to this consultation */
   images?: ConsultationImage[];
+  clinicId?: string;
   createdAt: string;
   parentId?: number;
   originalId?: number;
@@ -93,6 +97,7 @@ export interface Document {
   size: number;
   /** Optional category tag */
   tag?: DocumentTag;
+  clinicId?: string;
   createdAt: string;
   updatedAt?: string;
   updatedBy?: string;
@@ -206,6 +211,33 @@ class DentaDB extends Dexie {
       await tx.table("patients").toCollection().modify(p => {
         if (!p.anonCode) p.anonCode = generateAnonCodeSync();
       });
+    });
+    // v7: add clinicId to all tables, stamp existing records with bootstrap clinicId
+    this.version(7).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+    }).upgrade(async tx => {
+      const cid = (() => {
+        try {
+          const cached = localStorage.getItem("divinelink.clinicId");
+          if (cached) return cached;
+          const letters = Array.from({ length: 4 }, () =>
+            String.fromCharCode(65 + Math.floor(Math.random() * 26))).join("");
+          const id = `CLINIC-GEN-${letters}-${new Date().getFullYear()}`;
+          localStorage.setItem("divinelink.clinicId", id);
+          return id;
+        } catch { return "CLINIC-DEFAULT"; }
+      })();
+      const stamp = (rec: any) => { if (!rec.clinicId) rec.clinicId = cid; };
+      await tx.table("users").toCollection().modify(stamp);
+      await tx.table("patients").toCollection().modify(stamp);
+      await tx.table("appointments").toCollection().modify(stamp);
+      await tx.table("consultations").toCollection().modify(stamp);
+      await tx.table("documents").toCollection().modify(stamp);
     });
   }
 }

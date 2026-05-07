@@ -20,6 +20,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "nav.audit": { en: "Audit log", fr: "Journal d'audit" },
   "nav.security": { en: "Security", fr: "Sécurité" },
   "nav.settings": { en: "Settings", fr: "Paramètres" },
+  "nav.clinic": { en: "Clinic settings", fr: "Paramètres clinique" },
   
   // Patients
   "patient.register": { en: "Register Patient", fr: "Inscrire un patient" },
