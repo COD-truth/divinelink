@@ -25,6 +25,11 @@ import { isClinicConfigured } from "@/lib/clinicSettings";
 function AppContent() {
   const { user } = useAuth();
   const [page, setPage] = useState<Page>("dashboard");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (user && !isClinicConfigured()) setShowOnboarding(true);
+  }, [user]);
 
   if (!user) return <LoginScreen />;
 
@@ -44,9 +49,12 @@ function AppContent() {
   };
 
   return (
-    <AppLayout currentPage={page} onNavigate={setPage}>
-      {pages[page]}
-    </AppLayout>
+    <>
+      <AppLayout currentPage={page} onNavigate={setPage}>
+        {pages[page]}
+      </AppLayout>
+      <ClinicOnboarding open={showOnboarding} onDone={() => setShowOnboarding(false)} />
+    </>
   );
 }
 
