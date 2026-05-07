@@ -9,24 +9,18 @@ import { checkAndHandleWipeUrl } from "@/lib/wipe";
   createRoot(document.getElementById("root")!).render(<App />);
 })();
 
-// Register PWA service worker only in production and outside Lovable preview iframes.
+// Register PWA service worker for ALL builds (per offline-first spec),
+// except inside Lovable preview iframes which would otherwise serve stale shells.
 const isInIframe = (() => {
-  try {
-    return window.self !== window.top;
-  } catch {
-    return true;
-  }
+  try { return window.self !== window.top; } catch { return true; }
 })();
 const host = window.location.hostname;
 const isPreviewHost =
   host.includes("lovableproject.com") ||
-  host.includes("lovable.app") ||
-  host.includes("id-preview--") ||
-  host === "localhost" ||
-  host === "127.0.0.1";
+  host.includes("id-preview--");
 
 if ("serviceWorker" in navigator) {
-  if (import.meta.env.PROD && !isInIframe && !isPreviewHost) {
+  if (!isInIframe && !isPreviewHost) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     });
