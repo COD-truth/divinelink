@@ -11,6 +11,7 @@ export interface User {
   active: boolean;
   /** Optional WhatsApp / phone number for doctor reminders */
   phone?: string;
+  clinicId?: string;
   createdAt: string;
 }
 
