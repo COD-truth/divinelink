@@ -28,6 +28,7 @@ export interface Patient {
   medicalAlerts: string;
   /** Optional profile photo as base64 data URL */
   photo?: string;
+  clinicId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +59,7 @@ export interface Appointment {
   time: string;
   reason: string;
   status: AppointmentStatus;
+  clinicId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +76,7 @@ export interface Consultation {
   notes: string;
   /** Images attached to this consultation */
   images?: ConsultationImage[];
+  clinicId?: string;
   createdAt: string;
   parentId?: number;
   originalId?: number;
@@ -94,6 +97,7 @@ export interface Document {
   size: number;
   /** Optional category tag */
   tag?: DocumentTag;
+  clinicId?: string;
   createdAt: string;
   updatedAt?: string;
   updatedBy?: string;
