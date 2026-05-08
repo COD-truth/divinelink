@@ -78,6 +78,7 @@ export function ConsultationsPage() {
       prescription: c.prescription,
       notes: c.notes,
       images: (c.images || []).map(i => ({ ...i, imgType: i.imgType ?? "other" })),
+      vitals: c.vitals || {},
     });
     setSelectedImgIds([]);
     setDialogOpen(true);
