@@ -15,22 +15,67 @@ export interface User {
   createdAt: string;
 }
 
+export type AllergySeverity = "mild" | "moderate" | "severe" | "fatal";
+export interface Allergy { name: string; severity: AllergySeverity; notes?: string }
+export interface Vaccination { name: string; date?: string; notes?: string }
+export interface Antecedents {
+  allergies?: Allergy[];
+  chronicDiseases?: string[];
+  bloodType?: string;
+  vaccinations?: Vaccination[];
+  diabetic?: boolean;
+  hypertensive?: boolean;
+  smoker?: boolean;
+  familyHistory?: string;
+  surgeries?: string;
+}
+
 export interface Patient {
   id?: number;
   patientId: string;
-  /** Anonymous shareable code, e.g. DL-2026-KRTM-047 */
+  /** Anonymous shareable code */
   anonCode?: string;
   firstName: string;
   lastName: string;
   phone: string;
   dob: string;
+  /** Optional explicit age in years (when DOB unknown) */
+  ageYears?: number;
   address: string;
   medicalAlerts: string;
   /** Optional profile photo as base64 data URL */
   photo?: string;
+  antecedents?: Antecedents;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type PaymentStatus = "paid" | "partial" | "unpaid";
+export type PaymentMethod = "cash" | "mtn_momo" | "orange_money" | "other";
+export interface Payment {
+  id?: number;
+  patientId: number;
+  consultationId?: number;
+  amountDue: number;
+  amountPaid: number;
+  status: PaymentStatus;
+  method: PaymentMethod;
+  notes?: string;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VitalSigns {
+  bp?: string;       // Tension e.g. "120/80"
+  temperature?: number; // °C
+  weight?: number;   // kg
+  height?: number;   // cm
+  bmi?: number;      // auto
+  pulse?: number;    // bpm
+  spo2?: number;     // %
+  respRate?: number; // /min
 }
 
 /** Image attached to a consultation */
