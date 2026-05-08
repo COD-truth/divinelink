@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient, type VitalSigns } from "@/lib/db";
+import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient, type VitalSigns, type ConsultationType } from "@/lib/db";
 import { computeBMI, hasFatalAllergy, joinFullName } from "@/lib/patientHelpers";
-import { AlertTriangle as AlertTri } from "lucide-react";
+import { TriangleAlert as AlertTri } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Printer, Edit, Trash2, History, AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download } from "lucide-react";
+import { Plus, Printer, CreditCard as Edit, Trash2, History, TriangleAlert as AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download, FileText, Smile, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { compressImage } from "@/lib/imageUtils";
@@ -42,11 +42,14 @@ export function ConsultationsPage() {
     notes: "",
     images: [] as ConsultationImage[],
     vitals: {} as VitalSigns,
+    consultType: "general" as ConsultationType,
+    template: "",
   });
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
   const [annotateImg, setAnnotateImg] = useState<ConsultationImage | null>(null);
   const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
+  const [dxOpen, setDxOpen] = useState(false);
 
   const load = async () => {
     const allPatients = await decryptPatients(await db.patients.toArray());
@@ -63,7 +66,7 @@ export function ConsultationsPage() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [], vitals: {} });
+    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [], vitals: {}, consultType: "general", template: "" });
     setSelectedImgIds([]);
     setDialogOpen(true);
   };
@@ -79,6 +82,8 @@ export function ConsultationsPage() {
       notes: c.notes,
       images: (c.images || []).map(i => ({ ...i, imgType: i.imgType ?? "other" })),
       vitals: c.vitals || {},
+      consultType: c.consultType || "general",
+      template: c.template || "",
     });
     setSelectedImgIds([]);
     setDialogOpen(true);
@@ -219,6 +224,8 @@ export function ConsultationsPage() {
           isLatest: true,
           versionNumber: currentVersion + 1,
           editedAt: now,
+          consultType: form.consultType,
+          template: form.template || undefined,
           editedBy: user!.name,
         });
       }
@@ -235,6 +242,8 @@ export function ConsultationsPage() {
         notes: form.notes,
         images: form.images,
         vitals: form.vitals,
+        consultType: form.consultType,
+        template: form.template || undefined,
         createdAt: now,
         versionNumber: 1,
       });
@@ -305,6 +314,11 @@ export function ConsultationsPage() {
                       </p>
                     )}
                     <div className="flex gap-2 mt-1 flex-wrap">
+                      {c.consultType === "dental" && (
+                        <span className="inline-flex items-center gap-1 text-xs bg-info/10 text-info px-2 py-0.5 rounded-full">
+                          <Smile className="w-3 h-3" />{t("consult.type.dental")}
+                        </span>
+                      )}
                       {c.parentId && (
                         <span className="inline-flex items-center gap-1 text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
                           {t("consult.modified")}
@@ -362,6 +376,56 @@ export function ConsultationsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Consultation type + template */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{t("consult.type")}</Label>
+                <Select value={form.consultType} onValueChange={v => setForm(f => ({ ...f, consultType: v as ConsultationType }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">{t("consult.type.general")}</SelectItem>
+                    <SelectItem value="dental">{t("consult.type.dental")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t("consult.template")}</Label>
+                <Select value={form.template} onValueChange={v => {
+                  const templates: Record<string, { symptoms: string; diagnosis: string; treatmentPlan: string; prescription: string }> = {
+                    general: { symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "" },
+                    carie: { symptoms: "Douleur dentaire, sensibilité au chaud/froid", diagnosis: "Carie dentaire", treatmentPlan: "Obturation, hygiène dentaire", prescription: "Paracétamol 500mg 3x/j si douleur\nAmoxicilline 500mg 3x/j 5j si infection" },
+                    extraction: { symptoms: "Douleur, mobilité dentaire", diagnosis: "Indication d'extraction", treatmentPlan: "Extraction dentaire, pansement", prescription: "Paracétamol 500mg 3x/j 3j\nAmoxicilline 500mg 3x/j 5j\nChlorhexidine bain de bouche 2x/j 7j" },
+                    detartrage: { symptoms: "Tartre, saignement gingival", diagnosis: "Gingivite, tartre", treatmentPlan: "Détartrage, instructions d'hygiène", prescription: "Chlorhexidine bain de bouche 2x/j 15j" },
+                    pulpectomy: { symptoms: "Douleur pulsatile, sensibilité prolongée", diagnosis: "Pulpite", treatmentPlan: "Pulpectomie, obturation canalaire", prescription: "Paracétamol 500mg 3x/j 3j\nAmoxicilline 500mg 3x/j 5j\nMétronidazole 400mg 3x/j 5j" },
+                    couronne: { symptoms: "Dent délabrée", diagnosis: "Indication de couronne", treatmentPlan: "Préparation, empreinte, couronne provisoire puis définitive", prescription: "Paracétamol 500mg si douleur" },
+                  };
+                  const tpl = templates[v];
+                  if (tpl) setForm(f => ({ ...f, template: v, symptoms: tpl.symptoms || f.symptoms, diagnosis: tpl.diagnosis || f.diagnosis, treatmentPlan: tpl.treatmentPlan || f.treatmentPlan, prescription: tpl.prescription || f.prescription }));
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">{t("consult.template.general")}</SelectItem>
+                    <SelectItem value="carie">{t("consult.template.carie")}</SelectItem>
+                    <SelectItem value="extraction">{t("consult.template.extraction")}</SelectItem>
+                    <SelectItem value="detartrage">{t("consult.template.scaling")}</SelectItem>
+                    <SelectItem value="pulpectomy">{t("consult.template.pulpectomy")}</SelectItem>
+                    <SelectItem value="couronne">{t("consult.template.crown")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Inline differentials button */}
+            <div>
+              <Button type="button" variant="outline" size="sm" onClick={() => {
+                const url = window.location.href;
+                // Navigate to diagnosis page inline - open in a dialog-like way
+                setDxOpen(true);
+              }} className="gap-2">
+                <Stethoscope className="w-4 h-4" />{t("consult.differentials")}
+              </Button>
             </div>
 
             {(() => {
@@ -668,6 +732,53 @@ export function ConsultationsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Inline differential diagnosis dialog */}
+      <Dialog open={dxOpen} onOpenChange={setDxOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t("consult.differentials")}</DialogTitle></DialogHeader>
+          <DifferentialPicker onSelect={dx => { setForm(f => ({ ...f, diagnosis: dx })); setDxOpen(false); toast.success(t("dx.savedToConsult")); }} />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* Inline differential diagnosis picker - simplified from DiagnosisPage */
+function DifferentialPicker({ onSelect }: { onSelect: (dx: string) => void }) {
+  const { t } = useLang();
+  const [search, setSearch] = useState("");
+  const diseaseDb = useMemo(() => {
+    try { const raw = localStorage.getItem("divinelink.diseaseDb"); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+  }, []);
+
+  const allDiseases = useMemo(() => {
+    const out: { name: string; system: string; symptoms: string[] }[] = [];
+    Object.entries(diseaseDb).forEach(([system, diseases]: [string, any]) => {
+      if (Array.isArray(diseases)) diseases.forEach((d: any) => out.push({ name: d.name || d, system, symptoms: d.symptoms || [] }));
+    });
+    return out;
+  }, [diseaseDb]);
+
+  const filtered = search.trim()
+    ? allDiseases.filter(d => d.name.toLowerCase().includes(search.toLowerCase()) || d.symptoms?.some(s => s.toLowerCase().includes(search.toLowerCase())))
+    : allDiseases;
+
+  return (
+    <div className="space-y-3">
+      <Input placeholder={t("common.search")} value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">{t("dx.noMatches")}</p>
+      ) : (
+        <div className="space-y-1 max-h-60 overflow-y-auto">
+          {filtered.slice(0, 20).map(d => (
+            <button key={d.name} onClick={() => onSelect(d.name)} className="w-full text-left p-2 rounded-md hover:bg-accent text-sm transition-colors">
+              <span className="font-medium">{d.name}</span>
+              {d.system && <span className="text-xs text-muted-foreground ml-2">({d.system})</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

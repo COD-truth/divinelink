@@ -7,14 +7,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, CalendarDays, Stethoscope, Clock, UserPlus, ClipboardPlus, CalendarPlus, Search, UserRound, TriangleAlert as AlertTriangle, Database, X, Settings2, Bell } from "lucide-react";
+import { Users, CalendarDays, Stethoscope, Clock, UserPlus, ClipboardPlus, CalendarPlus, Search, UserRound, TriangleAlert as AlertTriangle, Database, X, Settings2, Bell, CreditCard } from "lucide-react";
 import type { Page } from "@/components/AppLayout";
 
 interface Props { onNavigate?: (page: Page) => void; }
 
 type WidgetId =
   | "recentPatients" | "todayAgenda" | "quickStats"
-  | "backupReminder" | "activeAlerts";
+  | "backupReminder" | "activeAlerts" | "unpaidBalances";
 
 interface WidgetDef {
   id: WidgetId;
@@ -28,6 +28,7 @@ const WIDGETS: WidgetDef[] = [
   { id: "quickStats", labelKey: "dash.widget.quickStats", defaultVisible: { admin: true, doctor: true, receptionist: false } },
   { id: "backupReminder", labelKey: "dash.widget.backupReminder", defaultVisible: { admin: true, doctor: false, receptionist: false } },
   { id: "activeAlerts", labelKey: "dash.widget.activeAlerts", defaultVisible: { admin: true, doctor: true, receptionist: false } },
+  { id: "unpaidBalances", labelKey: "dash.widget.unpaidBalances", defaultVisible: { admin: true, doctor: true, receptionist: true } },
 ];
 
 const WIDGET_PREFS_KEY = "divinelink.dashboard.widgets";
@@ -57,6 +58,7 @@ export function DashboardPage({ onNavigate }: Props) {
     loadWidgetPrefs(user?.role || "receptionist")
   );
   const [lastBackup, setLastBackup] = useState<string | null>(null);
+  const [unpaidPatients, setUnpaidPatients] = useState<{ name: string; balance: number; id: number }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -96,6 +98,21 @@ export function DashboardPage({ onNavigate }: Props) {
       setLastBackup(lastSync);
       let alertCount = 0;
       if (!lastSync || (Date.now() - new Date(lastSync).getTime()) > 7 * 86400_000) alertCount++;
+
+      // Unpaid balances
+      const allPayments = await db.payments.toArray();
+      const unpaidMap = new Map<number, number>();
+      allPayments.forEach(p => {
+        const bal = Math.max(0, (p.amountDue || 0) - (p.amountPaid || 0));
+        if (bal > 0) unpaidMap.set(p.patientId, (unpaidMap.get(p.patientId) || 0) + bal);
+      });
+      const unpaidList: { name: string; balance: number; id: number }[] = [];
+      unpaidMap.forEach((bal, pid) => {
+        const pat = decryptedPatients.find(p => p.id === pid);
+        if (pat) unpaidList.push({ name: `${pat.firstName} ${pat.lastName}`, balance: bal, id: pid });
+      });
+      unpaidList.sort((a, b) => b.balance - a.balance);
+      setUnpaidPatients(unpaidList);
 
       setStats({ patients, todayAppts: todayApptsCount, weekAppts, consultations, activeAlerts: alertCount });
       setRecent(decryptedRecent);
@@ -364,6 +381,32 @@ export function DashboardPage({ onNavigate }: Props) {
                           </Button>
                         </li>
                       )}
+                    </ul>
+                  )}
+                </Card>
+              )}
+
+              {w.id === "unpaidBalances" && (
+                <Card className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-destructive" />
+                      {t("dash.widget.unpaidBalances")}
+                    </h2>
+                    <button onClick={() => toggleWidget(w.id)} className="text-muted-foreground hover:text-foreground p-1">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {unpaidPatients.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">{t("common.noData")}</p>
+                  ) : (
+                    <ul className="divide-y">
+                      {unpaidPatients.slice(0, 5).map(p => (
+                        <li key={p.id} className="py-2 flex items-center justify-between text-sm">
+                          <span className="truncate">{p.name}</span>
+                          <span className="text-destructive font-bold ml-2">{p.balance.toFixed(0)} FCFA</span>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </Card>

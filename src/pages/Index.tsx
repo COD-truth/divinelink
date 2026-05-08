@@ -10,6 +10,8 @@ import { AppLayout, type Page } from "@/components/AppLayout";
 import { DashboardPage } from "@/components/DashboardPage";
 import { PatientsPage } from "@/components/PatientsPage";
 import { AppointmentsPage } from "@/components/AppointmentsPage";
+import { AgendaPage } from "@/components/AgendaPage";
+import { DentalExamPage } from "@/components/DentalExamPage";
 import { ConsultationsPage } from "@/components/ConsultationsPage";
 import { DocumentsPage } from "@/components/DocumentsPage";
 import { UsersPage } from "@/components/UsersPage";
@@ -37,7 +39,7 @@ function AppContent() {
   const pages: Record<Page, React.ReactNode> = {
     dashboard: <DashboardPage onNavigate={setPage} />,
     patients: <PatientsPage />,
-    appointments: <AppointmentsPage />,
+    appointments: <AgendaPage />,
     consultations: <ConsultationsPage />,
     documents: <DocumentsPage />,
     diagnosis: <DiagnosisPage />,
@@ -48,6 +50,7 @@ function AppContent() {
     research: <ResearchPage />,
     clinic: <ClinicSettingsPage />,
     pharmacy: <PharmacyPage />,
+    dental: <DentalExamPage />,
   };
 
   return (

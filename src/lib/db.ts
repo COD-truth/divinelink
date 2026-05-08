@@ -1,7 +1,7 @@
 import Dexie, { type Table } from "dexie";
 
 export type UserRole = "admin" | "doctor" | "receptionist";
-export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "noshow";
+export type AppointmentStatus = "scheduled" | "confirmed" | "arrived" | "in_consultation" | "completed" | "cancelled" | "noshow";
 
 export interface User {
   id?: number;
@@ -96,6 +96,8 @@ export interface ConsultationImage {
   annotationOf?: string;
 }
 
+export type ReminderOffset = "15min" | "30min" | "1h" | "1day";
+
 export interface Appointment {
   id?: number;
   patientId: number;
@@ -104,10 +106,14 @@ export interface Appointment {
   time: string;
   reason: string;
   status: AppointmentStatus;
+  reminder?: boolean;
+  reminderOffset?: ReminderOffset;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type ConsultationType = "general" | "dental";
 
 export interface Consultation {
   id?: number;
@@ -123,6 +129,12 @@ export interface Consultation {
   vitals?: VitalSigns;
   /** Images attached to this consultation */
   images?: ConsultationImage[];
+  /** Consultation type for dental module */
+  consultType?: ConsultationType;
+  /** Template used */
+  template?: string;
+  /** Dental record (when consultType = dental) */
+  dental?: DentalRecord;
   clinicId?: string;
   createdAt: string;
   parentId?: number;
@@ -131,6 +143,88 @@ export interface Consultation {
   versionNumber?: number;
   editedAt?: string;
   editedBy?: string;
+}
+
+/* Dental module types */
+export type ToothCondition = "healthy" | "decayed" | "missing" | "crowned" | "filled" | "fractured" | "to_extract" | "mobile";
+export type DentalTreatment = "filling_amalgam" | "filling_composite" | "filling_gi" | "pulpectomy" | "extraction_simple" | "extraction_surgical" | "crown" | "scaling" | "root_canal" | "other";
+export type DentalMaterial = "amalgam" | "composite" | "gi" | "ceramic" | "gold";
+
+export interface ToothRecord {
+  number: number;
+  condition: ToothCondition;
+  treatmentDone?: DentalTreatment;
+  material?: DentalMaterial;
+  notes?: string;
+}
+
+export interface DentalRecord {
+  teeth: ToothRecord[];
+  /** Periodontal data (simplified for MVP) */
+  bleeding?: boolean;
+  pocketDepth?: string;
+  recession?: string;
+  mobility?: 0 | 1 | 2 | 3;
+  plaqueIndex?: number;
+  gingivalIndex?: number;
+  /** Clinical form */
+  motif?: string;
+  painType?: string;
+  painIntensity?: number;
+  painDuration?: string;
+  findings?: string;
+  dentalDiagnosis?: string;
+  treatmentPlan?: string;
+  treatmentDone?: string;
+  nextAppointment?: string;
+}
+
+/* Pharmacy types */
+export type DrugStatus = "in_stock" | "low" | "out" | "expiring_soon";
+export type TransactionType = "in" | "out";
+
+export interface Drug {
+  id?: number;
+  name: string;
+  category: string;
+  stock: number;
+  unit: string;
+  buyPrice: number;
+  sellPrice: number;
+  expiration?: string;
+  minStock: number;
+  supplier?: string;
+  status: DrugStatus;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DrugTransaction {
+  id?: number;
+  drugId: number;
+  type: TransactionType;
+  quantity: number;
+  price: number;
+  patientId?: number;
+  paymentStatus?: PaymentStatus;
+  notes?: string;
+  clinicId?: string;
+  createdAt: string;
+}
+
+/* Document generation types */
+export type DocGenType = "prescription" | "cert_medical" | "cert_rest" | "cert_aptitude" | "referral" | "consent" | "patient_export";
+
+export interface GeneratedDoc {
+  id?: number;
+  type: DocGenType;
+  patientId: number;
+  consultationId?: number;
+  number: string;
+  data: string;
+  clinicId?: string;
+  createdAt: string;
 }
 
 export type DocumentTag = "lab" | "referral" | "xray" | "other";
@@ -180,6 +274,9 @@ class DentaDB extends Dexie {
   documents!: Table<Document>;
   auditLogs!: Table<AuditLog>;
   payments!: Table<Payment>;
+  drugs!: Table<Drug>;
+  drugTransactions!: Table<DrugTransaction>;
+  generatedDocs!: Table<GeneratedDoc>;
 
   constructor() {
     super("DivineLinkDB");
@@ -296,6 +393,24 @@ class DentaDB extends Dexie {
       documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
       auditLogs: "++id, timestamp, userName, type, resource",
       payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+    });
+    // v9: pharmacy (drugs, drugTransactions), generated docs, dental fields on consultation
+    this.version(9).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+    }).upgrade(async tx => {
+      // Add consultType to existing consultations (default: general)
+      await tx.table("consultations").toCollection().modify(c => {
+        if (!c.consultType) c.consultType = "general";
+      });
     });
   }
 }

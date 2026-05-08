@@ -25,13 +25,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, AlertTriangle, FileText, Calendar, Stethoscope, CreditCard } from "lucide-react";
+import { Plus, Trash2, TriangleAlert as AlertTriangle, FileText, Calendar, Stethoscope, CreditCard, FileOutput } from "lucide-react";
 import { toast } from "sonner";
 import {
   joinFullName, splitFullName, ageFromDob, dobFromAge,
   paymentBalance, paymentBadgeEmoji, patientPaymentSummary,
 } from "@/lib/patientHelpers";
 import { decryptPatient, encryptPatientForSave } from "@/lib/patientCrypto";
+import { DocGenPanel } from "@/components/DocGenPanel";
 
 interface Props {
   patient: Patient;
@@ -51,6 +52,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
   const { t } = useLang();
   const [p, setP] = useState<Patient>(patient);
   const [tab, setTab] = useState("info");
+  const [docGenOpen, setDocGenOpen] = useState(false);
 
   useEffect(() => { setP(patient); }, [patient]);
 
@@ -83,6 +85,12 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
           </div>
         )}
 
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setDocGenOpen(true)} className="gap-2">
+            <FileOutput className="w-4 h-4" />{t("docgen.export")}
+          </Button>
+        </div>
+
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="grid grid-cols-6 w-full text-[11px]">
             <TabsTrigger value="info">{t("tab.info")}</TabsTrigger>
@@ -112,6 +120,14 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
             <TimelineTab patientId={p.id!} />
           </TabsContent>
         </Tabs>
+
+        {/* Document generation dialog */}
+        <Dialog open={docGenOpen} onOpenChange={setDocGenOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>{t("docgen.export")}</DialogTitle></DialogHeader>
+            <DocGenPanel patient={p} />
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

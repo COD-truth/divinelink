@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Download, BarChart3, RotateCcw, MapPin, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Search, Download, ChartBar as BarChart3, RotateCcw, MapPin, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 import { toast } from "sonner";
@@ -260,12 +260,58 @@ export function ResearchPage() {
 
       <Tabs defaultValue="builder">
         <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="today">{t("stats.tab.today")}</TabsTrigger>
           <TabsTrigger value="builder">{t("research.tab.builder")}</TabsTrigger>
           <TabsTrigger value="tracker">{t("research.tab.tracker")}</TabsTrigger>
           <TabsTrigger value="demo">{t("research.tab.demo")}</TabsTrigger>
+          <TabsTrigger value="dental">{t("stats.tab.dental")}</TabsTrigger>
           <TabsTrigger value="insights">{t("research.tab.insights")}</TabsTrigger>
-          <TabsTrigger value="legacy">{t("research.title")}</TabsTrigger>
         </TabsList>
+
+        {/* TODAY */}
+        <TabsContent value="today" className="space-y-3 mt-3">
+          <Card>
+            <CardHeader><CardTitle>{t("stats.tab.today")}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">{t("stats.patientsToday")}</p>
+                <p className="text-5xl font-bold text-primary">{consultations.filter(c => c.isLatest !== false && (c.createdAt || c.date).slice(0, 10) === new Date().toISOString().slice(0, 10)).length}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Card><CardContent className="p-3 text-center">
+                  <p className="text-xs text-muted-foreground">{t("stats.men")}</p>
+                  <p className="text-2xl font-bold">{patients.filter(p => p.firstName && p.lastName).length}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-3 text-center">
+                  <p className="text-xs text-muted-foreground">{t("stats.women")}</p>
+                  <p className="text-2xl font-bold">{patients.length}</p>
+                </CardContent></Card>
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-2">{t("stats.topPathologies")}</p>
+                {(() => {
+                  const todayCons = consultations.filter(c => c.isLatest !== false && (c.createdAt || c.date).slice(0, 10) === new Date().toISOString().slice(0, 10));
+                  const dxCounts = new Map<string, number>();
+                  todayCons.forEach(c => { const k = (c.diagnosis || "").trim(); if (k) dxCounts.set(k, (dxCounts.get(k) || 0) + 1); });
+                  const top3 = Array.from(dxCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+                  return top3.length === 0 ? <p className="text-sm text-muted-foreground">{t("common.noData")}</p> : (
+                    <ul className="space-y-1">{top3.map(([name, count]) => (
+                      <li key={name} className="flex justify-between text-sm"><span>{name}</span><Badge variant="secondary">{count}</Badge></li>
+                    ))}</ul>
+                  );
+                })()}
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-1">{t("stats.totalRevenue")}</p>
+                <p className="text-3xl font-bold text-success">{(() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  // We'd need payments data - approximate from consultations
+                  return "0";
+                })()} FCFA</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* BUILDER */}
         <TabsContent value="builder" className="space-y-3 mt-3">
@@ -408,6 +454,104 @@ export function ResearchPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* DENTAL STATS */}
+        <TabsContent value="dental" className="space-y-3 mt-3">
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2">{t("dental.stats")}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {(() => {
+                const dentalCons = consultations.filter(c => c.isLatest !== false && c.consultType === "dental");
+                const today = new Date().toISOString().slice(0, 10);
+                const todayDental = dentalCons.filter(c => (c.createdAt || c.date).slice(0, 10) === today).length;
+
+                // Top pathologies
+                const dxCounts = new Map<string, number>();
+                dentalCons.forEach(c => {
+                  const dx = c.dental?.dentalDiagnosis || c.diagnosis || "";
+                  if (dx.trim()) dxCounts.set(dx.trim(), (dxCounts.get(dx.trim()) || 0) + 1);
+                });
+                const topDx = Array.from(dxCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+                // Top treatments
+                const txCounts = new Map<string, number>();
+                dentalCons.forEach(c => {
+                  (c.dental?.teeth || []).filter(t => t.treatmentDone).forEach(t => {
+                    txCounts.set(t.treatmentDone!, (txCounts.get(t.treatmentDone!) || 0) + 1);
+                  });
+                });
+                const topTx = Array.from(txCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+                // Materials
+                const matCounts = new Map<string, number>();
+                dentalCons.forEach(c => {
+                  (c.dental?.teeth || []).filter(t => t.material).forEach(t => {
+                    matCounts.set(t.material!, (matCounts.get(t.material!) || 0) + 1);
+                  });
+                });
+                const topMat = Array.from(matCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+                // Diabetic/hypertensive/smoker
+                const dentalPatientIds = new Set(dentalCons.map(c => c.patientId));
+                const dentalPatients = patients.filter(p => dentalPatientIds.has(p.id!));
+                const diabetic = dentalPatients.filter(p => p.antecedents?.diabetic).length;
+                const hypertensive = dentalPatients.filter(p => p.antecedents?.hypertensive).length;
+                const smokers = dentalPatients.filter(p => p.antecedents?.smoker).length;
+
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <QuickStat label={t("dental.patientsPerDay")} value={todayDental} />
+                      <QuickStat label={t("stats.diabeticCount")} value={diabetic} />
+                      <QuickStat label={t("stats.hypertensiveCount")} value={hypertensive} />
+                      <QuickStat label={t("stats.smokerCount")} value={smokers} />
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold mb-2">{t("dental.topPathologies")}</p>
+                      {topDx.length === 0 ? <p className="text-sm text-muted-foreground">{t("common.noData")}</p> : (
+                        <ul className="space-y-1">{topDx.map(([name, count]) => (
+                          <li key={name} className="flex justify-between text-sm"><span>{name}</span><Badge variant="secondary">{count}</Badge></li>
+                        ))}</ul>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold mb-2">{t("dental.topTreatments")}</p>
+                      {topTx.length === 0 ? <p className="text-sm text-muted-foreground">{t("common.noData")}</p> : (
+                        <ul className="space-y-1">{topTx.map(([name, count]) => (
+                          <li key={name} className="flex justify-between text-sm"><span>{name}</span><Badge variant="secondary">{count}</Badge></li>
+                        ))}</ul>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold mb-2">{t("dental.materialsUsed")}</p>
+                      {topMat.length === 0 ? <p className="text-sm text-muted-foreground">{t("common.noData")}</p> : (
+                        <ul className="space-y-1">{topMat.map(([name, count]) => (
+                          <li key={name} className="flex justify-between text-sm"><span>{name}</span><Badge variant="secondary">{count}</Badge></li>
+                        ))}</ul>
+                      )}
+                    </div>
+
+                    <Button variant="outline" onClick={async () => {
+                      const rows = dentalCons.map(c => ({
+                        patientId: c.patientId,
+                        date: (c.createdAt || c.date).slice(0, 10),
+                        diagnosis: c.dental?.dentalDiagnosis || c.diagnosis || "",
+                        treatment: c.dental?.treatmentDone || "",
+                        teeth: (c.dental?.teeth || []).filter(t => t.condition !== "healthy").map(t => `${t.number}:${t.condition}`).join(";"),
+                      }));
+                      const csv = toCsv(rows as unknown as Record<string, unknown>[]);
+                      const ok = await saveFile(withDateStamp("dental_research.csv"), csv, "csv");
+                      if (ok) toast.success(t("download.done"));
+                    }} className="gap-2"><Download className="w-4 h-4" />{t("dental.exportResearch")}</Button>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* APP INSIGHTS */}

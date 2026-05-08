@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Upload, AlertTriangle, Loader2, HardDrive, RefreshCw, FileDown, FileUp, Share2, FileJson } from "lucide-react";
+import { Download, Upload, TriangleAlert as AlertTriangle, Loader as Loader2, HardDrive, RefreshCw, FileDown, FileUp, Share2, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import CryptoJS from "crypto-js";
@@ -60,7 +60,7 @@ export function BackupPage() {
     setJsonBusy(true);
     try {
       const payload = {
-        version: 6,
+        version: 9,
         generatedAt: new Date().toISOString(),
         app: "DivineLink",
         data: {
@@ -70,6 +70,9 @@ export function BackupPage() {
           consultations: await db.consultations.toArray(),
           documents: await db.documents.toArray(),
           auditLogs: await db.auditLogs.toArray(),
+          drugs: await db.drugs.toArray(),
+          drugTransactions: await db.drugTransactions.toArray(),
+          generatedDocs: await db.generatedDocs.toArray(),
         },
       };
       const json = JSON.stringify(payload, null, 2);
