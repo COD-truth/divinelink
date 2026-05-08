@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
