@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, ChevronLeft, ChevronRight, MessageCircle, Settings2, Trash2, Check, Search, FileText, Bold, Italic, List } from "lucide-react";
 import { toast } from "sonner";
 import { decryptPatients } from "@/lib/patientCrypto";
@@ -495,6 +496,3 @@ function NotesTab() {
     </div>
   );
 }
-
-/* Minimal DropdownMenu import (reuse from shadcn) */
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";

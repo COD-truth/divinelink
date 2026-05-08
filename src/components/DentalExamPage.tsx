@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { db, type Consultation, type Patient, type ToothRecord, type ToothCondition, type DentalTreatment, type DentalMaterial, type DentalRecord } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
@@ -428,5 +428,3 @@ export function DentalExamPage() {
     </div>
   );
 }
-
-import { useEffect } from "react";
