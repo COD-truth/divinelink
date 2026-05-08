@@ -287,6 +287,16 @@ class DentaDB extends Dexie {
       await tx.table("consultations").toCollection().modify(stamp);
       await tx.table("documents").toCollection().modify(stamp);
     });
+    // v8: payments table + patient antecedents/ageYears (no schema change for nested fields)
+    this.version(8).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+    });
   }
 }
 
