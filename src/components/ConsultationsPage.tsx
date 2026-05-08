@@ -41,6 +41,7 @@ export function ConsultationsPage() {
     prescription: "",
     notes: "",
     images: [] as ConsultationImage[],
+    vitals: {} as VitalSigns,
   });
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
