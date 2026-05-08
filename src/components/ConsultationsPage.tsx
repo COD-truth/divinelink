@@ -358,10 +358,69 @@ export function ConsultationsPage() {
                 <SelectTrigger><SelectValue placeholder="..." /></SelectTrigger>
                 <SelectContent>
                   {patients.map(p => (
-                    <SelectItem key={p.id} value={p.id!.toString()}>{p.firstName} {p.lastName}</SelectItem>
+                    <SelectItem key={p.id} value={p.id!.toString()}>{joinFullName(p)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {(() => {
+              const selPat = patients.find(p => p.id?.toString() === form.patientId);
+              if (hasFatalAllergy(selPat)) {
+                return (
+                  <div className="bg-destructive text-destructive-foreground rounded-md px-3 py-2 flex items-center gap-2 font-bold text-sm">
+                    <AlertTri className="w-4 h-4" /> {t("ant.fatalWarning")}
+                    {selPat?.antecedents?.allergies?.filter(a => a.severity === "fatal").map(a => a.name).join(", ") &&
+                      <span className="font-normal">— {selPat.antecedents!.allergies!.filter(a => a.severity === "fatal").map(a => a.name).join(", ")}</span>}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Vital signs */}
+            <div className="border rounded-md p-3 space-y-2">
+              <Label className="text-sm font-semibold">{t("vit.title")}</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-[10px]">{t("vit.bp")}</Label>
+                  <Input value={form.vitals.bp || ""} placeholder="120/80" onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, bp: e.target.value } }))} />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{t("vit.temp")}</Label>
+                  <Input type="number" step="0.1" value={form.vitals.temperature ?? ""} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, temperature: e.target.value ? parseFloat(e.target.value) : undefined } }))} />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{t("vit.pulse")}</Label>
+                  <Input type="number" value={form.vitals.pulse ?? ""} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, pulse: e.target.value ? parseInt(e.target.value) : undefined } }))} />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{t("vit.weight")}</Label>
+                  <Input type="number" step="0.1" value={form.vitals.weight ?? ""} onChange={e => {
+                    const w = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setForm(f => ({ ...f, vitals: { ...f.vitals, weight: w, bmi: computeBMI(w, f.vitals.height) } }));
+                  }} />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{t("vit.height")}</Label>
+                  <Input type="number" value={form.vitals.height ?? ""} onChange={e => {
+                    const h = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setForm(f => ({ ...f, vitals: { ...f.vitals, height: h, bmi: computeBMI(f.vitals.weight, h) } }));
+                  }} />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{t("vit.bmi")}</Label>
+                  <Input value={form.vitals.bmi ?? ""} readOnly className="bg-muted" />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{t("vit.spo2")}</Label>
+                  <Input type="number" value={form.vitals.spo2 ?? ""} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, spo2: e.target.value ? parseInt(e.target.value) : undefined } }))} />
+                </div>
+                <div>
+                  <Label className="text-[10px]">{t("vit.rr")}</Label>
+                  <Input type="number" value={form.vitals.respRate ?? ""} onChange={e => setForm(f => ({ ...f, vitals: { ...f.vitals, respRate: e.target.value ? parseInt(e.target.value) : undefined } }))} />
+                </div>
+              </div>
             </div>
             <div>
               <Label>{t("consult.symptoms")}</Label>
