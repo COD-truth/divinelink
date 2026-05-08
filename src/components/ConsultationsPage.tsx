@@ -214,6 +214,8 @@ export function ConsultationsPage() {
           notes: form.notes,
           images: form.images,
           vitals: form.vitals,
+          createdAt: now,
+          originalId,
           isLatest: true,
           versionNumber: currentVersion + 1,
           editedAt: now,
@@ -233,6 +235,8 @@ export function ConsultationsPage() {
         notes: form.notes,
         images: form.images,
         vitals: form.vitals,
+        createdAt: now,
+        versionNumber: 1,
       });
       await db.consultations.update(id as number, { originalId: id as number });
       toast.success(t("consult.new"));
