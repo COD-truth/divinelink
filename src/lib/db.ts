@@ -179,6 +179,7 @@ class DentaDB extends Dexie {
   consultations!: Table<Consultation>;
   documents!: Table<Document>;
   auditLogs!: Table<AuditLog>;
+  payments!: Table<Payment>;
 
   constructor() {
     super("DivineLinkDB");
