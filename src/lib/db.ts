@@ -119,6 +119,8 @@ export interface Consultation {
   treatmentPlan: string;
   prescription: string;
   notes: string;
+  /** Vital signs taken at consultation */
+  vitals?: VitalSigns;
   /** Images attached to this consultation */
   images?: ConsultationImage[];
   clinicId?: string;
