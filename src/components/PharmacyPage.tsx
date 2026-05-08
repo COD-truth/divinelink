@@ -297,7 +297,7 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
   const { t } = useLang();
   const [drugId, setDrugId] = useState("");
   const [qty, setQty] = useState("");
-  const [patientId, setPatientId] = useState("");
+  const [patientId, setPatientId] = useState("__none__");
   const [payStatus, setPayStatus] = useState<PaymentStatus>("unpaid");
 
   const selectedDrug = drugs.find(d => d.id === parseInt(drugId));
@@ -312,7 +312,7 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
     await db.drugTransactions.add({
       drugId: parseInt(drugId), type: "out", quantity: q,
       price: selectedDrug?.sellPrice || 0,
-      patientId: patientId ? parseInt(patientId) : undefined,
+      patientId: patientId !== "__none__" ? parseInt(patientId) : undefined,
       paymentStatus: payStatus,
       clinicId: cid, createdAt: now,
     });
@@ -320,7 +320,7 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
       await db.drugs.update(selectedDrug.id!, { stock: selectedDrug.stock - q, updatedAt: now });
     }
     toast.success(t("common.save"));
-    setDrugId(""); setQty(""); setPatientId(""); setPayStatus("unpaid");
+    setDrugId(""); setQty(""); setPatientId("__none__"); setPayStatus("unpaid");
     onRefresh();
   };
 
@@ -340,7 +340,7 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
             <Select value={patientId} onValueChange={setPatientId}>
               <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">—</SelectItem>
+                <SelectItem value="__none__">—</SelectItem>
                 {patients.map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.firstName} {p.lastName}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -366,11 +366,11 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
 /* ============ Transactions Tab ============ */
 function TransactionsTab({ transactions, drugs, patients }: { transactions: DrugTransaction[]; drugs: Drug[]; patients: Patient[] }) {
   const { t } = useLang();
-  const [filterDrug, setFilterDrug] = useState("");
+  const [filterDrug, setFilterDrug] = useState("all");
   const [filterType, setFilterType] = useState<string>("all");
 
   const filtered = transactions.filter(tx => {
-    if (filterDrug && tx.drugId !== parseInt(filterDrug)) return false;
+    if (filterDrug !== "all" && tx.drugId !== parseInt(filterDrug)) return false;
     if (filterType !== "all" && tx.type !== filterType) return false;
     return true;
   });

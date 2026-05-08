@@ -156,7 +156,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "wa.remind": { en: "WhatsApp reminder", fr: "Rappel WhatsApp" },
   "wa.patient": { en: "Send to patient", fr: "Envoyer au patient" },
   "wa.doctor": { en: "Send to doctor", fr: "Envoyer au médecin" },
-  "wa.noPhone": { en: "No phone number on file", fr: "Aucun numéro de téléphone" },
+  "wa.noPhone": { en: "No phone number. Add it in Users page.", fr: "Aucun numéro. Ajoutez-le dans la page Utilisateurs." },
   "wa.message": { en: "Reminder: appointment on {date} at {time} with Dr. {doctor}. Reason: {reason}.", fr: "Rappel : rendez-vous le {date} à {time} avec Dr. {doctor}. Motif : {reason}." },
 
   // Reminders panel

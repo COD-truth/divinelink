@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, UserCog } from "lucide-react";
+import { Plus, CreditCard as Edit, UserCog } from "lucide-react";
 import { toast } from "sonner";
 
 const roleBadge: Record<UserRole, string> = {
@@ -76,6 +76,7 @@ export function UsersPage() {
               </div>
               <div className="flex-1">
                 <p className="font-medium">{u.name}</p>
+                {u.phone && <p className="text-xs text-muted-foreground">{u.phone}</p>}
               </div>
               <Badge className={roleBadge[u.role]}>{t(`user.${u.role}`)}</Badge>
               <Edit className="w-4 h-4 text-muted-foreground" />
