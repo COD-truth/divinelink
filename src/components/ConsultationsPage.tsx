@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient } from "@/lib/db";
+import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient, type VitalSigns } from "@/lib/db";
+import { computeBMI, hasFatalAllergy, joinFullName } from "@/lib/patientHelpers";
+import { AlertTriangle as AlertTri } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
