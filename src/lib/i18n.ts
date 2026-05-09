@@ -746,6 +746,22 @@ const translations: Record<string, Record<Lang, string>> = {
   "notif.expiring30d": { en: "Drugs expiring (<30 days)", fr: "Médicaments expirant (<30 jours)" },
   "notif.markRead": { en: "Mark as read", fr: "Marquer comme lu" },
   "notif.noAlerts": { en: "No alerts", fr: "Aucune alerte" },
+
+  // Push notifications
+  "push.title": { en: "Push Notifications", fr: "Notifications Push" },
+  "push.enable": { en: "Enable push notifications", fr: "Activer les notifications push" },
+  "push.disable": { en: "Disable push notifications", fr: "Désactiver les notifications push" },
+  "push.enabled": { en: "Push notifications enabled", fr: "Notifications push activées" },
+  "push.disabled": { en: "Push notifications disabled", fr: "Notifications push désactivées" },
+  "push.permissionDenied": { en: "Notification permission denied. Enable it in browser settings.", fr: "Permission de notification refusée. Activez-la dans les paramètres du navigateur." },
+  "push.notSupported": { en: "Push notifications not supported in this browser", fr: "Notifications push non supportées dans ce navigateur" },
+  "push.autoReminder": { en: "Auto-reminders", fr: "Rappels automatiques" },
+  "push.autoReminderHint": { en: "Get push notifications before appointments", fr: "Recevez des notifications push avant les rendez-vous" },
+  "push.registerFailed": { en: "Failed to register with server", fr: "Échec de l'enregistrement sur le serveur" },
+  "push.subscribed": { en: "Subscribed", fr: "Abonné" },
+  "push.notSubscribed": { en: "Not subscribed", fr: "Non abonné" },
+  "push.reminderScheduled": { en: "Reminder scheduled", fr: "Rappel programmé" },
+  "push.reminderFailed": { en: "Failed to schedule reminder", fr: "Échec de la programmation du rappel" },
 };
 
 export function t(key: string, lang: Lang): string {

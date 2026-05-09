@@ -7,8 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, Copy, Smartphone, WifiOff } from "lucide-react";
+import { MessageCircle, Send, Copy, Smartphone, WifiOff, BellRing, BellOff } from "lucide-react";
 import { toast } from "sonner";
+import { isPushSupported, isSubscribed, enablePushNotifications, disablePushNotifications } from "@/lib/pushNotifications";
+import { useAuth } from "@/contexts/AuthContext";
+import { getClinicId } from "@/lib/clinicSettings";
 
 export interface ReminderContext {
   patientName: string;
@@ -80,11 +83,17 @@ function normalizePhone(p: string): string {
 
 export function RemindersPanel({ open, onOpenChange, context }: Props) {
   const { t, lang } = useLang() as any;
+  const { user } = useAuth();
   const effectiveLang: "en" | "fr" = lang === "fr" ? "fr" : "en";
   const [templates, setTemplates] = useState<Templates>(() => loadTemplates(effectiveLang));
   const [target, setTarget] = useState<Target>("patient");
   const [channel, setChannel] = useState<Channel>("whatsapp");
   const [online, setOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [pushOn, setPushOn] = useState(false);
+
+  useEffect(() => {
+    if (isPushSupported()) isSubscribed().then(setPushOn);
+  }, [open]);
 
   useEffect(() => {
     setTemplates(loadTemplates(effectiveLang));
@@ -121,6 +130,27 @@ export function RemindersPanel({ open, onOpenChange, context }: Props) {
     setTemplates(next);
     saveTemplates(effectiveLang, next);
     toast.success(t("reminder.reset"));
+  };
+
+  const togglePush = async () => {
+    if (pushOn) {
+      await disablePushNotifications();
+      setPushOn(false);
+      toast.success(t("push.disabled"));
+    } else {
+      const clinicId = getClinicId();
+      const result = await enablePushNotifications(user?.id || 0, user?.name || "", clinicId);
+      if (result.success) {
+        setPushOn(true);
+        toast.success(t("push.enabled"));
+      } else {
+        toast.error(result.error === "Permission denied or subscription failed"
+          ? t("push.permissionDenied")
+          : result.error === "Push notifications not supported in this browser"
+          ? t("push.notSupported")
+          : t("push.registerFailed"));
+      }
+    }
   };
 
   const send = () => {
@@ -165,6 +195,23 @@ export function RemindersPanel({ open, onOpenChange, context }: Props) {
             {t("reminder.reset")}
           </Button>
         </div>
+
+        {isPushSupported() && (
+          <div className="mt-3 border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {pushOn ? <BellRing className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+                <div>
+                  <p className="text-sm font-medium">{t("push.autoReminder")}</p>
+                  <p className="text-xs text-muted-foreground">{t("push.autoReminderHint")}</p>
+                </div>
+              </div>
+              <Button size="sm" variant={pushOn ? "default" : "outline"} onClick={togglePush}>
+                {pushOn ? t("push.subscribed") : t("push.enable")}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <Tabs value={target} onValueChange={(v) => setTarget(v as Target)} className="mt-4">
           <TabsList className="grid grid-cols-2 w-full">
