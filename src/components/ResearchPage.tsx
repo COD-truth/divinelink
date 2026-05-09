@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { db, type Consultation, type Patient } from "@/lib/db";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--secondar
 
 export function ResearchPage() {
   const { t } = useLang();
+  const { hasRole } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -266,6 +268,7 @@ export function ResearchPage() {
           <TabsTrigger value="demo">{t("research.tab.demo")}</TabsTrigger>
           <TabsTrigger value="dental">{t("stats.tab.dental")}</TabsTrigger>
           <TabsTrigger value="insights">{t("research.tab.insights")}</TabsTrigger>
+          {hasRole(["admin"]) && <TabsTrigger value="research">{t("research.tab.researchMode")}</TabsTrigger>}
         </TabsList>
 
         {/* TODAY */}
@@ -620,6 +623,175 @@ export function ResearchPage() {
             </Card>
           </div>
         </TabsContent>
+
+        {/* RESEARCH MODE - Admin only */}
+        {hasRole(["admin"]) && (
+        <TabsContent value="research" className="space-y-4 mt-3">
+          {/* Correlations */}
+          <Card>
+            <CardHeader><CardTitle className="text-lg">{t("research.correlations")}</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {(() => {
+                const smokers = patients.filter(p => p.antecedents?.smoker);
+                const smokersWithCaries = smokers.filter(s =>
+                  consultations.some(c => c.isLatest !== false && c.patientId === s.id && (c.diagnosis || "").toLowerCase().match(/caries|carie/))
+                );
+                const smokerCariesPct = smokers.length ? Math.round((smokersWithCaries.length / smokers.length) * 100) : 0;
+
+                const diabetics = patients.filter(p => p.antecedents?.diabetic);
+                const diabeticsWithPerio = diabetics.filter(d =>
+                  consultations.some(c => c.isLatest !== false && c.patientId === d.id && (c.diagnosis || "").toLowerCase().match(/parodont|periodont|gingiv/))
+                );
+                const diabeticPerioPct = diabetics.length ? Math.round((diabeticsWithPerio.length / diabetics.length) * 100) : 0;
+
+                const hypertensives = patients.filter(p => p.antecedents?.hypertensive);
+                const hyperThisMonth = hypertensives.filter(h =>
+                  consultations.some(c => c.isLatest !== false && c.patientId === h.id && (c.createdAt || c.date) >= startOfMonth)
+                );
+
+                return (
+                  <div className="grid md:grid-cols-3 gap-3">
+                    <div className="border rounded-lg p-4 text-center">
+                      <p className="text-4xl font-bold text-warning">{smokerCariesPct}%</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t("research.smokerCaries")}</p>
+                      <p className="text-xs text-muted-foreground">n={smokers.length}</p>
+                    </div>
+                    <div className="border rounded-lg p-4 text-center">
+                      <p className="text-4xl font-bold text-destructive">{diabeticPerioPct}%</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t("research.diabeticPerio")}</p>
+                      <p className="text-xs text-muted-foreground">n={diabetics.length}</p>
+                    </div>
+                    <div className="border rounded-lg p-4 text-center">
+                      <p className="text-4xl font-bold text-primary">{hyperThisMonth.length}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t("research.hyperThisMonth")}</p>
+                      <p className="text-xs text-muted-foreground">n={hypertensives.length}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Trends */}
+          <div className="grid md:grid-cols-2 gap-3">
+            <Card>
+              <CardHeader><CardTitle className="text-lg">{t("research.patientsPerMonth")}</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer>
+                  <LineChart data={(() => {
+                    const months: Record<string, number> = {};
+                    patients.forEach(p => {
+                      const m = (p.createdAt || "").slice(0, 7);
+                      if (m) months[m] = (months[m] || 0) + 1;
+                    });
+                    const sorted = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
+                    let cum = 0;
+                    return sorted.map(([month, count]) => { cum += count; return { month, value: cum }; });
+                  })()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} />
+                    <RTooltip />
+                    <Line dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-lg">{t("research.top10Diagnoses")}</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer>
+                  <BarChart layout="vertical" data={(() => {
+                    const counts = new Map<string, number>();
+                    consultations.filter(c => c.isLatest !== false).forEach(c => {
+                      const k = (c.diagnosis || "").trim();
+                      if (k) counts.set(k, (counts.get(k) || 0) + 1);
+                    });
+                    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, value]) => ({ name: name.length > 20 ? name.slice(0, 18) + "..." : name, value }));
+                  })()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                    <RTooltip />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-lg">{t("research.top5Treatments")}</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer>
+                  <BarChart layout="vertical" data={(() => {
+                    const counts = new Map<string, number>();
+                    consultations.filter(c => c.isLatest !== false).forEach(c => {
+                      const t = (c.treatmentPlan || "").trim();
+                      if (t) counts.set(t, (counts.get(t) || 0) + 1);
+                    });
+                    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name: name.length > 20 ? name.slice(0, 18) + "..." : name, value }));
+                  })()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                    <RTooltip />
+                    <Bar dataKey="value" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-lg">{t("research.consultsByDay")}</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer>
+                  <BarChart data={(() => {
+                    const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+                    const counts = new Array(7).fill(0);
+                    consultations.filter(c => c.isLatest !== false).forEach(c => {
+                      const d = new Date(c.createdAt || c.date);
+                      if (!isNaN(d.getTime())) counts[d.getDay()]++;
+                    });
+                    return days.map((name, i) => ({ name, value: counts[i] }));
+                  })()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis allowDecimals={false} />
+                    <RTooltip />
+                    <Bar dataKey="value" fill="#f59e0b" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Export */}
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={async () => {
+              const rows = patients.map(p => {
+                const pCons = consultations.filter(c => c.isLatest !== false && c.patientId === p.id);
+                const lastDx = pCons.length ? pCons.sort((a, b) => b.date.localeCompare(a.date))[0].diagnosis : "";
+                return {
+                  age: p.ageYears ?? ageFromDob(p.dob) ?? "",
+                  diabetic: p.antecedents?.diabetic ? "1" : "0",
+                  hypertensive: p.antecedents?.hypertensive ? "1" : "0",
+                  smoker: p.antecedents?.smoker ? "1" : "0",
+                  visitCount: pCons.length,
+                  lastDiagnosis: lastDx || "",
+                  createdAt: p.createdAt?.slice(0, 10) || "",
+                };
+              });
+              const csv = toCsv(rows as unknown as Record<string, unknown>[]);
+              const ok = await saveFile(withDateStamp("research_anonymous.csv"), csv, "csv");
+              if (ok) toast.success(t("download.done"));
+            }} className="gap-2">
+              <Download className="w-4 h-4" /> {t("research.exportResearch")}
+            </Button>
+            <p className="text-xs text-muted-foreground">{t("research.anonymousNote")}</p>
+          </div>
+        </TabsContent>
+        )}
 
         {/* LEGACY free-text */}
         <TabsContent value="legacy" className="space-y-3 mt-3">

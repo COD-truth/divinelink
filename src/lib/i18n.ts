@@ -762,6 +762,73 @@ const translations: Record<string, Record<Lang, string>> = {
   "push.notSubscribed": { en: "Not subscribed", fr: "Non abonné" },
   "push.reminderScheduled": { en: "Reminder scheduled", fr: "Rappel programmé" },
   "push.reminderFailed": { en: "Failed to schedule reminder", fr: "Échec de la programmation du rappel" },
+
+  // Morning briefing
+  "briefing.title": { en: "Good morning", fr: "Bonjour" },
+  "briefing.todayAppts": { en: "appointments today", fr: "rendez-vous aujourd'hui" },
+  "briefing.firstAppt": { en: "First appointment", fr: "Premier rendez-vous" },
+  "briefing.nextAppt": { en: "Next appointment in less than 1 hour!", fr: "Prochain rendez-vous dans moins d'une heure !" },
+  "briefing.lowStock": { en: "Low stock drugs", fr: "Médicaments stock faible" },
+  "briefing.unpaid": { en: "Unpaid patients", fr: "Patients impayés" },
+  "briefing.backupDays": { en: "days since last backup", fr: "jours depuis la dernière sauvegarde" },
+  "briefing.noBackup": { en: "No backup yet!", fr: "Aucune sauvegarde !" },
+
+  // End of day summary
+  "eod.title": { en: "End of day summary", fr: "Bilan de journée" },
+  "eod.patientsToday": { en: "patients seen today", fr: "patients vus aujourd'hui" },
+  "eod.newPatients": { en: "New", fr: "Nouveaux" },
+  "eod.returning": { en: "Returning", fr: "Retour" },
+  "eod.topDiagnoses": { en: "Top diagnoses today", fr: "Diagnostics du jour" },
+  "eod.revenue": { en: "Revenue today", fr: "Recette du jour" },
+  "eod.motiv0": { en: "Quiet day", fr: "Journée calme" },
+  "eod.motiv4": { en: "Good day!", fr: "Bonne journée !" },
+  "eod.motiv8": { en: "Excellent day!", fr: "Excellente journée !" },
+  "eod.motiv12": { en: "Exceptional day!", fr: "Journée exceptionnelle !" },
+
+  // Patient Intelligence banner
+  "pi.daysSince": { en: "days since last visit", fr: "jours depuis la derniere visite" },
+  "pi.visits": { en: "visits", fr: "visites" },
+  "pi.topDiagnosis": { en: "Most common diagnosis", fr: "Diagnostic frequent" },
+  "pi.unpaid": { en: "Unpaid balance", fr: "Solde impay" },
+  "pi.noVisits": { en: "No visits yet", fr: "Aucune visite" },
+
+  // Patient Show mode
+  "show.title": { en: "Show to patient", fr: "Montrer au patient" },
+  "show.welcome": { en: "Welcome", fr: "Bienvenue" },
+  "show.visitHistory": { en: "Visit history", fr: "Historique des visites" },
+  "show.dentalChart": { en: "Dental chart", fr: "Carte dentaire" },
+  "show.vitals": { en: "Vital signs trend", fr: "Evolution des constantes" },
+  "show.nextAppt": { en: "Next appointment", fr: "Prochain rendez-vous" },
+  "show.noNextAppt": { en: "No upcoming appointment", fr: "Aucun rendez-vous a venir" },
+  "show.exit": { en: "Exit", fr: "Retour" },
+
+  // Smart notifications
+  "smart.morning": { en: "Good morning Dr {name}. {count} appointments today", fr: "Bonjour Dr {name}. {count} rendez-vous aujourd'hui" },
+  "smart.backup": { en: "Remember to back up DivineLink", fr: "Pensez \u00e0 sauvegarder DivineLink" },
+  "smart.apptReminder": { en: "Appointment in 30min: {patient}", fr: "Rendez-vous dans 30min : {patient}" },
+  "smart.lowStock": { en: "Low stock: {drug} - {count} remaining", fr: "Stock faible : {drug} - {count} restants" },
+
+  // Research Mode
+  "research.tab.researchMode": { en: "Research", fr: "Recherche" },
+  "research.correlations": { en: "Clinical correlations", fr: "Corrlations cliniques" },
+  "research.smokerCaries": { en: "Smokers with caries", fr: "Fumeurs avec caries" },
+  "research.diabeticPerio": { en: "Diabetics with periodontitis", fr: "Diabtiques avec parodontite" },
+  "research.hyperThisMonth": { en: "Hypertensives consulted this month", fr: "Hypertendus consults ce mois" },
+  "research.patientsPerMonth": { en: "Patients per month (cumulative)", fr: "Patients par mois (cumul)" },
+  "research.top10Diagnoses": { en: "Top 10 diagnoses", fr: "Top 10 diagnostics" },
+  "research.top5Treatments": { en: "Top 5 treatments", fr: "Top 5 traitements" },
+  "research.consultsByDay": { en: "Consultations by day of week", fr: "Consultations par jour de la semaine" },
+  "research.exportResearch": { en: "Export research data", fr: "Exporter donnes de recherche" },
+  "research.anonymousNote": { en: "Anonymized data - no patient names included", fr: "Donnes anonymises - aucun nom de patient inclus" },
+
+  // Patient Loyalty
+  "loyalty.regular": { en: "Regular", fr: "Rgulier" },
+  "loyalty.followUp": { en: "Follow up", fr: "A relancer" },
+  "loyalty.lost": { en: "Lost", fr: "Perdu de vue" },
+  "loyalty.daysAgo": { en: "days ago", fr: "jours" },
+  "loyalty.patientsToFollowUp": { en: "Patients to follow up", fr: "Patients  relancer" },
+  "loyalty.takeAppt": { en: "Book appointment", fr: "Prendre RDV" },
+  "loyalty.lastDx": { en: "Last diagnosis", fr: "Dernier diagnostic" },
 };
 
 export function t(key: string, lang: Lang): string {

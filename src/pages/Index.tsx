@@ -3,6 +3,7 @@ import { seedDatabase } from "@/lib/db";
 import { initCrypto } from "@/lib/crypto";
 import { migrateEncryption } from "@/lib/patientCrypto";
 import { autoRestoreIfNeeded, installAutoSnapshotHooks, scheduleSnapshot } from "@/lib/emergencyBackup";
+import { requestNotificationPermission, initSmartNotifications, stopSmartNotifications } from "@/lib/smartNotifications";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LangProvider } from "@/contexts/LangContext";
 import { LoginScreen } from "@/components/LoginScreen";
@@ -32,6 +33,15 @@ function AppContent() {
 
   useEffect(() => {
     if (user && !isClinicConfigured()) setShowOnboarding(true);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      initSmartNotifications(user.name);
+    }
+    return () => {
+      stopSmartNotifications();
+    };
   }, [user]);
 
   if (!user) return <LoginScreen />;
@@ -65,6 +75,7 @@ function AppContent() {
 
 const Index = () => {
   useEffect(() => {
+    requestNotificationPermission();
     (async () => {
       await initCrypto();
       // Try silent restore BEFORE seeding so we don't overwrite a recovered admin.

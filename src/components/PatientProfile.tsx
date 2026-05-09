@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, TriangleAlert as AlertTriangle, FileText, Calendar, Stethoscope, CreditCard, FileOutput } from "lucide-react";
+import { Plus, Trash2, TriangleAlert as AlertTriangle, FileText, Calendar, Stethoscope, CreditCard, FileOutput, ChartBar as BarChart3, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   joinFullName, splitFullName, ageFromDob, dobFromAge,
@@ -48,11 +48,261 @@ const SEVERITY_COLORS: Record<AllergySeverity, string> = {
   fatal: "bg-destructive text-destructive-foreground ring-2 ring-destructive",
 };
 
+/* ---------------- Patient Intelligence Banner ---------------- */
+function PatientIntelligenceBanner({ patientId }: { patientId: number }) {
+  const { t } = useLang();
+  const [daysSince, setDaysSince] = useState<number | null>(null);
+  const [totalVisits, setTotalVisits] = useState(0);
+  const [topDiagnosis, setTopDiagnosis] = useState("");
+  const [unpaidBalance, setUnpaidBalance] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const consultations = await db.consultations.where("patientId").equals(patientId).toArray();
+      const latest = consultations.filter(c => c.isLatest !== false);
+      setTotalVisits(latest.length);
+
+      if (latest.length > 0) {
+        const sorted = [...latest].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const lastDate = new Date(sorted[0].date);
+        setDaysSince(Math.floor((Date.now() - lastDate.getTime()) / 86400000));
+
+        const diagCounts: Record<string, number> = {};
+        latest.forEach(c => {
+          if (c.diagnosis) {
+            const d = c.diagnosis.trim();
+            if (d) diagCounts[d] = (diagCounts[d] || 0) + 1;
+          }
+        });
+        const top = Object.entries(diagCounts).sort((a, b) => b[1] - a[1])[0];
+        if (top) setTopDiagnosis(top[0]);
+      } else {
+        setDaysSince(null);
+      }
+
+      const payments = await db.payments.where("patientId").equals(patientId).toArray();
+      const balance = payments.reduce((s, p) => s + paymentBalance(p), 0);
+      setUnpaidBalance(balance);
+    })();
+  }, [patientId]);
+
+  if (daysSince === null && totalVisits === 0) {
+    return (
+      <div className="border-l-4 border-muted bg-muted/50 rounded-r-md px-3 py-2 text-sm text-muted-foreground">
+        {t("pi.noVisits")}
+      </div>
+    );
+  }
+
+  const borderColor = daysSince === null ? "border-muted" : daysSince < 30 ? "border-green-500" : daysSince <= 90 ? "border-orange-500" : "border-red-500";
+  const daysColor = daysSince === null ? "" : daysSince < 30 ? "text-green-600" : daysSince <= 90 ? "text-orange-600" : "text-red-600";
+
+  return (
+    <div className={`border-l-4 ${borderColor} bg-accent/50 rounded-r-md px-3 py-2`}>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+        {daysSince !== null && (
+          <span className="flex items-center gap-1.5">
+            <span className={`font-bold text-lg ${daysColor}`}>{daysSince}</span>
+            <span className="text-muted-foreground">{t("pi.daysSince")}</span>
+          </span>
+        )}
+        <span className="flex items-center gap-1.5">
+          <span className="font-bold text-lg">{totalVisits}</span>
+          <span className="text-muted-foreground">{t("pi.visits")}</span>
+        </span>
+        {topDiagnosis && (
+          <span className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">{t("pi.topDiagnosis")}:</span>
+            <span className="font-medium">{topDiagnosis}</span>
+          </span>
+        )}
+        {unpaidBalance > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">{t("pi.unpaid")}:</span>
+            <span className="font-bold text-red-600">{unpaidBalance.toFixed(0)} XAF</span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Patient Show Mode ---------------- */
+function PatientShowMode({ patient, onClose }: { patient: Patient; onClose: () => void }) {
+  const { t } = useLang();
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [nextAppt, setNextAppt] = useState<Appointment | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const cons = await db.consultations.where("patientId").equals(patient.id!).toArray();
+      const latest = cons.filter(c => c.isLatest !== false).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setConsultations(latest);
+
+      const now = new Date().toISOString().split("T")[0];
+      const apts = await db.appointments
+        .where("patientId").equals(patient.id!)
+        .filter(a => a.date >= now && a.status !== "cancelled" && a.status !== "noshow")
+        .sortBy("date");
+      setNextAppt(apts[0] || null);
+    })();
+  }, [patient.id]);
+
+  const clinicName = localStorage.getItem("divinelink.clinicName") || "DivineLink";
+  const patientName = joinFullName(patient);
+
+  const dentalConsults = consultations.filter(c => c.consultType === "dental" && c.dental?.teeth?.length);
+  const consultsWithVitals = consultations.filter(c => c.vitals).slice(0, 5);
+
+  const dentalConditionLabels: Record<string, string> = {
+    healthy: t("dental.healthy"), decayed: t("dental.decayed"), missing: t("dental.missing"),
+    crowned: t("dental.crowned"), filled: t("dental.filled"), fractured: t("dental.fractured"),
+    to_extract: t("dental.to_extract"), mobile: t("dental.mobile"),
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] overflow-y-auto" style={{ animation: "fadeIn 0.4s ease-out" }}>
+      <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+      {/* Background */}
+      <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #fdf6ee 0%, #f0f7f4 50%, #fef9f0 100%)" }}>
+
+        {/* Exit button */}
+        <button
+          onClick={onClose}
+          className="fixed top-4 right-4 z-[101] flex items-center gap-2 rounded-full bg-white/90 shadow-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+        >
+          <X className="w-5 h-5" /> {t("show.exit")}
+        </button>
+
+        <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+
+          {/* Welcome header */}
+          <div className="text-center space-y-2">
+            <p className="text-lg text-amber-700 font-medium tracking-wide">{clinicName}</p>
+            <h1 className="text-3xl font-bold text-gray-800">{t("show.welcome")}</h1>
+            <h2 className="text-2xl text-gray-700 font-semibold">{patientName}</h2>
+          </div>
+
+          {/* Next appointment */}
+          <Card title={t("show.nextAppt")}>
+            {nextAppt ? (
+              <div className="flex items-center gap-4 text-lg">
+                <Calendar className="w-6 h-6 text-teal-600" />
+                <div>
+                  <p className="font-semibold text-gray-800">{nextAppt.date} {nextAppt.time && ` - ${nextAppt.time}`}</p>
+                  {nextAppt.reason && <p className="text-gray-600">{nextAppt.reason}</p>}
+                </div>
+              </div>
+            ) : (
+              <p className="text-lg text-gray-500">{t("show.noNextAppt")}</p>
+            )}
+          </Card>
+
+          {/* Visit history timeline */}
+          <Card title={t("show.visitHistory")}>
+            {consultations.length === 0 ? (
+              <p className="text-lg text-gray-500">{t("pi.noVisits")}</p>
+            ) : (
+              <div className="space-y-4">
+                {consultations.map((c, i) => (
+                  <div key={c.id || i} className="flex gap-4 items-start">
+                    <div className="flex flex-col items-center">
+                      <div className="w-3 h-3 rounded-full bg-teal-500 mt-1.5" />
+                      {i < consultations.length - 1 && <div className="w-0.5 h-8 bg-teal-200" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500">{new Date(c.date).toLocaleDateString()}</p>
+                      {c.diagnosis && <p className="text-lg font-medium text-gray-800">{c.diagnosis}</p>}
+                      {c.treatmentPlan && <p className="text-base text-gray-600">{c.treatmentPlan}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Dental chart */}
+          {dentalConsults.length > 0 && (
+            <Card title={t("show.dentalChart")}>
+              <div className="flex flex-wrap gap-2">
+                {dentalConsults.flatMap(c => c.dental!.teeth).map((tooth, i) => (
+                  <div
+                    key={i}
+                    className={`flex flex-col items-center rounded-lg px-3 py-2 text-center min-w-[60px] ${
+                      tooth.condition === "healthy" ? "bg-green-50 text-green-700" :
+                      tooth.condition === "decayed" ? "bg-red-50 text-red-700" :
+                      tooth.condition === "missing" ? "bg-gray-100 text-gray-500" :
+                      tooth.condition === "crowned" ? "bg-amber-50 text-amber-700" :
+                      tooth.condition === "filled" ? "bg-blue-50 text-blue-700" :
+                      "bg-orange-50 text-orange-700"
+                    }`}
+                  >
+                    <span className="text-lg font-bold">{tooth.number}</span>
+                    <span className="text-xs">{dentalConditionLabels[tooth.condition] || tooth.condition}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Vitals trend chart */}
+          {consultsWithVitals.length > 0 && (
+            <Card title={t("show.vitals")}>
+              <div className="space-y-4">
+                {["pulse", "weight", "temperature"].map(key => {
+                  const label = key === "pulse" ? t("vit.pulse") : key === "weight" ? t("vit.weight") : t("vit.temp");
+                  const values = consultsWithVitals.map(c => {
+                    const v = c.vitals!;
+                    return key === "pulse" ? v.pulse : key === "weight" ? v.weight : v.temperature;
+                  }).filter((v): v is number => v !== undefined);
+                  if (values.length === 0) return null;
+                  const max = Math.max(...values);
+                  const min = Math.min(...values);
+                  const range = max - min || 1;
+                  return (
+                    <div key={key}>
+                      <p className="text-sm font-medium text-gray-600 mb-1">{label}</p>
+                      <div className="flex items-end gap-2 h-20">
+                        {values.map((v, i) => {
+                          const pct = ((v - min) / range) * 60 + 20;
+                          return (
+                            <div key={i} className="flex flex-col items-center flex-1">
+                              <div
+                                className="w-full rounded-t bg-teal-400 min-w-[20px]"
+                                style={{ height: `${pct}%` }}
+                              />
+                              <span className="text-xs text-gray-500 mt-1">{v}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/50 p-6 space-y-3">
+      <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
 export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
   const { t } = useLang();
   const [p, setP] = useState<Patient>(patient);
   const [tab, setTab] = useState("info");
   const [docGenOpen, setDocGenOpen] = useState(false);
+  const [showMode, setShowMode] = useState(false);
 
   useEffect(() => { setP(patient); }, [patient]);
 
@@ -70,6 +320,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -79,13 +330,18 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
           </DialogTitle>
         </DialogHeader>
 
+        {p.id && <PatientIntelligenceBanner patientId={p.id} />}
+
         {fatal && (
           <div className="bg-destructive text-destructive-foreground rounded-md px-3 py-2 flex items-center gap-2 font-bold text-sm">
             <AlertTriangle className="w-4 h-4" /> {t("ant.fatalWarning")}
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowMode(true)} className="gap-2">
+            <BarChart3 className="w-4 h-4" />{t("show.title")}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setDocGenOpen(true)} className="gap-2">
             <FileOutput className="w-4 h-4" />{t("docgen.export")}
           </Button>
@@ -130,6 +386,9 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
         </Dialog>
       </DialogContent>
     </Dialog>
+
+    {showMode && <PatientShowMode patient={p} onClose={() => setShowMode(false)} />}
+    </>
   );
 }
 
