@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { lazy, Suspense, useState, useEffect } from "react";
 import { seedDatabase } from "@/lib/db";
 import { initCrypto } from "@/lib/crypto";
 import { migrateEncryption } from "@/lib/patientCrypto";
@@ -7,24 +7,38 @@ import { requestNotificationPermission, initSmartNotifications, stopSmartNotific
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LangProvider } from "@/contexts/LangContext";
 import { LoginScreen } from "@/components/LoginScreen";
-import { AppLayout, type Page } from "@/components/AppLayout";
 import { DashboardPage } from "@/components/DashboardPage";
-import { PatientsPage } from "@/components/PatientsPage";
-import { AppointmentsPage } from "@/components/AppointmentsPage";
-import { AgendaPage } from "@/components/AgendaPage";
-import { DentalExamPage } from "@/components/DentalExamPage";
-import { ConsultationsPage } from "@/components/ConsultationsPage";
-import { DocumentsPage } from "@/components/DocumentsPage";
-import { UsersPage } from "@/components/UsersPage";
-import { BackupPage } from "@/components/BackupPage";
-import { AuditLogPage } from "@/components/AuditLogPage";
-import { SecurityPage } from "@/components/SecurityPage";
-import { ResearchPage } from "@/components/ResearchPage";
-import { DiagnosisPage } from "@/components/DiagnosisPage";
-import { ClinicSettingsPage } from "@/components/ClinicSettingsPage";
-import { PharmacyPage } from "@/components/PharmacyPage";
 import { ClinicOnboarding } from "@/components/ClinicOnboarding";
+import { AppLayout, type Page } from "@/components/AppLayout";
 import { isClinicConfigured } from "@/lib/clinicSettings";
+import { db } from "@/lib/db";
+import { toast } from "sonner";
+
+const PatientsPage = lazy(() => import("@/components/PatientsPage").then(m => ({ default: m.PatientsPage })));
+const AgendaPage = lazy(() => import("@/components/AgendaPage").then(m => ({ default: m.AgendaPage })));
+const ConsultationsPage = lazy(() => import("@/components/ConsultationsPage").then(m => ({ default: m.ConsultationsPage })));
+const DocumentsPage = lazy(() => import("@/components/DocumentsPage").then(m => ({ default: m.DocumentsPage })));
+const DiagnosisPage = lazy(() => import("@/components/DiagnosisPage").then(m => ({ default: m.DiagnosisPage })));
+const ResearchPage = lazy(() => import("@/components/ResearchPage").then(m => ({ default: m.ResearchPage })));
+const PharmacyPage = lazy(() => import("@/components/PharmacyPage").then(m => ({ default: m.PharmacyPage })));
+const DentalExamPage = lazy(() => import("@/components/DentalExamPage").then(m => ({ default: m.DentalExamPage })));
+const UsersPage = lazy(() => import("@/components/UsersPage").then(m => ({ default: m.UsersPage })));
+const BackupPage = lazy(() => import("@/components/BackupPage").then(m => ({ default: m.BackupPage })));
+const AuditLogPage = lazy(() => import("@/components/AuditLogPage").then(m => ({ default: m.AuditLogPage })));
+const SecurityPage = lazy(() => import("@/components/SecurityPage").then(m => ({ default: m.SecurityPage })));
+const ClinicSettingsPage = lazy(() => import("@/components/ClinicSettingsPage").then(m => ({ default: m.ClinicSettingsPage })));
+const WorkspacePage = lazy(() => import("@/components/WorkspacePage").then(m => ({ default: m.WorkspacePage })));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-muted-foreground">Chargement...</p>
+      </div>
+    </div>
+  );
+}
 
 function AppContent() {
   const { user } = useAuth();
@@ -44,23 +58,40 @@ function AppContent() {
     };
   }, [user]);
 
+  // Check for missed reminders on app open
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const now = new Date().toISOString().split("T")[0];
+        const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString().split("T")[0];
+        const appointments = await db.appointments.toArray();
+        const missed = appointments.filter(a => a.date >= twoDaysAgo && a.date < now && a.status === "scheduled");
+        if (missed.length > 0) {
+          toast.warning(`${missed.length} rendez-vous manqu(s) — consultez les rappels`, { duration: 8000 });
+        }
+      } catch {}
+    })();
+  }, [user]);
+
   if (!user) return <LoginScreen />;
 
   const pages: Record<Page, React.ReactNode> = {
     dashboard: <DashboardPage onNavigate={setPage} />,
-    patients: <PatientsPage />,
-    appointments: <AgendaPage />,
-    consultations: <ConsultationsPage />,
-    documents: <DocumentsPage />,
-    diagnosis: <DiagnosisPage />,
-    users: <UsersPage />,
-    backup: <BackupPage />,
-    audit: <AuditLogPage />,
-    security: <SecurityPage />,
-    research: <ResearchPage />,
-    clinic: <ClinicSettingsPage />,
-    pharmacy: <PharmacyPage />,
-    dental: <DentalExamPage />,
+    patients: <Suspense fallback={<PageLoader />}><PatientsPage /></Suspense>,
+    appointments: <Suspense fallback={<PageLoader />}><AgendaPage /></Suspense>,
+    consultations: <Suspense fallback={<PageLoader />}><ConsultationsPage /></Suspense>,
+    documents: <Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense>,
+    diagnosis: <Suspense fallback={<PageLoader />}><DiagnosisPage /></Suspense>,
+    users: <Suspense fallback={<PageLoader />}><UsersPage /></Suspense>,
+    backup: <Suspense fallback={<PageLoader />}><BackupPage /></Suspense>,
+    audit: <Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>,
+    security: <Suspense fallback={<PageLoader />}><SecurityPage /></Suspense>,
+    research: <Suspense fallback={<PageLoader />}><ResearchPage /></Suspense>,
+    clinic: <Suspense fallback={<PageLoader />}><ClinicSettingsPage /></Suspense>,
+    pharmacy: <Suspense fallback={<PageLoader />}><PharmacyPage /></Suspense>,
+    dental: <Suspense fallback={<PageLoader />}><DentalExamPage /></Suspense>,
+    workspace: <Suspense fallback={<PageLoader />}><WorkspacePage /></Suspense>,
   };
 
   return (
