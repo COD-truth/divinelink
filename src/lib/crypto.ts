@@ -22,11 +22,6 @@ const PREFIX = "enc:v1:";
 const CHECK_PLAINTEXT = "DIVINELINK_OK";
 
 let masterKeyBytes: Uint8Array | null = null;
-let cryptoInitialized = false;
-
-// Keystream cache: avoid re-deriving for the same nonce+length
-const ksCache = new Map<string, Uint8Array>();
-const KS_CACHE_MAX = 200;
 
 function b64encode(bytes: Uint8Array): string {
   let s = "";
@@ -53,10 +48,6 @@ function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
 }
 
 async function deriveKeystreamWith(key: Uint8Array, nonce: Uint8Array, length: number): Promise<Uint8Array> {
-  const cacheKey = b64encode(nonce) + ":" + length;
-  const cached = ksCache.get(cacheKey);
-  if (cached) return cached;
-
   const out = new Uint8Array(length);
   let offset = 0;
   let counter = 0;
@@ -68,12 +59,6 @@ async function deriveKeystreamWith(key: Uint8Array, nonce: Uint8Array, length: n
     out.set(block.subarray(0, take), offset);
     offset += take;
   }
-
-  if (ksCache.size >= KS_CACHE_MAX) {
-    const first = ksCache.keys().next().value;
-    if (first) ksCache.delete(first);
-  }
-  ksCache.set(cacheKey, out);
   return out;
 }
 
@@ -144,7 +129,7 @@ async function verifyKey(key: Uint8Array): Promise<boolean> {
  * is detected and migrated transparently to the PIN-derived key.
  */
 export async function initCrypto(masterPin: string = "1234"): Promise<void> {
-  if (cryptoInitialized) return;
+  if (masterKeyBytes) return;
 
   const newKey = await deriveMasterKey("dl-pin:" + masterPin);
 
@@ -152,7 +137,6 @@ export async function initCrypto(masterPin: string = "1234"): Promise<void> {
     // We have a stored key check — verify
     if (await verifyKey(newKey)) {
       masterKeyBytes = newKey;
-      cryptoInitialized = true;
       return;
     }
     // Wrong PIN for this install — fall through and try legacy
@@ -163,7 +147,6 @@ export async function initCrypto(masterPin: string = "1234"): Promise<void> {
   // Migrate IndexedDB: re-encrypt with newKey
   await migrateLegacyToNew(legacyKey, newKey);
   masterKeyBytes = newKey;
-  cryptoInitialized = true;
   await writeKeyCheck(newKey);
   localStorage.setItem(PIN_FLAG_KEY, "1");
 }
@@ -192,7 +175,7 @@ async function migrateLegacyToNew(oldKey: Uint8Array, newKey: Uint8Array): Promi
 
 /** Change the master PIN: re-derive key and re-encrypt all sensitive fields. */
 export async function changeMasterPin(newPin: string): Promise<void> {
-  if (!cryptoInitialized) throw new Error("crypto not initialized");
+  if (!masterKeyBytes) throw new Error("crypto not initialized");
   const oldKey = masterKeyBytes;
   const newKey = await deriveMasterKey("dl-pin:" + newPin);
   await migrateLegacyToNew(oldKey, newKey);
@@ -204,13 +187,13 @@ export async function changeMasterPin(newPin: string): Promise<void> {
 export async function encryptString(plain: string): Promise<string> {
   if (plain == null || plain === "") return plain;
   if (typeof plain === "string" && plain.startsWith(PREFIX)) return plain;
-  if (!cryptoInitialized) await initCrypto();
+  if (!masterKeyBytes) await initCrypto();
   return encryptWith(masterKeyBytes!, plain);
 }
 
 export async function decryptString(value: string): Promise<string> {
   if (!value || typeof value !== "string" || !value.startsWith(PREFIX)) return value || "";
-  if (!cryptoInitialized) await initCrypto();
+  if (!masterKeyBytes) await initCrypto();
   const out = await decryptWith(masterKeyBytes!, value);
   return out ?? "";
 }

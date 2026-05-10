@@ -13,28 +13,7 @@ export async function decryptPatient(p: Patient): Promise<Patient> {
 }
 
 export async function decryptPatients(list: Patient[]): Promise<Patient[]> {
-  if (list.length === 0) return [];
-  // Batch decrypt: process all fields in a single microtask queue flush
-  // to avoid interleaving with other async work
-  const results: Patient[] = new Array(list.length);
-  const promises: Promise<void>[] = [];
-
-  for (let i = 0; i < list.length; i++) {
-    const p = list[i];
-    const out: Patient = { ...p };
-    results[i] = out;
-    for (const k of SENSITIVE) {
-      const v = (out as any)[k];
-      if (typeof v === "string" && v) {
-        promises.push(
-          decryptString(v).then(decrypted => { (out as any)[k] = decrypted; })
-        );
-      }
-    }
-  }
-
-  await Promise.all(promises);
-  return results;
+  return Promise.all(list.map(decryptPatient));
 }
 
 export async function encryptPatientForSave<T extends Partial<Patient>>(p: T): Promise<T> {

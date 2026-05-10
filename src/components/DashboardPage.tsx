@@ -80,8 +80,7 @@ export function DashboardPage({ onNavigate }: Props) {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
 
-      // Phase 1: Fast counts + today's data (parallel)
-      const [patients, todayApptsCount, weekAppts, consultations, recentRaw, allPatients, todayApptsRaw, allPayments, allCons, lowStock] = await Promise.all([
+      const [patients, todayApptsCount, weekAppts, consultations, recentRaw, allPatients, todayApptsRaw] = await Promise.all([
         db.patients.count(),
         db.appointments.where("date").equals(today).count(),
         db.appointments.where("date")
@@ -91,23 +90,29 @@ export function DashboardPage({ onNavigate }: Props) {
         db.patients.orderBy("id").reverse().limit(5).toArray(),
         db.patients.toArray(),
         db.appointments.where("date").equals(today).toArray(),
-        db.payments.toArray(),
-        db.consultations.toArray(),
-        db.drugs.where("status").anyOf(["low", "out"]).count(),
       ]);
 
-      // Phase 2: Decrypt once (reuse for recent + all)
       const decryptedPatients = await decryptPatients(allPatients);
+      const decryptedRecent = await decryptPatients(recentRaw);
       const patMap = new Map(decryptedPatients.map(p => [p.id!, p]));
-      const decryptedRecent = recentRaw.map(r => patMap.get(r.id!) || r);
 
-      // Active alerts
+      const enrichedAppts = todayApptsRaw
+        .sort((a, b) => a.time.localeCompare(b.time))
+        .map(a => ({
+          ...a,
+          patientName: patMap.get(a.patientId)
+            ? `${patMap.get(a.patientId)!.firstName} ${patMap.get(a.patientId)!.lastName}`
+            : "—",
+        }));
+
+      // Active alerts: backup overdue (>7 days) + count
       const lastSync = localStorage.getItem("dl.sync.lastExport.v1");
       setLastBackup(lastSync);
       let alertCount = 0;
       if (!lastSync || (Date.now() - new Date(lastSync).getTime()) > 7 * 86400_000) alertCount++;
 
       // Unpaid balances
+      const allPayments = await db.payments.toArray();
       const unpaidMap = new Map<number, number>();
       allPayments.forEach(p => {
         const bal = Math.max(0, (p.amountDue || 0) - (p.amountPaid || 0));
@@ -115,13 +120,14 @@ export function DashboardPage({ onNavigate }: Props) {
       });
       const unpaidList: { name: string; balance: number; id: number }[] = [];
       unpaidMap.forEach((bal, pid) => {
-        const pat = patMap.get(pid);
+        const pat = decryptedPatients.find(p => p.id === pid);
         if (pat) unpaidList.push({ name: `${pat.firstName} ${pat.lastName}`, balance: bal, id: pid });
       });
       unpaidList.sort((a, b) => b.balance - a.balance);
       setUnpaidPatients(unpaidList);
 
       // Follow-up patients (lost >90 days)
+      const allCons = await db.consultations.toArray();
       const lastVisitMap = new Map<number, { date: string; dx: string }>();
       allCons.filter(c => c.isLatest !== false).forEach(c => {
         const cur = lastVisitMap.get(c.patientId);
@@ -139,12 +145,17 @@ export function DashboardPage({ onNavigate }: Props) {
       followUp.sort((a, b) => b.days - a.days);
       setFollowUpPatients(followUp);
 
+      // Low stock drugs
+      const lowStock = await db.drugs.where("status").anyOf(["low", "out"]).count();
       setLowStockCount(lowStock);
 
-      // Today's consultations (reuse allCons already loaded)
-      const todayConults = allCons.filter(c => c.date && c.date.startsWith(today));
+      // Today's consultations
+      const todayStr = new Date().toISOString().split("T")[0];
+      const allConsultations = await db.consultations.toArray();
+      const todayConults = allConsultations.filter(c => c.date && c.date.startsWith(todayStr));
+      // Determine new vs returning patients
       const patientFirstConsult = new Map<number, string>();
-      allCons
+      allConsultations
         .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
         .forEach(c => {
           if (!patientFirstConsult.has(c.patientId)) patientFirstConsult.set(c.patientId, c.date || "");
@@ -158,19 +169,10 @@ export function DashboardPage({ onNavigate }: Props) {
       }));
       setTodayConsultations(todayConsultsWithFlag);
 
-      // Today's revenue (reuse allPayments already loaded)
-      const todayPayments = allPayments.filter(p => p.createdAt && p.createdAt.startsWith(today));
+      // Today's revenue
+      const todayPayments = allPayments.filter(p => p.createdAt && p.createdAt.startsWith(todayStr));
       const revenue = todayPayments.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
       setTodayRevenue(revenue);
-
-      const enrichedAppts = todayApptsRaw
-        .sort((a, b) => a.time.localeCompare(b.time))
-        .map(a => ({
-          ...a,
-          patientName: patMap.get(a.patientId)
-            ? `${patMap.get(a.patientId)!.firstName} ${patMap.get(a.patientId)!.lastName}`
-            : "—",
-        }));
 
       setStats({ patients, todayAppts: todayApptsCount, weekAppts, consultations, activeAlerts: alertCount });
       setRecent(decryptedRecent);
