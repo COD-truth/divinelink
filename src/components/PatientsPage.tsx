@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, AlertTriangle, Trash2, Upload, X, Download, Copy, Share2 } from "lucide-react";
+import { Plus, Search, TriangleAlert as AlertTriangle, Trash2, Upload, X, Download, Copy, Share2, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
 import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
@@ -27,6 +27,7 @@ export function PatientsPage() {
   const [profile, setProfile] = useState<Patient | null>(null);
   const [referral, setReferral] = useState<Patient | null>(null);
   const [paySummary, setPaySummary] = useState<Record<number, { status: "paid"|"partial"|"unpaid"; balance: number }>>({});
+  const [lastVisitMap, setLastVisitMap] = useState<Record<number, { days: number; lastDx: string }>>({});
 
   const [form, setForm] = useState({
     fullName: "",
@@ -43,10 +44,23 @@ export function PatientsPage() {
     const dec = await decryptPatients(all);
     setPatients(dec);
     const summary: Record<number, { status: "paid"|"partial"|"unpaid"; balance: number }> = {};
+    const visitMap: Record<number, { days: number; lastDx: string }> = {};
+    const allCons = await db.consultations.toArray();
     await Promise.all(dec.map(async p => {
       if (p.id) summary[p.id] = await patientPaymentSummary(p.id);
+      if (p.id) {
+        const pCons = allCons.filter(c => c.isLatest !== false && c.patientId === p.id).sort((a, b) => b.date.localeCompare(a.date));
+        if (pCons.length) {
+          const lastDate = new Date(pCons[0].date || pCons[0].createdAt);
+          const days = Math.floor((Date.now() - lastDate.getTime()) / 86400000);
+          visitMap[p.id] = { days, lastDx: pCons[0].diagnosis || "" };
+        } else {
+          visitMap[p.id] = { days: 999, lastDx: "" };
+        }
+      }
     }));
     setPaySummary(summary);
+    setLastVisitMap(visitMap);
   };
 
   useEffect(() => { load(); }, []);
@@ -157,15 +171,21 @@ export function PatientsPage() {
           {filtered.map(p => {
             const ps = p.id ? paySummary[p.id] : undefined;
             const age = p.ageYears ?? ageFromDob(p.dob);
+            const lv = p.id ? lastVisitMap[p.id] : undefined;
+            const loyaltyColor = !lv || lv.days > 90 ? "bg-destructive" : lv.days > 30 ? "bg-warning" : "bg-success";
+            const loyaltyLabel = !lv || lv.days > 90 ? t("loyalty.lost") : lv.days > 30 ? t("loyalty.followUp") : t("loyalty.regular");
             return (
               <Card key={p.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="flex items-center gap-3 p-4">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm cursor-pointer overflow-hidden flex-shrink-0" onClick={() => setProfile(p)}>
-                    {p.photo ? (
-                      <img src={p.photo} alt={joinFullName(p)} className="w-full h-full object-cover" />
-                    ) : (
-                      <>{(p.firstName[0] || "").toUpperCase()}{(p.lastName[0] || "").toUpperCase()}</>
-                    )}
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm cursor-pointer overflow-hidden flex-shrink-0" onClick={() => setProfile(p)}>
+                      {p.photo ? (
+                        <img src={p.photo} alt={joinFullName(p)} className="w-full h-full object-cover" />
+                      ) : (
+                        <>{(p.firstName[0] || "").toUpperCase()}{(p.lastName[0] || "").toUpperCase()}</>
+                      )}
+                    </div>
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${loyaltyColor} border-2 border-card`} title={`${loyaltyLabel} (${lv ? lv.days : "?"} ${t("loyalty.daysAgo")})`} />
                   </div>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setProfile(p)}>
                     <p className="font-medium truncate flex items-center gap-2">

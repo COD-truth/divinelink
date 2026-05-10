@@ -17,6 +17,8 @@ import { Plus, ChevronLeft, ChevronRight, MessageCircle, Settings2, Trash2, Chec
 import { toast } from "sonner";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { RemindersPanel, type ReminderContext } from "@/components/RemindersPanel";
+import { scheduleReminder, isSubscribed } from "@/lib/pushNotifications";
+import { getClinicId } from "@/lib/clinicSettings";
 
 const STATUS_FLOW: AppointmentStatus[] = ["scheduled", "confirmed", "arrived", "in_consultation", "completed", "cancelled", "noshow"];
 
@@ -161,9 +163,10 @@ function AppointmentsTab() {
     if (!form.patientId || !form.doctorId || !form.date) return;
     const now = new Date().toISOString();
     const patientIdNum = parseInt(form.patientId);
-    await db.appointments.add({
+    const doctorIdNum = parseInt(form.doctorId);
+    const apptId = await db.appointments.add({
       patientId: patientIdNum,
-      doctorId: parseInt(form.doctorId),
+      doctorId: doctorIdNum,
       date: form.date,
       time: form.time,
       reason: form.reason,
@@ -172,10 +175,27 @@ function AppointmentsTab() {
       reminderOffset: form.reminder ? form.reminderOffset : undefined,
       createdAt: now,
       updatedAt: now,
-    });
+    }) as number;
     if (form.reminder) {
       const pat = patients.find(p => p.id === patientIdNum);
-      scheduleLocalNotification(form.date, form.time, form.reminderOffset, pat ? `${pat.firstName} ${pat.lastName}` : "Patient");
+      const doc = doctors.find(d => d.id === doctorIdNum);
+      const patName = pat ? `${pat.firstName} ${pat.lastName}` : "Patient";
+      scheduleLocalNotification(form.date, form.time, form.reminderOffset, patName);
+      // Schedule push reminder if push notifications are enabled
+      const pushActive = await isSubscribed();
+      if (pushActive && apptId) {
+        const ok = await scheduleReminder({
+          appointmentId: apptId,
+          clinicId: getClinicId(),
+          patientName: patName,
+          doctorName: doc?.name || "",
+          appointmentDate: form.date,
+          appointmentTime: form.time,
+          reason: form.reason,
+          reminderOffset: form.reminderOffset,
+        });
+        if (ok) toast.success(t("push.reminderScheduled"));
+      }
     }
     toast.success(t("apt.create"));
     setDialogOpen(false);

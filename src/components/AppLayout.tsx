@@ -4,7 +4,7 @@ import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/NotificationBell";
+import { isPushSupported, isSubscribed, enablePushNotifications, disablePushNotifications } from "@/lib/pushNotifications";
+import { getClinicId } from "@/lib/clinicSettings";
+import { toast } from "sonner";
 
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
@@ -48,6 +51,34 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const [pickedUser, setPickedUser] = useState<User | null>(null);
   const [switchPin, setSwitchPin] = useState("");
   const [switchErr, setSwitchErr] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  // Check push subscription status on mount
+  useEffect(() => {
+    if (!isPushSupported()) return;
+    isSubscribed().then(setPushEnabled);
+  }, []);
+
+  const togglePush = async () => {
+    if (pushEnabled) {
+      await disablePushNotifications();
+      setPushEnabled(false);
+      toast.success(t("push.disabled"));
+    } else {
+      const clinicId = getClinicId();
+      const result = await enablePushNotifications(user?.id || 0, user?.name || "", clinicId);
+      if (result.success) {
+        setPushEnabled(true);
+        toast.success(t("push.enabled"));
+      } else {
+        toast.error(result.error === "Permission denied or subscription failed"
+          ? t("push.permissionDenied")
+          : result.error === "Push notifications not supported in this browser"
+          ? t("push.notSupported")
+          : t("push.registerFailed"));
+      }
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
@@ -250,6 +281,15 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             <GlobalSearch onNavigate={onNavigate} />
           </div>
           <NotificationBell onNavigate={onNavigate} />
+          {isPushSupported() && (
+            <button
+              onClick={togglePush}
+              className={`relative p-2 rounded-md hover:bg-accent transition-colors ${pushEnabled ? "text-primary" : "text-muted-foreground"}`}
+              title={pushEnabled ? t("push.disable") : t("push.enable")}
+            >
+              {pushEnabled ? <BellRing className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+            </button>
+          )}
           <Popover>
             <PopoverTrigger asChild>
               <button

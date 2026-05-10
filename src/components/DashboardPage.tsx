@@ -4,17 +4,18 @@ import { decryptPatients } from "@/lib/patientCrypto";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, CalendarDays, Stethoscope, Clock, UserPlus, ClipboardPlus, CalendarPlus, Search, UserRound, TriangleAlert as AlertTriangle, Database, X, Settings2, Bell, CreditCard } from "lucide-react";
+import { Users, CalendarDays, Stethoscope, Clock, UserPlus, ClipboardPlus, CalendarPlus, Search, UserRound, TriangleAlert as AlertTriangle, Database, X, Settings2, Bell, CreditCard, Sun, Moon } from "lucide-react";
 import type { Page } from "@/components/AppLayout";
 
 interface Props { onNavigate?: (page: Page) => void; }
 
 type WidgetId =
   | "recentPatients" | "todayAgenda" | "quickStats"
-  | "backupReminder" | "activeAlerts" | "unpaidBalances";
+  | "backupReminder" | "activeAlerts" | "unpaidBalances" | "followUp";
 
 interface WidgetDef {
   id: WidgetId;
@@ -29,6 +30,7 @@ const WIDGETS: WidgetDef[] = [
   { id: "backupReminder", labelKey: "dash.widget.backupReminder", defaultVisible: { admin: true, doctor: false, receptionist: false } },
   { id: "activeAlerts", labelKey: "dash.widget.activeAlerts", defaultVisible: { admin: true, doctor: true, receptionist: false } },
   { id: "unpaidBalances", labelKey: "dash.widget.unpaidBalances", defaultVisible: { admin: true, doctor: true, receptionist: true } },
+  { id: "followUp", labelKey: "loyalty.patientsToFollowUp", defaultVisible: { admin: true, doctor: true, receptionist: false } },
 ];
 
 const WIDGET_PREFS_KEY = "divinelink.dashboard.widgets";
@@ -59,6 +61,16 @@ export function DashboardPage({ onNavigate }: Props) {
   );
   const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [unpaidPatients, setUnpaidPatients] = useState<{ name: string; balance: number; id: number }[]>([]);
+  const [followUpPatients, setFollowUpPatients] = useState<{ name: string; days: number; lastDx: string; id: number }[]>([]);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [todayConsultations, setTodayConsultations] = useState<{ id: number; patientId: number; date: string; diagnosis: string; isNew: boolean }[]>([]);
+  const [todayRevenue, setTodayRevenue] = useState(0);
+  const [briefingDismissed, setBriefingDismissed] = useState(() => {
+    try { return !!localStorage.getItem(`dl.briefing.dismissed.${new Date().toISOString().split("T")[0]}`); } catch { return false; }
+  });
+  const [eodDismissed, setEodDismissed] = useState(() => {
+    try { return !!localStorage.getItem(`dl.eod.dismissed.${new Date().toISOString().split("T")[0]}`); } catch { return false; }
+  });
 
   useEffect(() => {
     (async () => {
@@ -114,6 +126,54 @@ export function DashboardPage({ onNavigate }: Props) {
       unpaidList.sort((a, b) => b.balance - a.balance);
       setUnpaidPatients(unpaidList);
 
+      // Follow-up patients (lost >90 days)
+      const allCons = await db.consultations.toArray();
+      const lastVisitMap = new Map<number, { date: string; dx: string }>();
+      allCons.filter(c => c.isLatest !== false).forEach(c => {
+        const cur = lastVisitMap.get(c.patientId);
+        const d = c.date || c.createdAt;
+        if (!cur || d > cur.date) lastVisitMap.set(c.patientId, { date: d, dx: c.diagnosis || "" });
+      });
+      const followUp: { name: string; days: number; lastDx: string; id: number }[] = [];
+      decryptedPatients.forEach(p => {
+        if (!p.id) return;
+        const lv = lastVisitMap.get(p.id);
+        if (!lv) { followUp.push({ name: `${p.firstName} ${p.lastName}`, days: 999, lastDx: "", id: p.id }); return; }
+        const days = Math.floor((Date.now() - new Date(lv.date).getTime()) / 86400000);
+        if (days > 90) followUp.push({ name: `${p.firstName} ${p.lastName}`, days, lastDx: lv.dx, id: p.id });
+      });
+      followUp.sort((a, b) => b.days - a.days);
+      setFollowUpPatients(followUp);
+
+      // Low stock drugs
+      const lowStock = await db.drugs.where("status").anyOf(["low", "out"]).count();
+      setLowStockCount(lowStock);
+
+      // Today's consultations
+      const todayStr = new Date().toISOString().split("T")[0];
+      const allConsultations = await db.consultations.toArray();
+      const todayConults = allConsultations.filter(c => c.date && c.date.startsWith(todayStr));
+      // Determine new vs returning patients
+      const patientFirstConsult = new Map<number, string>();
+      allConsultations
+        .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+        .forEach(c => {
+          if (!patientFirstConsult.has(c.patientId)) patientFirstConsult.set(c.patientId, c.date || "");
+        });
+      const todayConsultsWithFlag = todayConults.map(c => ({
+        id: c.id!,
+        patientId: c.patientId,
+        date: c.date,
+        diagnosis: c.diagnosis || "",
+        isNew: patientFirstConsult.get(c.patientId) === c.date,
+      }));
+      setTodayConsultations(todayConsultsWithFlag);
+
+      // Today's revenue
+      const todayPayments = allPayments.filter(p => p.createdAt && p.createdAt.startsWith(todayStr));
+      const revenue = todayPayments.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
+      setTodayRevenue(revenue);
+
       setStats({ patients, todayAppts: todayApptsCount, weekAppts, consultations, activeAlerts: alertCount });
       setRecent(decryptedRecent);
       setTodayAppts(enrichedAppts);
@@ -167,6 +227,70 @@ export function DashboardPage({ onNavigate }: Props) {
 
   const visibleWidgets = WIDGETS.filter(w => widgetPrefs[w.id]);
 
+  // Time-based card visibility
+  const now = new Date();
+  const currentHour = now.getHours();
+  const isMorning = currentHour >= 5 && currentHour < 10;
+  const isEvening = currentHour >= 18 && currentHour < 22;
+  const todayDateStr = new Date().toISOString().split("T")[0];
+
+  const showBriefing = isMorning && !briefingDismissed;
+  const showEod = isEvening && !eodDismissed;
+
+  const dismissBriefing = () => {
+    try { localStorage.setItem(`dl.briefing.dismissed.${todayDateStr}`, "1"); } catch {}
+    setBriefingDismissed(true);
+  };
+  const dismissEod = () => {
+    try { localStorage.setItem(`dl.eod.dismissed.${todayDateStr}`, "1"); } catch {}
+    setEodDismissed(true);
+  };
+
+  // Days since last backup
+  const daysSinceBackup = lastBackup
+    ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400_000)
+    : null;
+
+  // Appointment in next 60 minutes
+  const apptWithin60Min = (() => {
+    const nowMinutes = currentHour * 60 + now.getMinutes();
+    return todayAppts.find(a => {
+      const [h, m] = a.time.split(":").map(Number);
+      const apptMinutes = h * 60 + m;
+      return apptMinutes >= nowMinutes && apptMinutes - nowMinutes <= 60;
+    });
+  })();
+
+  // First appointment time
+  const firstApptTime = todayAppts.length > 0 ? todayAppts[0].time : null;
+
+  // End of day: top 3 diagnoses
+  const topDiagnoses = (() => {
+    const counts = new Map<string, number>();
+    todayConsultations.forEach(c => {
+      if (c.diagnosis) counts.set(c.diagnosis, (counts.get(c.diagnosis) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+  })();
+
+  // End of day: new vs returning
+  const newPatientCount = todayConsultations.filter(c => c.isNew).length;
+  const returningPatientCount = todayConsultations.length - newPatientCount;
+
+  // Motivational message
+  const motivationKey = (() => {
+    const n = todayConsultations.length;
+    if (n >= 12) return "eod.motiv12";
+    if (n >= 8) return "eod.motiv8";
+    if (n >= 4) return "eod.motiv4";
+    return "eod.motiv0";
+  })();
+
+  // French formatted date
+  const frenchDate = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
   return (
     <div className="-m-4 md:-m-6">
       {/* Gradient header */}
@@ -194,6 +318,129 @@ export function DashboardPage({ onNavigate }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Morning Briefing Card */}
+      {showBriefing && (
+        <div className="mx-4 -mt-4 mb-0 rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #FF9A56 0%, #FFD194 50%, #FFF3E0 100%)" }}>
+          <button onClick={dismissBriefing} className="absolute top-3 right-3 p-1 rounded-full bg-white/30 hover:bg-white/50 transition-colors z-10">
+            <X className="w-4 h-4 text-amber-900" />
+          </button>
+          <div className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Sun className="w-5 h-5 text-amber-700" />
+              <h2 className="text-lg font-bold text-amber-900">{t("briefing.title")} {user?.name?.split(" ")[0]}</h2>
+            </div>
+            <p className="text-sm text-amber-800/80 mb-4 capitalize">{frenchDate}</p>
+
+            {/* Today's appointments */}
+            <div className="bg-white/40 rounded-xl p-3 mb-3">
+              <div className="flex items-center gap-6">
+                <div>
+                  <p className="text-5xl font-bold text-amber-900">{stats.todayAppts}</p>
+                  <p className="text-xs text-amber-800/70 mt-0.5">{t("briefing.todayAppts")}</p>
+                </div>
+                {firstApptTime && (
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-amber-700" />
+                    <div>
+                      <p className="text-xs text-amber-800/70">{t("briefing.firstAppt")}</p>
+                      <p className="text-sm font-semibold text-amber-900">{firstApptTime}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {apptWithin60Min && (
+                <div className="mt-2 flex items-center gap-2 bg-orange-200/70 rounded-lg px-3 py-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-700" />
+                  <p className="text-sm font-semibold text-orange-800">{t("briefing.nextAppt")} ({apptWithin60Min.time})</p>
+                </div>
+              )}
+            </div>
+
+            {/* Sub-info row */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white/40 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-amber-900">{lowStockCount}</p>
+                <p className="text-[10px] text-amber-800/70">{t("briefing.lowStock")}</p>
+              </div>
+              <div className="bg-white/40 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-amber-900">{unpaidPatients.length}</p>
+                <p className="text-[10px] text-amber-800/70">{t("briefing.unpaid")}</p>
+              </div>
+              <div className="bg-white/40 rounded-xl p-3 text-center">
+                {daysSinceBackup === null ? (
+                  <>
+                    <p className="text-lg font-bold text-red-600">!</p>
+                    <p className="text-[10px] text-red-600">{t("briefing.noBackup")}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className={`text-2xl font-bold ${daysSinceBackup > 3 ? "text-red-600" : "text-amber-900"}`}>{daysSinceBackup}</p>
+                    <p className="text-[10px] text-amber-800/70">{t("briefing.backupDays")}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End of Day Summary Card */}
+      {showEod && (
+        <div className="mx-4 -mt-4 mb-0 rounded-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg, #1a3a4a 0%, #2d6a7a 30%, #e8a87c 70%, #ffd194 100%)" }}>
+          <button onClick={dismissEod} className="absolute top-3 right-3 p-1 rounded-full bg-white/20 hover:bg-white/40 transition-colors z-10">
+            <X className="w-4 h-4 text-white/80" />
+          </button>
+          <div className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Moon className="w-5 h-5 text-amber-200" />
+              <h2 className="text-lg font-bold text-white">{t("eod.title")}</h2>
+            </div>
+
+            {/* Patients seen today - large number */}
+            <div className="bg-white/15 rounded-xl p-4 mb-3 text-center">
+              <p className="text-5xl font-bold text-white">{todayConsultations.length}</p>
+              <p className="text-sm text-white/70 mt-1">{t("eod.patientsToday")}</p>
+            </div>
+
+            {/* New vs returning */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-white/15 rounded-xl p-3 text-center">
+                <p className="text-3xl font-bold text-green-300">{newPatientCount}</p>
+                <p className="text-xs text-white/70">{t("eod.newPatients")}</p>
+              </div>
+              <div className="bg-white/15 rounded-xl p-3 text-center">
+                <p className="text-3xl font-bold text-blue-300">{returningPatientCount}</p>
+                <p className="text-xs text-white/70">{t("eod.returning")}</p>
+              </div>
+            </div>
+
+            {/* Top 3 diagnoses */}
+            {topDiagnoses.length > 0 && (
+              <div className="bg-white/15 rounded-xl p-3 mb-3">
+                <p className="text-xs text-white/70 mb-2">{t("eod.topDiagnoses")}</p>
+                <ul className="space-y-1">
+                  {topDiagnoses.map(([dx, count], i) => (
+                    <li key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-white truncate">{dx}</span>
+                      <Badge className="bg-white/20 text-white text-[10px] ml-2">{count}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Revenue */}
+            <div className="bg-white/15 rounded-xl p-3 mb-3 text-center">
+              <p className="text-4xl font-bold text-white">{todayRevenue.toLocaleString("fr-FR")}</p>
+              <p className="text-xs text-white/70 mt-1">{t("eod.revenue")} (FCFA)</p>
+            </div>
+
+            {/* Motivational message */}
+            <p className="text-center text-lg font-semibold text-white/90">{t(motivationKey)}</p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-background px-4 py-4 space-y-5">
         {/* Stats 2x2 */}
@@ -405,6 +652,41 @@ export function DashboardPage({ onNavigate }: Props) {
                         <li key={p.id} className="py-2 flex items-center justify-between text-sm">
                           <span className="truncate">{p.name}</span>
                           <span className="text-destructive font-bold ml-2">{p.balance.toFixed(0)} FCFA</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+              )}
+
+              {w.id === "followUp" && (
+                <Card className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-destructive" />
+                      {t("loyalty.patientsToFollowUp")}
+                    </h2>
+                    <button onClick={() => toggleWidget(w.id)} className="text-muted-foreground hover:text-foreground p-1">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {followUpPatients.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">{t("common.noData")}</p>
+                  ) : (
+                    <ul className="divide-y">
+                      {followUpPatients.slice(0, 8).map(p => (
+                        <li key={p.id} className="py-2 flex items-center gap-2 text-sm">
+                          <span className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {p.days === 999 ? t("loyalty.lost") : `${p.days} ${t("loyalty.daysAgo")}`}
+                              {p.lastDx && ` • ${t("loyalty.lastDx")}: ${p.lastDx}`}
+                            </p>
+                          </div>
+                          <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => onNavigate?.("appointments")}>
+                            <CalendarPlus className="w-3 h-3" />{t("loyalty.takeAppt")}
+                          </Button>
                         </li>
                       ))}
                     </ul>

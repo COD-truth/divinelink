@@ -1,5 +1,5 @@
-/* DivineLink service worker v3 — offline-first with asset auto-discovery */
-const CACHE = "divinelink-v3";
+/* DivineLink service worker v4 — offline-first + push notifications */
+const CACHE = "divinelink-v4";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -54,6 +54,53 @@ self.addEventListener("fetch", (e) => {
           return res;
         })
         .catch(() => new Response("", { status: 503 }));
+    })
+  );
+});
+
+/* ---- Push notification handling ---- */
+self.addEventListener("push", (e) => {
+  let data = {};
+  try {
+    data = e.data ? e.data.json() : {};
+  } catch {
+    data = { title: "DivineLink", body: e.data ? e.data.text() : "Nouvelle notification" };
+  }
+
+  const title = data.title || "DivineLink Rappel";
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/placeholder.svg",
+    badge: data.badge || "/placeholder.svg",
+    tag: data.tag || "divinelink-notification",
+    data: data.data || {},
+    actions: data.actions || [
+      { action: "open", title: "Ouvrir" },
+      { action: "dismiss", title: "Fermer" },
+    ],
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+
+  if (e.action === "dismiss") return;
+
+  // Open or focus the app
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      // If there's already a window open, focus it
+      for (const client of clients) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      return self.clients.openWindow("/");
     })
   );
 });
