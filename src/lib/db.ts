@@ -53,14 +53,31 @@ export interface Patient {
 
 export type PaymentStatus = "paid" | "partial" | "unpaid";
 export type PaymentMethod = "cash" | "mtn_momo" | "orange_money" | "other";
+export interface PaymentInstallment {
+  id: string;
+  amount: number;
+  date: string;
+  method: PaymentMethod;
+  notes?: string;
+}
 export interface Payment {
   id?: number;
   patientId: number;
   consultationId?: number;
+  /** Free label / description (e.g. "Consultation 12/05") */
+  label?: string;
   amountDue: number;
   amountPaid: number;
+  /** Outstanding balance (auto-maintained) */
+  balance?: number;
   status: PaymentStatus;
   method: PaymentMethod;
+  /** Optional due date for unpaid balances */
+  dueDate?: string;
+  /** Timestamp when fully paid */
+  paidAt?: string;
+  /** Optional payment installments history */
+  installments?: PaymentInstallment[];
   notes?: string;
   clinicId?: string;
   createdAt: string;
