@@ -491,6 +491,23 @@ export function ConsultationsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Structured medical observation (11 sections) */}
+            <StructuredObservation
+              patient={patients.find(p => p.id?.toString() === form.patientId) || null}
+              doctorName={user?.name}
+              consultNumber={editingId ? `CONS-${new Date().getFullYear()}-${editingId}` : undefined}
+              vitals={form.vitals}
+              value={form.observation as ObservationData}
+              onChange={(obs) => setForm(f => ({ ...f, observation: obs }))}
+              onLegacySync={(legacy) => setForm(f => ({
+                ...f,
+                symptoms: legacy.symptoms ?? f.symptoms,
+                diagnosis: legacy.diagnosis ?? f.diagnosis,
+                treatmentPlan: legacy.treatmentPlan ?? f.treatmentPlan,
+              }))}
+              draftKey={editingId ? `divinelink.obs.draft.${editingId}` : "divinelink.obs.draft.new"}
+            />
             <div>
               <Label>{t("consult.symptoms")}</Label>
               <Textarea value={form.symptoms} onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))} />
