@@ -40,7 +40,7 @@ interface Props {
   onUpdate?: () => void;
 }
 
-export function PatientPayments({ patientId, patientName, showSummaryOnly = false }: Props) {
+export function PatientPayments({ patientId, patientName, showSummaryOnly = false, onUpdate }: Props) {
   const { user } = useAuth();
   const clinicId = localStorage.getItem("divinelink.clinicId") || "";
   const [payments, setPayments] = useState<Payment[]>([]);
