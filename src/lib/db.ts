@@ -194,11 +194,19 @@ export interface Drug {
   expiration?: string;
   minStock: number;
   supplier?: string;
+  /** Batch / lot number */
+  batchNumber?: string;
+  /** Storage location e.g. shelf A2 */
+  location?: string;
+  /** Initial stock at creation (for analytics) */
+  initialStock?: number;
   status: DrugStatus;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type DispenseReason = "dispensed" | "expired" | "damaged" | "transferred" | "other";
 
 export interface DrugTransaction {
   id?: number;
@@ -208,6 +216,12 @@ export interface DrugTransaction {
   price: number;
   patientId?: number;
   paymentStatus?: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  reason?: DispenseReason;
+  batchNumber?: string;
+  stockBefore?: number;
+  stockAfter?: number;
+  performedBy?: string;
   notes?: string;
   clinicId?: string;
   createdAt: string;
