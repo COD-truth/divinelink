@@ -44,6 +44,7 @@ export function ConsultationsPage() {
     vitals: {} as VitalSigns,
     consultType: "general" as ConsultationType,
     template: "",
+    observation: {} as any,
   });
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
@@ -66,7 +67,7 @@ export function ConsultationsPage() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [], vitals: {}, consultType: "general", template: "" });
+    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [], vitals: {}, consultType: "general", template: "", observation: {} });
     setSelectedImgIds([]);
     setDialogOpen(true);
   };
@@ -84,6 +85,7 @@ export function ConsultationsPage() {
       vitals: c.vitals || {},
       consultType: c.consultType || "general",
       template: c.template || "",
+      observation: (c as any).observation || {},
     });
     setSelectedImgIds([]);
     setDialogOpen(true);
