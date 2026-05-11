@@ -56,10 +56,11 @@ export type PaymentMethod = "cash" | "mtn_momo" | "orange_money" | "other";
 export interface PaymentInstallment {
   id: string;
   amount: number;
-  date: string;
-  /** Alias for date — when the installment was paid */
+  /** Date paid (ISO). `paidAt` is an alias used in some legacy code paths. */
+  date?: string;
   paidAt?: string;
   method: PaymentMethod;
+  receivedBy?: string;
   notes?: string;
 }
 export interface Payment {
