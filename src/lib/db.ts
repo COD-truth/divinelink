@@ -57,6 +57,8 @@ export interface PaymentInstallment {
   id: string;
   amount: number;
   date: string;
+  /** Alias for date — when the installment was paid */
+  paidAt?: string;
   method: PaymentMethod;
   notes?: string;
 }
@@ -148,6 +150,8 @@ export interface Consultation {
   images?: ConsultationImage[];
   /** Consultation type for dental module */
   consultType?: ConsultationType;
+  /** Structured medical observation (free-form JSON blob) */
+  observation?: any;
   /** Template used */
   template?: string;
   /** Dental record (when consultType = dental) */
