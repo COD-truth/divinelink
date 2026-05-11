@@ -20,7 +20,8 @@ import { toast } from "sonner";
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
-  | "security" | "research" | "clinic" | "pharmacy" | "dental";
+  | "security" | "research" | "clinic" | "pharmacy" | "dental"
+  | "workspace" | "payments";
 
 interface Props {
   currentPage: Page;

@@ -53,14 +53,34 @@ export interface Patient {
 
 export type PaymentStatus = "paid" | "partial" | "unpaid";
 export type PaymentMethod = "cash" | "mtn_momo" | "orange_money" | "other";
+export interface PaymentInstallment {
+  id: string;
+  amount: number;
+  /** Date paid (ISO). `paidAt` is an alias used in some legacy code paths. */
+  date?: string;
+  paidAt?: string;
+  method: PaymentMethod;
+  receivedBy?: string;
+  notes?: string;
+}
 export interface Payment {
   id?: number;
   patientId: number;
   consultationId?: number;
+  /** Free label / description (e.g. "Consultation 12/05") */
+  label?: string;
   amountDue: number;
   amountPaid: number;
+  /** Outstanding balance (auto-maintained) */
+  balance?: number;
   status: PaymentStatus;
   method: PaymentMethod;
+  /** Optional due date for unpaid balances */
+  dueDate?: string;
+  /** Timestamp when fully paid */
+  paidAt?: string;
+  /** Optional payment installments history */
+  installments?: PaymentInstallment[];
   notes?: string;
   clinicId?: string;
   createdAt: string;
@@ -131,6 +151,8 @@ export interface Consultation {
   images?: ConsultationImage[];
   /** Consultation type for dental module */
   consultType?: ConsultationType;
+  /** Structured medical observation (free-form JSON blob) */
+  observation?: any;
   /** Template used */
   template?: string;
   /** Dental record (when consultType = dental) */
@@ -194,11 +216,19 @@ export interface Drug {
   expiration?: string;
   minStock: number;
   supplier?: string;
+  /** Batch / lot number */
+  batchNumber?: string;
+  /** Storage location e.g. shelf A2 */
+  location?: string;
+  /** Initial stock at creation (for analytics) */
+  initialStock?: number;
   status: DrugStatus;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type DispenseReason = "dispensed" | "expired" | "damaged" | "transferred" | "other";
 
 export interface DrugTransaction {
   id?: number;
@@ -208,6 +238,12 @@ export interface DrugTransaction {
   price: number;
   patientId?: number;
   paymentStatus?: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  reason?: DispenseReason;
+  batchNumber?: string;
+  stockBefore?: number;
+  stockAfter?: number;
+  performedBy?: string;
   notes?: string;
   clinicId?: string;
   createdAt: string;

@@ -1,4 +1,6 @@
 import { db, type Patient } from "@/lib/db";
+
+export type { Patient };
 import { encryptString, decryptString } from "@/lib/crypto";
 
 const SENSITIVE: (keyof Patient)[] = ["phone", "address", "medicalAlerts"];
