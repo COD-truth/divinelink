@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Printer, CreditCard as Edit, Trash2, History, TriangleAlert as AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download, FileText, Smile, Stethoscope } from "lucide-react";
+import { StructuredObservation, type ObservationData } from "@/components/StructuredObservation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { compressImage } from "@/lib/imageUtils";
@@ -229,7 +230,8 @@ export function ConsultationsPage() {
           consultType: form.consultType,
           template: form.template || undefined,
           editedBy: user!.name,
-        });
+          observation: form.observation,
+        } as any);
       }
       toast.success(t("consult.updated"));
     } else {
@@ -248,7 +250,8 @@ export function ConsultationsPage() {
         template: form.template || undefined,
         createdAt: now,
         versionNumber: 1,
-      });
+        observation: form.observation,
+      } as any);
       await db.consultations.update(id as number, { originalId: id as number });
       toast.success(t("consult.new"));
     }
