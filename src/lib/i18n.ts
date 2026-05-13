@@ -901,6 +901,25 @@ const translations: Record<string, Record<Lang, string>> = {
   "loyalty.patientsToFollowUp": { en: "Patients to follow up", fr: "Patients  relancer" },
   "loyalty.takeAppt": { en: "Book appointment", fr: "Prendre RDV" },
   "loyalty.lastDx": { en: "Last diagnosis", fr: "Dernier diagnostic" },
+
+  // Vital signs trends
+  "tab.courbes": { en: "Trends", fr: "Courbes" },
+  "trends.title": { en: "Vital signs trends", fr: "Courbes des constantes" },
+  "trends.noData": { en: "No vital signs recorded yet.", fr: "Aucune constante enregistrée." },
+  "trends.singleMeasure": { en: "1 measurement — not enough for a chart", fr: "1 mesure — pas assez pour une courbe" },
+  "trends.lastMeasure": { en: "Last measurement", fr: "Dernière mesure" },
+  "trends.labResults": { en: "Lab results trends", fr: "Résultats paracliniques" },
+
+  // AI Clinical Assistant
+  "ai.title": { en: "AI Clinical Assistant", fr: "Assistant IA Clinique" },
+  "ai.offline": { en: "Connection required for AI", fr: "Connexion requise pour l'IA" },
+  "ai.disclaimer": { en: "AI assists but does not replace clinical judgment", fr: "L'IA assiste mais ne remplace pas le jugement clinique" },
+  "ai.anonymous": { en: "Anonymized data sent to AI", fr: "Données anonymisées envoyées à l'IA" },
+  "ai.addToNotes": { en: "Add to notes", fr: "Ajouter aux notes" },
+  "ai.clearConversation": { en: "Clear conversation", fr: "Effacer la conversation" },
+  "ai.apiKey": { en: "Anthropic API key required", fr: "Clé API Anthropic requise" },
+  "ai.configureKey": { en: "Configure API key", fr: "Configurer la clé API" },
+  "ai.changeKey": { en: "Change API key", fr: "Changer la clé API" },
 };
 
 export function t(key: string, lang: Lang): string {

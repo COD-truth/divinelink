@@ -21,6 +21,7 @@ import { AnnotateImageModal } from "@/components/AnnotateImageModal";
 import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
 import { saveFile, withDateStamp } from "@/lib/download";
 import { formatDateTime } from "@/lib/dateFormat";
+import { AIClinicalAssistant, AIButton } from "@/components/AIClinicalAssistant";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -334,6 +335,7 @@ export function ConsultationsPage() {
   const [annotateImg, setAnnotateImg] = useState<ConsultationImage | null>(null);
   const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
   const [dxOpen, setDxOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const DRAFT_KEY = "divinelink.consultDraft";
 
@@ -616,7 +618,8 @@ export function ConsultationsPage() {
             <DialogTitle className="flex items-center gap-3">
               <Stethoscope className="w-5 h-5" />
               {editingId ? t("consult.edit") : t("consult.new")}
-              {consultNumber && <span className="ml-auto text-xs font-mono text-muted-foreground">{consultNumber}</span>}
+              {consultNumber && <span className="text-xs font-mono text-muted-foreground">{consultNumber}</span>}
+              <span className="ml-auto"><AIButton onClick={() => setAiOpen(true)} position="inline" /></span>
             </DialogTitle>
           </DialogHeader>
 
@@ -1300,6 +1303,20 @@ export function ConsultationsPage() {
           }} />
         </DialogContent>
       </Dialog>
+
+      {/* ── AI Clinical Assistant ── */}
+      <AIClinicalAssistant
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        patientContext={selPat ? {
+          patient: selPat,
+          currentVitals: form.vitals,
+        } : undefined}
+        onAddToNotes={text => {
+          setFormField("notes", form.notes ? `${form.notes}\n\n[IA]: ${text}` : `[IA]: ${text}`);
+          toast.success("Réponse IA ajoutée aux notes");
+        }}
+      />
     </div>
   );
 }

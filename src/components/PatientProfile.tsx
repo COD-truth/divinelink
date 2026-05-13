@@ -33,6 +33,8 @@ import {
 } from "@/lib/patientHelpers";
 import { decryptPatient, encryptPatientForSave } from "@/lib/patientCrypto";
 import { DocGenPanel } from "@/components/DocGenPanel";
+import { AIClinicalAssistant, AIButton } from "@/components/AIClinicalAssistant";
+import { VitalSignsTrends } from "@/components/VitalSignsTrends";
 
 interface Props {
   patient: Patient;
@@ -303,6 +305,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
   const [tab, setTab] = useState("info");
   const [docGenOpen, setDocGenOpen] = useState(false);
   const [showMode, setShowMode] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => { setP(patient); }, [patient]);
 
@@ -348,10 +351,11 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-6 w-full text-[11px]">
+          <TabsList className="flex flex-wrap h-auto w-full text-[11px] gap-0.5">
             <TabsTrigger value="info">{t("tab.info")}</TabsTrigger>
             <TabsTrigger value="ant">{t("tab.antecedents")}</TabsTrigger>
             <TabsTrigger value="cons">{t("tab.consultations")}</TabsTrigger>
+            <TabsTrigger value="courbes">📈</TabsTrigger>
             <TabsTrigger value="docs">{t("tab.documents")}</TabsTrigger>
             <TabsTrigger value="pay">{t("tab.payments")}</TabsTrigger>
             <TabsTrigger value="tl">{t("tab.timeline")}</TabsTrigger>
@@ -366,6 +370,9 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
           <TabsContent value="cons">
             <ConsultationsTab patientId={p.id!} />
           </TabsContent>
+          <TabsContent value="courbes">
+            <VitalSignsTrends patientId={p.id!} />
+          </TabsContent>
           <TabsContent value="docs">
             <DocumentsTab patientId={p.id!} />
           </TabsContent>
@@ -376,6 +383,9 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
             <TimelineTab patientId={p.id!} />
           </TabsContent>
         </Tabs>
+
+        {/* Floating AI button */}
+        <AIButton onClick={() => setAiOpen(true)} position="bottom-right" />
 
         {/* Document generation dialog */}
         <Dialog open={docGenOpen} onOpenChange={setDocGenOpen}>
@@ -388,6 +398,11 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
     </Dialog>
 
     {showMode && <PatientShowMode patient={p} onClose={() => setShowMode(false)} />}
+    <AIClinicalAssistant
+      open={aiOpen}
+      onClose={() => setAiOpen(false)}
+      patientContext={{ patient: p }}
+    />
     </>
   );
 }

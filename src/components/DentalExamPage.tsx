@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Save, RotateCcw, Download, Search } from "lucide-react";
+import { AIClinicalAssistant, AIButton } from "@/components/AIClinicalAssistant";
 import { toast } from "sonner";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
@@ -162,6 +163,7 @@ export function DentalExamPage() {
     findings: "", dentalDiagnosis: "", treatmentPlan: "", treatmentDone: "", nextAppointment: "",
   });
   const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -405,9 +407,10 @@ export function DentalExamPage() {
       </Card>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button onClick={save} disabled={!selectedPatientId} className="gap-2"><Save className="w-4 h-4" />{t("common.save")}</Button>
         <Button variant="outline" onClick={exportResearch} className="gap-2"><Download className="w-4 h-4" />{t("dental.exportResearch")}</Button>
+        <AIButton onClick={() => setAiOpen(true)} position="inline" />
       </div>
 
       {/* Previous dental consultations */}
@@ -425,6 +428,15 @@ export function DentalExamPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* AI Clinical Assistant */}
+      <AIClinicalAssistant
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        patientContext={selectedPatientId ? {
+          patient: patients.find(p => p.id === parseInt(selectedPatientId))!,
+        } : undefined}
+      />
     </div>
   );
 }
