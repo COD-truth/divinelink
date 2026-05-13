@@ -709,6 +709,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "pharm.stockAfter": { en: "Stock after", fr: "Stock après" },
   "pharm.performedBy": { en: "Performed by", fr: "Effectué par" },
   "pharm.batchNumber": { en: "Batch number", fr: "Numéro de lot" },
+  "pharm.exitReason": { en: "Exit reason", fr: "Raison de sortie" },
   "pharm.exitReason.dispensed": { en: "Dispensed", fr: "Dispensé" },
   "pharm.exitReason.expired": { en: "Expired", fr: "Périmé" },
   "pharm.exitReason.damaged": { en: "Damaged", fr: "Endommagé" },
