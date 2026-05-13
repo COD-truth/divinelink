@@ -60,7 +60,7 @@ export function DashboardPage({ onNavigate }: Props) {
     loadWidgetPrefs(user?.role || "receptionist")
   );
   const [lastBackup, setLastBackup] = useState<string | null>(null);
-  const [unpaidPatients, setUnpaidPatients] = useState<{ name: string; balance: number; id: number }[]>([]);
+  const [unpaidPatients, setUnpaidPatients] = useState<{ name: string; balance: number; id: number; daysOverdue: number }[]>([]);
   const [followUpPatients, setFollowUpPatients] = useState<{ name: string; days: number; lastDx: string; id: number }[]>([]);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [todayConsultations, setTodayConsultations] = useState<{ id: number; patientId: number; date: string; diagnosis: string; isNew: boolean }[]>([]);
@@ -113,15 +113,22 @@ export function DashboardPage({ onNavigate }: Props) {
 
       // Unpaid balances
       const allPayments = await db.payments.toArray();
-      const unpaidMap = new Map<number, number>();
+      const unpaidMap = new Map<number, { balance: number; oldestCreatedAt: string }>();
       allPayments.forEach(p => {
         const bal = Math.max(0, (p.amountDue || 0) - (p.amountPaid || 0));
-        if (bal > 0) unpaidMap.set(p.patientId, (unpaidMap.get(p.patientId) || 0) + bal);
+        if (bal > 0) {
+          const cur = unpaidMap.get(p.patientId);
+          const oldest = cur
+            ? (p.createdAt < cur.oldestCreatedAt ? p.createdAt : cur.oldestCreatedAt)
+            : p.createdAt;
+          unpaidMap.set(p.patientId, { balance: (cur?.balance || 0) + bal, oldestCreatedAt: oldest });
+        }
       });
-      const unpaidList: { name: string; balance: number; id: number }[] = [];
-      unpaidMap.forEach((bal, pid) => {
+      const unpaidList: { name: string; balance: number; id: number; daysOverdue: number }[] = [];
+      unpaidMap.forEach(({ balance: bal, oldestCreatedAt }, pid) => {
         const pat = decryptedPatients.find(p => p.id === pid);
-        if (pat) unpaidList.push({ name: `${pat.firstName} ${pat.lastName}`, balance: bal, id: pid });
+        const daysOverdue = Math.floor((Date.now() - new Date(oldestCreatedAt).getTime()) / 86400000);
+        if (pat) unpaidList.push({ name: `${pat.firstName} ${pat.lastName}`, balance: bal, id: pid, daysOverdue });
       });
       unpaidList.sort((a, b) => b.balance - a.balance);
       setUnpaidPatients(unpaidList);
@@ -640,20 +647,36 @@ export function DashboardPage({ onNavigate }: Props) {
                       <CreditCard className="w-4 h-4 text-destructive" />
                       {t("dash.widget.unpaidBalances")}
                     </h2>
-                    <button onClick={() => toggleWidget(w.id)} className="text-muted-foreground hover:text-foreground p-1">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => onNavigate?.("payments")} className="text-xs text-primary hover:underline px-1">
+                        {t("dash.viewAll")}
+                      </button>
+                      <button onClick={() => toggleWidget(w.id)} className="text-muted-foreground hover:text-foreground p-1">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   {unpaidPatients.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-2">{t("common.noData")}</p>
                   ) : (
                     <ul className="divide-y">
-                      {unpaidPatients.slice(0, 5).map(p => (
-                        <li key={p.id} className="py-2 flex items-center justify-between text-sm">
-                          <span className="truncate">{p.name}</span>
-                          <span className="text-destructive font-bold ml-2">{p.balance.toFixed(0)} FCFA</span>
+                      {unpaidPatients.filter(p => p.daysOverdue >= 7).slice(0, 5).map(p => (
+                        <li key={p.id} className="py-2 flex items-center justify-between text-sm gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate font-medium">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">{p.daysOverdue} j impayé</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-destructive font-bold">{p.balance.toLocaleString()} FCFA</span>
+                            <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => onNavigate?.("payments")}>
+                              Voir
+                            </Button>
+                          </div>
                         </li>
                       ))}
+                      {unpaidPatients.filter(p => p.daysOverdue < 7).length > 0 && unpaidPatients.filter(p => p.daysOverdue >= 7).length === 0 && (
+                        <li className="py-2 text-sm text-muted-foreground text-center">{unpaidPatients.length} impayés — &lt; 7 jours</li>
+                      )}
                     </ul>
                   )}
                 </Card>

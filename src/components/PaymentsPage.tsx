@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CreditCard, Plus, Search, TrendingUp, AlertCircle, CheckCircle, Clock, Download, Eye, Trash2, PlusCircle } from "lucide-react";
+import { CreditCard, Plus, Search, TrendingUp, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Clock, Download, Eye, Trash2, CirclePlus as PlusCircle } from "lucide-react";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 
 function fmtDT(iso: string) {
@@ -188,7 +188,7 @@ export function PaymentsPage() {
         Notes: p.notes||""
       };
     });
-    saveFile(toCsv(rows), withDateStamp("paiements")+".csv", "text/csv");
+    saveFile(withDateStamp("paiements") + ".csv", toCsv(rows), "csv");
   };
 
   return (

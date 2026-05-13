@@ -21,6 +21,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "nav.security": { en: "Security", fr: "Sécurité" },
   "nav.settings": { en: "Settings", fr: "Paramètres" },
   "nav.clinic": { en: "Clinic settings", fr: "Paramètres clinique" },
+  "nav.payments": { en: "Payments", fr: "Paiements" },
   
   // Patients
   "patient.register": { en: "Register Patient", fr: "Inscrire un patient" },
@@ -197,6 +198,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "dash.searchAction": { en: "Search", fr: "Rechercher" },
   "dash.noPatients": { en: "No patients yet", fr: "Aucun patient pour l'instant" },
   "dash.lastVisit": { en: "Last visit", fr: "Dernière visite" },
+  "dash.viewAll": { en: "View all", fr: "Voir tout" },
   "nav.more": { en: "More", fr: "Plus" },
   "nav.stats": { en: "Stats", fr: "Statistiques" },
   "session.locksIn": { en: "Locks in", fr: "Verrouillage dans" },

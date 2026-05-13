@@ -28,6 +28,7 @@ const AuditLogPage = lazy(() => import("@/components/AuditLogPage").then(m => ({
 const SecurityPage = lazy(() => import("@/components/SecurityPage").then(m => ({ default: m.SecurityPage })));
 const ClinicSettingsPage = lazy(() => import("@/components/ClinicSettingsPage").then(m => ({ default: m.ClinicSettingsPage })));
 const WorkspacePage = lazy(() => import("@/components/WorkspacePage").then(m => ({ default: m.WorkspacePage })));
+const PaymentsPage = lazy(() => import("@/components/PaymentsPage").then(m => ({ default: m.PaymentsPage })));
 
 function PageLoader() {
   return (
@@ -92,6 +93,7 @@ function AppContent() {
     pharmacy: <Suspense fallback={<PageLoader />}><PharmacyPage /></Suspense>,
     dental: <Suspense fallback={<PageLoader />}><DentalExamPage /></Suspense>,
     workspace: <Suspense fallback={<PageLoader />}><WorkspacePage /></Suspense>,
+    payments: <Suspense fallback={<PageLoader />}><PaymentsPage /></Suspense>,
   };
 
   return (
