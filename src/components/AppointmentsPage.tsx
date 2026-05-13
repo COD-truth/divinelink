@@ -18,9 +18,6 @@ import { RemindersPanel, type ReminderContext } from "@/components/RemindersPane
 
 const statusColors: Record<AppointmentStatus, string> = {
   scheduled: "bg-info text-info-foreground",
-  confirmed: "bg-info text-info-foreground",
-  arrived: "bg-warning text-warning-foreground",
-  in_consultation: "bg-primary text-primary-foreground",
   completed: "bg-success text-success-foreground",
   cancelled: "bg-muted text-muted-foreground",
   noshow: "bg-destructive text-destructive-foreground",

@@ -5,32 +5,22 @@
  * All operations are 100% local — no network calls.
  */
 
-export type DownloadKind = "csv" | "json" | "html" | "text" | "binary" | "text/csv" | "application/json" | "text/html" | "text/plain" | "application/octet-stream";
+export type DownloadKind = "csv" | "json" | "html" | "text" | "binary";
 
-const MIME: Record<string, string> = {
+const MIME: Record<DownloadKind, string> = {
   csv: "text/csv;charset=utf-8",
   json: "application/json",
   html: "text/html;charset=utf-8",
   text: "text/plain;charset=utf-8",
   binary: "application/octet-stream",
-  "text/csv": "text/csv;charset=utf-8",
-  "application/json": "application/json",
-  "text/html": "text/html;charset=utf-8",
-  "text/plain": "text/plain;charset=utf-8",
-  "application/octet-stream": "application/octet-stream",
 };
 
-const EXT_DESC: Record<string, { description: string; ext: string }> = {
+const EXT_DESC: Record<DownloadKind, { description: string; ext: string }> = {
   csv: { description: "CSV file", ext: ".csv" },
   json: { description: "JSON file", ext: ".json" },
   html: { description: "HTML file", ext: ".html" },
   text: { description: "Text file", ext: ".txt" },
   binary: { description: "Data file", ext: "" },
-  "text/csv": { description: "CSV file", ext: ".csv" },
-  "application/json": { description: "JSON file", ext: ".json" },
-  "text/html": { description: "HTML file", ext: ".html" },
-  "text/plain": { description: "Text file", ext: ".txt" },
-  "application/octet-stream": { description: "Data file", ext: "" },
 };
 
 /** Add YYYY-MM-DD to a base name, before its extension. */

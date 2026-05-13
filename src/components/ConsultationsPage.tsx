@@ -12,7 +12,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Printer, CreditCard as Edit, Trash2, History, TriangleAlert as AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download, FileText, Smile, Stethoscope } from "lucide-react";
-import { StructuredObservation, type ObservationData } from "@/components/StructuredObservation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { compressImage } from "@/lib/imageUtils";
@@ -45,7 +44,6 @@ export function ConsultationsPage() {
     vitals: {} as VitalSigns,
     consultType: "general" as ConsultationType,
     template: "",
-    observation: {} as any,
   });
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
@@ -68,7 +66,7 @@ export function ConsultationsPage() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [], vitals: {}, consultType: "general", template: "", observation: {} });
+    setForm({ patientId: "", symptoms: "", diagnosis: "", treatmentPlan: "", prescription: "", notes: "", images: [], vitals: {}, consultType: "general", template: "" });
     setSelectedImgIds([]);
     setDialogOpen(true);
   };
@@ -86,7 +84,6 @@ export function ConsultationsPage() {
       vitals: c.vitals || {},
       consultType: c.consultType || "general",
       template: c.template || "",
-      observation: (c as any).observation || {},
     });
     setSelectedImgIds([]);
     setDialogOpen(true);
@@ -230,8 +227,7 @@ export function ConsultationsPage() {
           consultType: form.consultType,
           template: form.template || undefined,
           editedBy: user!.name,
-          observation: form.observation,
-        } as any);
+        });
       }
       toast.success(t("consult.updated"));
     } else {
@@ -250,8 +246,7 @@ export function ConsultationsPage() {
         template: form.template || undefined,
         createdAt: now,
         versionNumber: 1,
-        observation: form.observation,
-      } as any);
+      });
       await db.consultations.update(id as number, { originalId: id as number });
       toast.success(t("consult.new"));
     }
@@ -491,23 +486,6 @@ export function ConsultationsPage() {
                 </div>
               </div>
             </div>
-
-            {/* Structured medical observation (11 sections) */}
-            <StructuredObservation
-              patient={patients.find(p => p.id?.toString() === form.patientId) || null}
-              doctorName={user?.name}
-              consultNumber={editingId ? `CONS-${new Date().getFullYear()}-${editingId}` : undefined}
-              vitals={form.vitals}
-              value={form.observation as ObservationData}
-              onChange={(obs) => setForm(f => ({ ...f, observation: obs }))}
-              onLegacySync={(legacy) => setForm(f => ({
-                ...f,
-                symptoms: legacy.symptoms ?? f.symptoms,
-                diagnosis: legacy.diagnosis ?? f.diagnosis,
-                treatmentPlan: legacy.treatmentPlan ?? f.treatmentPlan,
-              }))}
-              draftKey={editingId ? `divinelink.obs.draft.${editingId}` : "divinelink.obs.draft.new"}
-            />
             <div>
               <Label>{t("consult.symptoms")}</Label>
               <Textarea value={form.symptoms} onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))} />

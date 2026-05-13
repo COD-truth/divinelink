@@ -24,7 +24,7 @@ export default defineConfig(() => ({
         },
       },
     },
-    minify: "esbuild" as const,
+    minify: "esbuild",
     target: "es2015",
     chunkSizeWarningLimit: 600,
   },
