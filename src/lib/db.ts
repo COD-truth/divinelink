@@ -53,14 +53,28 @@ export interface Patient {
 
 export type PaymentStatus = "paid" | "partial" | "unpaid";
 export type PaymentMethod = "cash" | "mtn_momo" | "orange_money" | "other";
+
+export interface PaymentInstallment {
+  id: string;
+  amount: number;
+  method: PaymentMethod;
+  paidAt: string;
+  notes?: string;
+}
+
 export interface Payment {
   id?: number;
   patientId: number;
   consultationId?: number;
+  label?: string;
   amountDue: number;
   amountPaid: number;
+  balance?: number;
   status: PaymentStatus;
   method: PaymentMethod;
+  paidAt?: string;
+  dueDate?: string;
+  installments?: PaymentInstallment[];
   notes?: string;
   clinicId?: string;
   createdAt: string;
@@ -182,18 +196,22 @@ export interface DentalRecord {
 /* Pharmacy types */
 export type DrugStatus = "in_stock" | "low" | "out" | "expiring_soon";
 export type TransactionType = "in" | "out";
+export type ExitReason = "dispensed" | "expired" | "damaged" | "transferred" | "other";
 
 export interface Drug {
   id?: number;
   name: string;
   category: string;
   stock: number;
+  initialStock?: number;
   unit: string;
   buyPrice: number;
   sellPrice: number;
   expiration?: string;
   minStock: number;
   supplier?: string;
+  batchNumber?: string;
+  location?: string;
   status: DrugStatus;
   clinicId?: string;
   createdAt: string;
@@ -208,6 +226,11 @@ export interface DrugTransaction {
   price: number;
   patientId?: number;
   paymentStatus?: PaymentStatus;
+  exitReason?: ExitReason;
+  batchNumber?: string;
+  performedBy?: string;
+  stockBefore?: number;
+  stockAfter?: number;
   notes?: string;
   clinicId?: string;
   createdAt: string;
@@ -410,6 +433,28 @@ class DentaDB extends Dexie {
       // Add consultType to existing consultations (default: general)
       await tx.table("consultations").toCollection().modify(c => {
         if (!c.consultType) c.consultType = "general";
+      });
+    });
+    // v10: add label/balance/installments to payments, initialStock/batchNumber/location to drugs
+    this.version(10).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+    }).upgrade(async tx => {
+      await tx.table("drugs").toCollection().modify((d: any) => {
+        if (d.initialStock === undefined) d.initialStock = d.stock;
+      });
+      await tx.table("payments").toCollection().modify((p: any) => {
+        if (!p.label) p.label = "Consultation générale";
+        if (p.balance === undefined) p.balance = Math.max(0, (p.amountDue || 0) - (p.amountPaid || 0));
+        if (!p.installments) p.installments = [];
       });
     });
   }
