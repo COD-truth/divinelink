@@ -282,6 +282,9 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           <div className="flex-1 flex justify-end">
             <GlobalSearch onNavigate={onNavigate} />
           </div>
+          <Button variant="ghost" size="icon" onClick={() => window.location.reload()} title="Actualiser">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
           <NotificationBell onNavigate={onNavigate} />
           {isPushSupported() && (
             <button

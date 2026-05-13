@@ -43,7 +43,15 @@ function PageLoader() {
 
 function AppContent() {
   const { user } = useAuth();
-  const [page, setPage] = useState<Page>("dashboard");
+  const [page, setPage] = useState<Page>(() => {
+    const saved = sessionStorage.getItem("divinelink.currentPage") as Page | null;
+    return saved || "dashboard";
+  });
+
+  const navigateTo = (p: Page) => {
+    sessionStorage.setItem("divinelink.currentPage", p);
+    setPage(p);
+  };
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
@@ -78,7 +86,7 @@ function AppContent() {
   if (!user) return <LoginScreen />;
 
   const pages: Record<Page, React.ReactNode> = {
-    dashboard: <DashboardPage onNavigate={setPage} />,
+    dashboard: <DashboardPage onNavigate={navigateTo} />,
     patients: <Suspense fallback={<PageLoader />}><PatientsPage /></Suspense>,
     appointments: <Suspense fallback={<PageLoader />}><AgendaPage /></Suspense>,
     consultations: <Suspense fallback={<PageLoader />}><ConsultationsPage /></Suspense>,
@@ -98,7 +106,7 @@ function AppContent() {
 
   return (
     <>
-      <AppLayout currentPage={page} onNavigate={setPage}>
+      <AppLayout currentPage={page} onNavigate={navigateTo}>
         {pages[page]}
       </AppLayout>
       <ClinicOnboarding open={showOnboarding} onDone={() => setShowOnboarding(false)} />

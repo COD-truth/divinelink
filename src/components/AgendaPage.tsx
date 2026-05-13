@@ -12,13 +12,12 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, ChevronLeft, ChevronRight, MessageCircle, Settings2, Trash2, Check, Search, FileText, Bold, Italic, List } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Settings2, Trash2, Check, Search, FileText, Bold, Italic, List, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { RemindersPanel, type ReminderContext } from "@/components/RemindersPanel";
 import { scheduleReminder, isSubscribed } from "@/lib/pushNotifications";
-import { getClinicId } from "@/lib/clinicSettings";
+import { getClinicId, getClinicSettings } from "@/lib/clinicSettings";
 
 const STATUS_FLOW: AppointmentStatus[] = ["scheduled", "confirmed", "arrived", "in_consultation", "completed", "cancelled", "noshow"];
 
@@ -210,8 +209,13 @@ function AppointmentsTab() {
   const sendWhatsApp = (a: typeof appointments[number], target: "patient" | "doctor") => {
     const phoneRaw = target === "patient" ? a.patientPhone : a.doctorPhone;
     if (!phoneRaw) { toast.error(t("wa.noPhone")); return; }
-    const msg = t("wa.message").replace("{date}", a.date).replace("{time}", a.time).replace("{doctor}", a.doctorName).replace("{reason}", a.reason || "—");
-    const phone = phoneRaw.replace(/[^\d+]/g, "").replace(/^\+/, "");
+    const clinicName = getClinicSettings()?.name || "DivineLink";
+    const patientName = a.patientName.trim() || "Patient";
+    const msg = target === "patient"
+      ? `${clinicName} - Rappel RDV\nBonjour ${patientName},\nVotre rendez-vous est le ${a.date} à ${a.time} avec Dr. ${a.doctorName}.\nMotif : ${a.reason || "—"}.`
+      : `${clinicName} - Rappel RDV\nBonjour Dr. ${a.doctorName},\nVous avez un RDV avec ${patientName} le ${a.date} à ${a.time}.\nMotif : ${a.reason || "—"}.`;
+    const digits = phoneRaw.replace(/[^\d]/g, "");
+    const phone = digits.startsWith("237") ? digits : `237${digits.replace(/^0/, "")}`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -250,17 +254,30 @@ function AppointmentsTab() {
                   <p className="text-sm text-muted-foreground truncate">{a.reason || "—"} - Dr. {a.doctorName}</p>
                   {a.reminder && <p className="text-xs text-info">{t("apt.reminder")}: {t(`apt.${a.reminderOffset || "30min"}`)}</p>}
                 </div>
-                <div className="flex items-center gap-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-success"><MessageCircle className="w-4 h-4" /></Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => sendWhatsApp(a, "patient")}>{t("wa.patient")}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => sendWhatsApp(a, "doctor")}>{t("wa.doctor")}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openReminders(a)}><Settings2 className="w-4 h-4 mr-2" />{t("reminder.open")}</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <div className="flex items-center gap-1 flex-wrap justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-success border-success/30 hover:bg-success/10 text-xs"
+                    onClick={() => sendWhatsApp(a, "patient")}
+                    title={t("wa.patient")}
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    Rappeler
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-primary border-primary/30 hover:bg-primary/10 text-xs"
+                    onClick={() => sendWhatsApp(a, "doctor")}
+                    title={t("wa.doctor")}
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    Dr.
+                  </Button>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8" onClick={() => openReminders(a)} title={t("reminder.open")}>
+                    <Settings2 className="w-3.5 h-3.5" />
+                  </Button>
                   <Select value={a.status} onValueChange={v => updateStatus(a.id!, v as AppointmentStatus)}>
                     <SelectTrigger className="w-auto"><Badge className={statusColors[a.status]}>{t(`apt.${a.status}`)}</Badge></SelectTrigger>
                     <SelectContent>

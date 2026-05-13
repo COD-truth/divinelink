@@ -1,5 +1,5 @@
-/* DivineLink service worker v4 — offline-first + push notifications */
-const CACHE = "divinelink-v4";
+/* DivineLink service worker v5 — cache-first + stale-while-revalidate */
+const CACHE = "divinelink-v5";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -31,29 +31,40 @@ self.addEventListener("fetch", (e) => {
   const u = new URL(r.url);
   if (u.origin !== self.location.origin) return;
 
+  // Navigation: serve cached index.html immediately, revalidate in background
   if (r.mode === "navigate") {
     e.respondWith(
-      fetch(r)
-        .then((res) => {
-          caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
+      caches.match("/index.html").then((cached) => {
+        const networkFetch = fetch(r).then((res) => {
+          if (res.status === 200) {
+            caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
+            caches.open(CACHE).then((c) => c.put("/index.html", res.clone())).catch(() => {});
+          }
           return res;
-        })
-        .catch(() => caches.match("/index.html"))
+        }).catch(() => null);
+
+        return cached || networkFetch || new Response("Offline", { status: 503 });
+      })
     );
     return;
   }
 
+  // Assets: cache-first, background revalidate
   e.respondWith(
     caches.match(r).then((cached) => {
-      if (cached) return cached;
-      return fetch(r)
-        .then((res) => {
-          if (res.status === 200) {
-            caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => new Response("", { status: 503 }));
+      const networkFetch = fetch(r).then((res) => {
+        if (res.status === 200) {
+          caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
+        }
+        return res;
+      }).catch(() => null);
+
+      // Return cache immediately, update in background
+      if (cached) {
+        e.waitUntil(networkFetch);
+        return cached;
+      }
+      return networkFetch || new Response("", { status: 503 });
     })
   );
 });
@@ -90,16 +101,13 @@ self.addEventListener("notificationclick", (e) => {
 
   if (e.action === "dismiss") return;
 
-  // Open or focus the app
   e.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      // If there's already a window open, focus it
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && "focus" in client) {
           return client.focus();
         }
       }
-      // Otherwise open a new window
       return self.clients.openWindow("/");
     })
   );
