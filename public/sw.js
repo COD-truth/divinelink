@@ -1,88 +1,157 @@
-/* DivineLink service worker v5 — cache-first + stale-while-revalidate */
-const CACHE = "divinelink-v5";
+/* ============================================================
+   DivineLink Service Worker v6
+   Strategy: cache-first for static assets, stale-while-revalidate
+   for navigation. Offline fallback page for failed navigations.
+   ============================================================ */
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then((c) =>
-      fetch("/index.html")
-        .then((r) => r.text())
-        .then((text) => {
-          const assets = [...text.matchAll(/\/assets\/[^"'\s]+/g)].map((m) => m[0]);
-          return c.addAll(["/", "/index.html", "/manifest.json", ...new Set(assets)]).catch(() => {});
-        })
-        .catch(() => {})
-    )
+const CACHE_NAME = "divinelink-v6";
+
+/* Static shell — always precached on install */
+const PRECACHE_URLS = [
+  "/",
+  "/index.html",
+  "/offline.html",
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-512-maskable.png",
+  "/apple-touch-icon.png",
+  "/favicon-32.png",
+  "/favicon-16.png",
+];
+
+/* ── Install: precache shell ─────────────────────────────────── */
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      /* Precache static shell first */
+      await cache.addAll(PRECACHE_URLS).catch(() => {});
+
+      /* Also discover and cache all hashed JS/CSS assets from index.html */
+      try {
+        const res = await fetch("/index.html");
+        const text = await res.text();
+        const assetPaths = [...text.matchAll(/\/assets\/[^"'\s>]+/g)].map((m) => m[0]);
+        const unique = [...new Set(assetPaths)];
+        await cache.addAll(unique).catch(() => {});
+      } catch {
+        /* Offline at install time — assets will be cached on first real load */
+      }
+    })
   );
+  /* Activate immediately without waiting for old SW to release clients */
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then((k) =>
-      Promise.all(k.filter((x) => x !== CACHE).map((x) => caches.delete(x)))
+/* ── Activate: delete stale caches ──────────────────────────── */
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
     )
   );
+  /* Take control of all open tabs immediately */
   self.clients.claim();
 });
 
-self.addEventListener("fetch", (e) => {
-  const r = e.request;
-  if (r.method !== "GET") return;
-  const u = new URL(r.url);
-  if (u.origin !== self.location.origin) return;
+/* ── Fetch: cache-first for assets, stale-while-revalidate for pages ── */
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
 
-  // Navigation: serve cached index.html immediately, revalidate in background
-  if (r.mode === "navigate") {
-    e.respondWith(
-      caches.match("/index.html").then((cached) => {
-        const networkFetch = fetch(r).then((res) => {
-          if (res.status === 200) {
-            caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
-            caches.open(CACHE).then((c) => c.put("/index.html", res.clone())).catch(() => {});
-          }
-          return res;
-        }).catch(() => null);
+  /* Only handle GET requests from our own origin */
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
 
-        return cached || networkFetch || new Response("Offline", { status: 503 });
-      })
+  /* Skip Chrome extension and dev tool requests */
+  if (url.pathname.startsWith("/__") || url.pathname.startsWith("/chrome-extension")) return;
+
+  /* ── Navigation requests (page loads) ─────────────────────── */
+  if (request.mode === "navigate") {
+    event.respondWith(
+      (async () => {
+        /* Try cache first (instant load) */
+        const cached = await caches.match("/index.html");
+
+        /* Revalidate in background */
+        const networkPromise = fetch(request)
+          .then(async (res) => {
+            if (res.ok) {
+              const cache = await caches.open(CACHE_NAME);
+              cache.put("/index.html", res.clone()).catch(() => {});
+            }
+            return res;
+          })
+          .catch(() => null);
+
+        if (cached) {
+          /* Serve cache immediately, update silently */
+          event.waitUntil(networkPromise);
+          return cached;
+        }
+
+        /* Not in cache yet — try network */
+        const networkRes = await networkPromise;
+        if (networkRes && networkRes.ok) return networkRes;
+
+        /* Truly offline and not cached — show offline page */
+        const offlinePage = await caches.match("/offline.html");
+        return offlinePage || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
+      })()
     );
     return;
   }
 
-  // Assets: cache-first, background revalidate
-  e.respondWith(
-    caches.match(r).then((cached) => {
-      const networkFetch = fetch(r).then((res) => {
-        if (res.status === 200) {
-          caches.open(CACHE).then((c) => c.put(r, res.clone())).catch(() => {});
-        }
-        return res;
-      }).catch(() => null);
+  /* ── Static assets (JS, CSS, images, fonts) ───────────────── */
+  event.respondWith(
+    (async () => {
+      const cached = await caches.match(request);
 
-      // Return cache immediately, update in background
+      /* Background revalidate */
+      const networkPromise = fetch(request)
+        .then(async (res) => {
+          if (res.ok || res.status === 0) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(request, res.clone()).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => null);
+
       if (cached) {
-        e.waitUntil(networkFetch);
+        /* Serve from cache instantly; update in background */
+        event.waitUntil(networkPromise);
         return cached;
       }
-      return networkFetch || new Response("", { status: 503 });
-    })
+
+      /* Not cached — fetch from network */
+      const res = await networkPromise;
+      return res || new Response("", { status: 503 });
+    })()
   );
 });
 
-/* ---- Push notification handling ---- */
-self.addEventListener("push", (e) => {
+/* ── Push notifications ──────────────────────────────────────── */
+self.addEventListener("push", (event) => {
   let data = {};
   try {
-    data = e.data ? e.data.json() : {};
+    data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "DivineLink", body: e.data ? e.data.text() : "Nouvelle notification" };
+    data = {
+      title: "DivineLink",
+      body: event.data ? event.data.text() : "Nouvelle notification",
+    };
   }
 
   const title = data.title || "DivineLink Rappel";
   const options = {
     body: data.body || "",
-    icon: data.icon || "/placeholder.svg",
-    badge: data.badge || "/placeholder.svg",
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "/icon-192.png",
     tag: data.tag || "divinelink-notification",
     data: data.data || {},
     actions: data.actions || [
@@ -93,22 +162,24 @@ self.addEventListener("push", (e) => {
     requireInteraction: true,
   };
 
-  e.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
-self.addEventListener("notificationclick", (e) => {
-  e.notification.close();
+/* ── Notification click ──────────────────────────────────────── */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  if (event.action === "dismiss") return;
 
-  if (e.action === "dismiss") return;
-
-  e.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if (client.url.includes(self.location.origin) && "focus" in client) {
-          return client.focus();
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        for (const client of clients) {
+          if (client.url.includes(self.location.origin) && "focus" in client) {
+            return client.focus();
+          }
         }
-      }
-      return self.clients.openWindow("/");
-    })
+        return self.clients.openWindow("/");
+      })
   );
 });
