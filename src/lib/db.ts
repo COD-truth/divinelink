@@ -502,4 +502,40 @@ export async function seedDatabase() {
       createdAt: new Date().toISOString(),
     });
   }
+
+  const drugCount = await db.drugs.count();
+  if (drugCount === 0) {
+    const now = new Date().toISOString();
+    const defaultItems: Omit<Drug, "id">[] = [
+      // ── Orthodontic consumables ──────────────────────────────────────────
+      { name: "Brackets métal standard (Kit)", category: "Consommable ortho", stock: 20, initialStock: 20, unit: "kit", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Brackets céramique (Kit)", category: "Consommable ortho", stock: 10, initialStock: 10, unit: "kit", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Archwires NiTi (paquet 10)", category: "Consommable ortho", stock: 15, initialStock: 15, unit: "pkt", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Archwires acier (paquet 10)", category: "Consommable ortho", stock: 15, initialStock: 15, unit: "pkt", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Elastiques orthodontiques (poche 100)", category: "Consommable ortho", stock: 30, initialStock: 30, unit: "poche", buyPrice: 0, sellPrice: 0, minStock: 10, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Bandes ortho (boîte 10)", category: "Consommable ortho", stock: 20, initialStock: 20, unit: "boîte", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Tubes buccaux (boîte 20)", category: "Consommable ortho", stock: 10, initialStock: 10, unit: "boîte", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Fils ligatures acier (rouleau)", category: "Consommable ortho", stock: 10, initialStock: 10, unit: "rouleau", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Séparateurs ortho (poche 100)", category: "Consommable ortho", stock: 20, initialStock: 20, unit: "poche", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Brosses/brossettes ortho (boîte)", category: "Consommable ortho", stock: 15, initialStock: 15, unit: "boîte", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Aligneurs blanchiment (poche)", category: "Consommable ortho", stock: 10, initialStock: 10, unit: "poche", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Fourre-tout ortho", category: "Consommable ortho", stock: 10, initialStock: 10, unit: "unité", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Seringue d'irrigation (unité)", category: "Consommable ortho", stock: 25, initialStock: 25, unit: "unité", buyPrice: 0, sellPrice: 0, minStock: 10, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Localisateur d'apex (unité)", category: "Consommable ortho", stock: 5, initialStock: 5, unit: "unité", buyPrice: 0, sellPrice: 0, minStock: 2, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Rouleaux salivaires (paquet)", category: "Consommable ortho", stock: 20, initialStock: 20, unit: "paquet", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      // ── Infection control & PPE ──────────────────────────────────────────
+      { name: "Masques chirurgicaux (boîte 50)", category: "Contrôle infection", stock: 10, initialStock: 10, unit: "boîte", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Gants latex (boîte 100)", category: "Contrôle infection", stock: 10, initialStock: 10, unit: "boîte", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Compresses stériles (paquet)", category: "Contrôle infection", stock: 20, initialStock: 20, unit: "paquet", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Blouses à usage unique", category: "Contrôle infection", stock: 20, initialStock: 20, unit: "unité", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Sabots de protection", category: "Contrôle infection", stock: 10, initialStock: 10, unit: "paire", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Mouchoirs/charlottes (paquet)", category: "Contrôle infection", stock: 15, initialStock: 15, unit: "paquet", buyPrice: 0, sellPrice: 0, minStock: 5, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Sacs poubelles/canules (rouleau)", category: "Contrôle infection", stock: 10, initialStock: 10, unit: "rouleau", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Tablier de plomb", category: "Contrôle infection", stock: 3, initialStock: 3, unit: "unité", buyPrice: 0, sellPrice: 0, minStock: 1, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Bavette/champ stérile (paquet)", category: "Contrôle infection", stock: 10, initialStock: 10, unit: "paquet", buyPrice: 0, sellPrice: 0, minStock: 3, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Solution désinfectante surfaces (L)", category: "Contrôle infection", stock: 5, initialStock: 5, unit: "litre", buyPrice: 0, sellPrice: 0, minStock: 2, status: "in_stock", createdAt: now, updatedAt: now },
+      { name: "Désinfectant mains (flacon 500ml)", category: "Contrôle infection", stock: 8, initialStock: 8, unit: "flacon", buyPrice: 0, sellPrice: 0, minStock: 2, status: "in_stock", createdAt: now, updatedAt: now },
+    ];
+    await db.drugs.bulkAdd(defaultItems as Drug[]);
+  }
 }

@@ -19,9 +19,14 @@ import { decryptPatients, type Patient } from "@/lib/patientCrypto";
 
 /* ---- Constants ---- */
 const DRUG_CATEGORIES = [
-  "Antibiotique","Antalgique","Antipaludéen","Antiparasitaire",
-  "Antihypertenseur","Antidiabétique","Vitamines","Anti-inflammatoire",
-  "Antiseptique","Anesthésique","Antifongique","Autre",
+  "Consommable ortho",
+  "Contrôle infection",
+  "Médicament",
+  "Anesthésique",
+  "Antiseptique",
+  "Radiologie",
+  "Instruments",
+  "Autre",
 ];
 
 const STATUS_ICONS: Record<DrugStatus, string> = {
@@ -171,7 +176,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
   const [addOpen, setAddOpen] = useState(false);
   const [editDrug, setEditDrug] = useState<Drug | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Drug | null>(null);
-  const [form, setForm] = useState({ name: "", category: "Autre", stock: "", unit: "comprimé", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
+  const [form, setForm] = useState({ name: "", category: "Consommable ortho", stock: "", unit: "unité", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
 
   const totalDispensedMap = useMemo(() => {
     const map = new Map<number, number>();
@@ -196,7 +201,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
     return list;
   }, [drugs, search, sortKey, filterCategory, filterStatus]);
 
-  const resetForm = () => setForm({ name: "", category: "Autre", stock: "", unit: "comprimé", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
+  const resetForm = () => setForm({ name: "", category: "Consommable ortho", stock: "", unit: "unité", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
 
   const saveDrug = async () => {
     if (!form.name.trim()) return;

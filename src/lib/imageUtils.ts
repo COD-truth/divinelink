@@ -1,24 +1,9 @@
-// Utilities for image compression and storage estimation.
+// Utilities for image storage and storage estimation.
 
-/** Compress an image file: resize to max 1024px width, JPEG quality 0.8.
- *  Non-image files are returned as raw base64. Returns a data URL string. */
-export async function compressImage(file: File, maxWidth = 1024, quality = 0.8): Promise<string> {
-  if (!file.type.startsWith("image/")) {
-    // Non-image: return as base64 data URL
-    return await fileToDataUrl(file);
-  }
-  const dataUrl = await fileToDataUrl(file);
-  const img = await loadImage(dataUrl);
-  const scale = Math.min(1, maxWidth / img.width);
-  const w = Math.round(img.width * scale);
-  const h = Math.round(img.height * scale);
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return dataUrl;
-  ctx.drawImage(img, 0, 0, w, h);
-  return canvas.toDataURL("image/jpeg", quality);
+/** Store an image file at full original quality — no resizing, no compression.
+ *  Non-image files are also returned as raw base64. Returns a data URL string. */
+export async function compressImage(file: File): Promise<string> {
+  return await fileToDataUrl(file);
 }
 
 export function fileToDataUrl(file: File): Promise<string> {
@@ -27,15 +12,6 @@ export function fileToDataUrl(file: File): Promise<string> {
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = reject;
     reader.readAsDataURL(file);
-  });
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
   });
 }
 
