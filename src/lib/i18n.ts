@@ -4,9 +4,11 @@ const translations: Record<string, Record<Lang, string>> = {
   // Auth
   "auth.title": { en: "DivineLink", fr: "DivineLink" },
   "auth.subtitle": { en: "Medical Clinic Management", fr: "Gestion de Cabinet Médical" },
+  "auth.username": { en: "Username", fr: "Nom d'utilisateur" },
+  "auth.pinLabel": { en: "PIN / Password", fr: "PIN / Mot de passe" },
   "auth.pin": { en: "Enter your PIN", fr: "Entrez votre PIN" },
-  "auth.login": { en: "Login", fr: "Connexion" },
-  "auth.error": { en: "Invalid PIN", fr: "PIN invalide" },
+  "auth.login": { en: "Sign In", fr: "Se connecter" },
+  "auth.error": { en: "Invalid PIN. Please try again.", fr: "PIN invalide. Réessayez." },
   "auth.logout": { en: "Logout", fr: "Déconnexion" },
   
   // Nav

@@ -207,66 +207,95 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   );
 
   return (
-    <div className="min-h-screen flex">
-      {/* Mobile drawer overlay */}
-      {sidebarOpen && !isMobile && (
-        <div className="fixed inset-0 bg-foreground/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar (desktop + tablet) — hidden on phone */}
+    <div className="min-h-screen bg-background">
+      {/* ── Desktop sidebar: fixed, full height, never scrolls with content ── */}
       {!isMobile && (
-        <aside className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
-          <div className="p-3 flex items-center gap-2 border-b border-sidebar-border">
-            <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-              <Stethoscope className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <h1 className="font-bold text-sm truncate">DivineLink</h1>
-                <p className="text-xs text-sidebar-foreground/60 truncate">{user?.name} &bull; {user?.role}</p>
+        <>
+          {/* Overlay for tablet (below lg) when drawer is open */}
+          {sidebarOpen && (
+            <div className="fixed inset-0 bg-foreground/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+          )}
+
+          <aside
+            className={`
+              fixed top-0 left-0 z-50 h-screen
+              ${sidebarWidth}
+              bg-sidebar text-sidebar-foreground
+              flex flex-col
+              transition-all duration-300
+              ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+            `}
+          >
+            {/* Logo / brand */}
+            <div className="p-3 flex items-center gap-2 border-b border-sidebar-border flex-shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
+                <Stethoscope className="w-5 h-5 text-sidebar-primary-foreground" />
               </div>
-            )}
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
-              <X className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setCollapsed(c => !c)}
-              className="hidden lg:block text-sidebar-foreground/70 hover:text-sidebar-foreground"
-              title={collapsed ? "Expand" : "Collapse"}
-            >
-              {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-            </button>
-          </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <h1 className="font-bold text-sm truncate">DivineLink</h1>
+                  <p className="text-xs text-sidebar-foreground/60 truncate">{user?.name} &bull; {user?.role}</p>
+                </div>
+              )}
+              <button onClick={() => setSidebarOpen(false)} className="lg:hidden flex-shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setCollapsed(c => !c)}
+                className="hidden lg:block text-sidebar-foreground/70 hover:text-sidebar-foreground flex-shrink-0"
+                title={collapsed ? "Expand" : "Collapse"}
+              >
+                {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+              </button>
+            </div>
 
-          <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {renderSidebarNav(collapsed)}
-          </nav>
+            {/* Nav — scrollable within the sidebar */}
+            <nav className="flex-1 p-2 space-y-1 overflow-y-auto min-h-0">
+              {renderSidebarNav(collapsed)}
+            </nav>
 
-          <div className="p-2 border-t border-sidebar-border space-y-1">
-            <Button variant="ghost" className={`w-full ${collapsed ? "justify-center px-0" : "justify-start gap-3"} text-sidebar-foreground hover:bg-sidebar-accent/50`} onClick={() => setSwitchOpen(true)} title={t("role.switchUser")}>
-              <RefreshCw className="w-5 h-5" />
-              {!collapsed && t("role.switchUser")}
-            </Button>
-            <Button variant="ghost" className={`w-full ${collapsed ? "justify-center px-0" : "justify-start gap-3"} text-sidebar-foreground hover:bg-sidebar-accent/50`} onClick={logout} title={t("auth.logout")}>
-              <LogOut className="w-5 h-5" />
-              {!collapsed && t("auth.logout")}
-            </Button>
-          </div>
-        </aside>
+            {/* Bottom actions — always visible */}
+            <div className="p-2 border-t border-sidebar-border space-y-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                className={`w-full ${collapsed ? "justify-center px-0" : "justify-start gap-3"} text-sidebar-foreground hover:bg-sidebar-accent/50`}
+                onClick={() => setSwitchOpen(true)}
+                title={t("role.switchUser")}
+              >
+                <RefreshCw className="w-5 h-5" />
+                {!collapsed && t("role.switchUser")}
+              </Button>
+              <Button
+                variant="ghost"
+                className={`w-full ${collapsed ? "justify-center px-0" : "justify-start gap-3"} text-sidebar-foreground hover:bg-sidebar-accent/50`}
+                onClick={logout}
+                title={t("auth.logout")}
+              >
+                <LogOut className="w-5 h-5" />
+                {!collapsed && t("auth.logout")}
+              </Button>
+            </div>
+          </aside>
+        </>
       )}
 
-      {/* Main */}
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b flex items-center px-4 gap-3 bg-card no-print">
-          {isMobile ? (
-            <button onClick={() => setSidebarOpen(true)} aria-label="Menu">
-              <Menu className="w-5 h-5" />
-            </button>
-          ) : (
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden">
-              <Menu className="w-5 h-5" />
-            </button>
-          )}
+      {/* ── Main area: offset by sidebar width on desktop ── */}
+      <div
+        className={`flex flex-col min-h-screen transition-all duration-300 ${
+          !isMobile ? (collapsed ? "lg:pl-[60px]" : "lg:pl-[220px]") : ""
+        }`}
+      >
+        {/* ── Top header: sticky, never scrolls away ── */}
+        <header className="sticky top-0 z-30 h-14 border-b flex items-center px-4 gap-3 bg-card no-print flex-shrink-0">
+          {/* Hamburger — mobile opens drawer, tablet opens sidebar */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Menu"
+            className={isMobile ? "block" : "lg:hidden"}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
           <h2 className="font-semibold text-base truncate">{currentLabel}</h2>
           <Badge
             className={
@@ -279,13 +308,16 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           >
             {t(`role.${user?.role}`)}
           </Badge>
+
           <div className="flex-1 flex justify-end">
             <GlobalSearch onNavigate={onNavigate} />
           </div>
+
           <Button variant="ghost" size="icon" onClick={() => window.location.reload()} title="Actualiser">
             <RefreshCw className="w-4 h-4" />
           </Button>
           <NotificationBell onNavigate={onNavigate} />
+
           {isPushSupported() && (
             <button
               onClick={togglePush}
@@ -295,6 +327,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
               {pushEnabled ? <BellRing className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
             </button>
           )}
+
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -313,13 +346,15 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
               </Button>
             </PopoverContent>
           </Popover>
+
           <LangToggle />
         </header>
 
-        <div className={`flex-1 p-4 md:p-6 overflow-auto animate-fade-in ${isMobile ? "pb-20" : ""}`}>
+        {/* ── Page content: the ONLY thing that scrolls ── */}
+        <main className={`flex-1 p-4 md:p-6 overflow-auto animate-fade-in ${isMobile ? "pb-24" : ""}`}>
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* Mobile drawer with full menu */}
       {isMobile && sidebarOpen && (

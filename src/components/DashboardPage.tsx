@@ -468,20 +468,21 @@ export function DashboardPage({ onNavigate }: Props) {
           })}
         </div>
 
-        {/* Quick actions */}
+        {/* Quick actions — compact row of cards */}
         <div>
           <h2 className="text-sm font-semibold mb-2">{t("dash.quickActions")}</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-wrap gap-2">
             {actions.map((a, i) => {
               const Icon = a.icon;
               return (
                 <button
                   key={i}
                   onClick={() => onNavigate?.(a.page)}
-                  className={`${a.bg} ${a.fg} rounded-xl aspect-square flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform shadow-sm`}
+                  className={`${a.bg} ${a.fg} rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 hover:scale-[1.03] hover:shadow-md transition-all duration-150 shadow-sm`}
+                  style={{ width: 90, height: 84 }}
                 >
-                  <Icon className="w-7 h-7" />
-                  <span className="text-xs font-medium text-center px-2 leading-tight">{a.label}</span>
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[10px] font-semibold text-center px-1.5 leading-tight">{a.label}</span>
                 </button>
               );
             })}
