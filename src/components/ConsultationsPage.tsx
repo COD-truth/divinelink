@@ -11,75 +11,51 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Printer, Pencil as Edit, Trash2, History, TriangleAlert as AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download, Smile, Stethoscope, RefreshCw, Save } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Printer, Pencil as Edit, Trash2, History, TriangleAlert as AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download, Stethoscope, Save, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { compressImage } from "@/lib/imageUtils";
+import { fileToDataUrl } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { AnnotateImageModal } from "@/components/AnnotateImageModal";
 import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
 import { saveFile, withDateStamp } from "@/lib/download";
 import { formatDateTime } from "@/lib/dateFormat";
-import { AIClinicalAssistant, AIButton } from "@/components/AIClinicalAssistant";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-interface DifferentialEntry { name: string; status: "retained" | "eliminated" }
-interface SyndromeEntry { name: string; category: string; severite?: string; evolution?: string }
-interface ParaclinicalEntry { name: string; result?: string; normal?: boolean | null }
-interface ProblemEntry { text: string }
-interface ObsForm {
-  // Section 1 — Identification
-  specialty: string;
-  // Section 2 — Symptoms
-  motif: string;
-  onsetType: string;
-  durationText: string;
-  histoire: string;
-  eva: number;
-  aggravating: string;
-  relieving: string;
-  associated: string;
-  // Section 4 — Physical exam
-  etatGeneral: string;
-  consciousness: string;
-  systemeFindings: string;
-  // Section 5 — Syndromes
-  syndromes: SyndromeEntry[];
-  // Section 6 — Diagnosis
-  primaryDx: string;
-  certainty: string;
-  differentials: DifferentialEntry[];
-  urgentToEliminate: string;
-  // Section 7 — Paraclinical
-  paraclinical: ParaclinicalEntry[];
-  therapeuticAwaiting: string;
-  // Section 8 — Working diagnosis
-  workingDx: string;
-  // Section 9 — Problematique
-  problems: ProblemEntry[];
-  complicatingFactors: string;
-  objectives: string;
-  watchPoints: string;
-  // Section 10 — Treatment
-  orientation: string;
-  nonDrugTreatment: string;
-  // Section 11 — Follow-up
-  nextRdv: string;
-  reconsultCriteria: string;
-  patientEducation: string;
-  // Existing fields preserved
+interface ConsultForm {
+  // Identification
   patientId: string;
-  symptoms: string;
+  consultType: ConsultationType;
+  specialty: string;
+  // Anamnèse
+  chiefComplaint: string;
+  historyOfPresentIllness: string;
+  medicalHistory: string;
+  dentalHistory: string;
+  reviewOfSystems: string;
+  // Examen physique
+  generalExam: string;
+  vitals: VitalSigns;
+  weight: string;
+  height: string;
+  bmi: string;
+  // Examen dentaire court
+  oralFindings: string;
+  caries: boolean;
+  missingTeeth: boolean;
+  mobility: boolean;
+  pocketDepth: boolean;
+  prosthetics: boolean;
+  orthodonticAppliances: boolean;
+  // Assessment & Plan
   diagnosis: string;
   treatmentPlan: string;
   prescription: string;
   notes: string;
+  // Images
   images: ConsultationImage[];
-  vitals: VitalSigns;
-  consultType: ConsultationType;
-  template: string;
 }
 
 type ConsultationWithMeta = Consultation & { patientName: string };
@@ -93,194 +69,132 @@ const SPECIALTIES = [
   "Oncologie", "Infectiologie", "Traumatologie", "Dentisterie", "Autre",
 ];
 
-const ONSET_OPTIONS = [
-  { value: "brutal", label: "Brutal" },
-  { value: "progressif", label: "Progressif" },
-  { value: "progressif_rapide", label: "Progressif rapide" },
-  { value: "insidieux", label: "Insidieux" },
-];
-
-const ETAT_GENERAL_OPTIONS = ["Bon", "Altéré", "Mauvais", "Critique"];
-const CONSCIOUSNESS_OPTIONS = ["Conscient", "Somnolent", "Confus", "Stupeur", "Coma"];
-
-const SYNDROME_CATEGORIES = [
-  { category: "infectieux", syndromes: ["Syndrome infectieux", "Syndrome septicémique", "Syndrome méningé", "Syndrome palustre"] },
-  { category: "neurologique", syndromes: ["Syndrome d'hypertension intracrânienne", "Syndrome pyramidal", "Syndrome cérébelleux", "Syndrome extrapyramidal", "Syndrome confusionnel"] },
-  { category: "respiratoire", syndromes: ["Syndrome d'épanchement pleural", "Syndrome de condensation", "Syndrome broncho-obstructif", "Syndrome de détresse respiratoire"] },
-  { category: "cardiovasculaire", syndromes: ["Syndrome coronarien", "Syndrome d'insuffisance cardiaque", "Syndrome hémorragique", "Syndrome thromboembolique"] },
-  { category: "digestif", syndromes: ["Syndrome douloureux abdominal", "Syndrome occlusif", "Syndrome hémorragique digestif", "Syndrome ictérique", "Syndrome de malabsorption"] },
-  { category: "hématologique", syndromes: ["Syndrome anémique", "Syndrome hémorragique", "Syndrome ganglionnaire", "Pancytopénie"] },
-  { category: "autre", syndromes: ["Syndrome douloureux chronique", "Syndrome métabolique", "Syndrome inflammatoire"] },
-];
-
-const CERTAINTY_LEVELS = [
-  { value: "certain", label: "Certain", color: "bg-green-100 text-green-800" },
-  { value: "probable", label: "Probable", color: "bg-yellow-100 text-yellow-800" },
-  { value: "possible", label: "Possible", color: "bg-orange-100 text-orange-800" },
-  { value: "incertain", label: "Incertain", color: "bg-red-100 text-red-800" },
-];
-
-const ORIENTATION_OPTIONS = [
-  { value: "domicile", label: "Retour à domicile" },
-  { value: "hospitalisation", label: "Hospitalisation" },
-  { value: "reference", label: "Référence spécialiste" },
-  { value: "urgences", label: "Transfert urgences" },
-];
-
-const QUICK_PARACLINICAL = [
-  "NFS", "CRP", "VS", "Glycémie", "Créatinine", "Uricémie", "Bilirubine",
-  "Transaminases", "Radiographie thorax", "ECG", "Échographie abdominale",
-  "TDM cérébral", "Bandelette urinaire", "Test paludisme (TDR)", "Hémoculture",
-  "Ionogramme", "TP/TCA", "Groupe sanguin",
-];
-
-const EVA_FACES = ["😊", "🙂", "😐", "😕", "😟", "😣", "😖", "😫", "😩", "🤯", "💀"];
-
-const EMPTY_FORM: ObsForm = {
-  specialty: "Médecine générale",
-  motif: "",
-  onsetType: "",
-  durationText: "",
-  histoire: "",
-  eva: 0,
-  aggravating: "",
-  relieving: "",
-  associated: "",
-  etatGeneral: "",
-  consciousness: "",
-  systemeFindings: "",
-  syndromes: [],
-  primaryDx: "",
-  certainty: "",
-  differentials: [],
-  urgentToEliminate: "",
-  paraclinical: [],
-  therapeuticAwaiting: "",
-  workingDx: "",
-  problems: [],
-  complicatingFactors: "",
-  objectives: "",
-  watchPoints: "",
-  orientation: "",
-  nonDrugTreatment: "",
-  nextRdv: "",
-  reconsultCriteria: "",
-  patientEducation: "",
+const EMPTY_FORM: ConsultForm = {
   patientId: "",
-  symptoms: "",
+  consultType: "general",
+  specialty: "Médecine générale",
+  chiefComplaint: "",
+  historyOfPresentIllness: "",
+  medicalHistory: "",
+  dentalHistory: "",
+  reviewOfSystems: "",
+  generalExam: "",
+  vitals: {},
+  weight: "",
+  height: "",
+  bmi: "",
+  oralFindings: "",
+  caries: false,
+  missingTeeth: false,
+  mobility: false,
+  pocketDepth: false,
+  prosthetics: false,
+  orthodonticAppliances: false,
   diagnosis: "",
   treatmentPlan: "",
   prescription: "",
   notes: "",
   images: [],
-  vitals: {},
-  consultType: "general",
-  template: "",
 };
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function generateConsultNumber(seq: number): string {
   return `CONS-${new Date().getFullYear()}-${String(seq).padStart(4, "0")}`;
 }
 
-function generateSynthesis(form: ObsForm, patient: Patient | undefined): string {
-  const age = patient ? (ageFromDob(patient.dob) ?? patient.ageYears ?? "?") : "?";
-  const sex = ""; // Patient sex field not in db, leave blank
-  const onset = form.onsetType ? `, à début ${form.onsetType}` : "";
-  const duration = form.durationText ? `, évoluant depuis ${form.durationText}` : "";
-  const motif = form.motif || "motif non précisé";
-  const syndromeNames = form.syndromes.map(s => s.name).join(", ");
-  const syndromesPart = syndromeNames ? `, avec ${syndromeNames}` : "";
-  const dx = form.primaryDx || form.diagnosis || "diagnostic en cours";
-  const certain = form.certainty ? ` (${form.certainty})` : "";
-  return `Patient de ${age} ans${sex}${onset}${duration}, consulte pour ${motif}${syndromesPart}. Diagnostic retenu : ${dx}${certain}.`;
+// ─── Voice-to-text hook ──────────────────────────────────────────────────────
+
+function useSpeechRecognition(onResult: (text: string) => void) {
+  const recognitionRef = useRef<any>(null);
+  const [listening, setListening] = useState(false);
+  const supported = typeof window !== "undefined" &&
+    (!!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition);
+
+  const start = useCallback(() => {
+    if (!supported) return;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const r = new SR();
+    r.continuous = false;
+    r.interimResults = false;
+    r.lang = "fr-FR";
+    r.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      onResult(transcript);
+    };
+    r.onerror = () => setListening(false);
+    r.onend = () => setListening(false);
+    r.start();
+    recognitionRef.current = r;
+    setListening(true);
+  }, [supported, onResult]);
+
+  const stop = useCallback(() => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  }, []);
+
+  useEffect(() => () => { recognitionRef.current?.stop(); }, []);
+
+  return { supported, listening, start, stop };
 }
 
-function sectionCompletion(section: number, form: ObsForm): boolean {
-  switch (section) {
-    case 1: return !!form.specialty && !!form.patientId;
-    case 2: return !!form.motif;
-    case 3: return true;
-    case 4: return !!form.etatGeneral || !!form.vitals.bp;
-    case 5: return form.syndromes.length > 0;
-    case 6: return !!form.primaryDx || !!form.diagnosis;
-    case 7: return form.paraclinical.length > 0;
-    case 8: return !!form.workingDx;
-    case 9: return form.problems.length > 0;
-    case 10: return !!form.orientation || !!form.treatmentPlan;
-    case 11: return !!form.nextRdv;
-    default: return false;
-  }
+// ─── MicBtn component ────────────────────────────────────────────────────────
+
+interface MicBtnProps {
+  field: keyof ConsultForm;
+  form: ConsultForm;
+  setForm: React.Dispatch<React.SetStateAction<ConsultForm>>;
 }
 
-function formToConsultFields(form: ObsForm): Partial<Consultation> {
-  const obs = {
-    specialty: form.specialty,
-    motif: form.motif,
-    onsetType: form.onsetType,
-    durationText: form.durationText,
-    histoire: form.histoire,
-    eva: form.eva,
-    aggravating: form.aggravating,
-    relieving: form.relieving,
-    associated: form.associated,
-    etatGeneral: form.etatGeneral,
-    consciousness: form.consciousness,
-    systemeFindings: form.systemeFindings,
-    syndromes: form.syndromes,
-    primaryDx: form.primaryDx,
-    certainty: form.certainty,
-    differentials: form.differentials,
-    urgentToEliminate: form.urgentToEliminate,
-    paraclinical: form.paraclinical,
-    therapeuticAwaiting: form.therapeuticAwaiting,
-    workingDx: form.workingDx,
-    problems: form.problems,
-    complicatingFactors: form.complicatingFactors,
-    objectives: form.objectives,
-    watchPoints: form.watchPoints,
-    orientation: form.orientation,
-    nonDrugTreatment: form.nonDrugTreatment,
-    nextRdv: form.nextRdv,
-    reconsultCriteria: form.reconsultCriteria,
-    patientEducation: form.patientEducation,
-  };
-  return {
-    symptoms: form.symptoms || form.motif,
-    diagnosis: form.diagnosis || form.primaryDx,
-    treatmentPlan: form.treatmentPlan,
-    prescription: form.prescription,
-    notes: JSON.stringify(obs),
-    vitals: form.vitals,
-    images: form.images,
-    consultType: form.consultType,
-    template: form.template || undefined,
-  };
+function MicBtn({ field, form, setForm }: MicBtnProps) {
+  const onResult = useCallback((text: string) => {
+    setForm(f => {
+      const prev = (f[field] as string) || "";
+      return { ...f, [field]: prev ? `${prev} ${text}` : text };
+    });
+  }, [field, setForm]);
+
+  const { supported, listening, start, stop } = useSpeechRecognition(onResult);
+  if (!supported) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={listening ? stop : start}
+      className={`p-1.5 rounded-md transition-colors ${listening ? "bg-red-100 text-red-600 animate-pulse" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+      title={listening ? "Arrêter la dictée" : "Dictée vocale"}
+    >
+      {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+    </button>
+  );
 }
 
-function consultToForm(c: Consultation): ObsForm {
-  let obs: Partial<ObsForm> = {};
-  try {
-    if (c.notes && c.notes.startsWith("{")) obs = JSON.parse(c.notes);
-  } catch { /* legacy plain text notes */ }
-  return {
-    ...EMPTY_FORM,
-    ...obs,
-    patientId: c.patientId.toString(),
-    symptoms: c.symptoms,
-    diagnosis: c.diagnosis,
-    treatmentPlan: c.treatmentPlan,
-    prescription: c.prescription,
-    notes: obs.notes ?? (c.notes && !c.notes.startsWith("{") ? c.notes : ""),
-    images: (c.images || []).map(i => ({ ...i, imgType: i.imgType ?? "other" })),
-    vitals: c.vitals || {},
-    consultType: c.consultType || "general",
-    template: c.template || "",
-    motif: obs.motif ?? c.symptoms,
-    primaryDx: obs.primaryDx ?? c.diagnosis,
-    workingDx: obs.workingDx ?? "",
-  };
+// ─── VoiceTextarea component ─────────────────────────────────────────────────
+
+interface VoiceTextareaProps {
+  label: string;
+  field: keyof ConsultForm;
+  form: ConsultForm;
+  setForm: React.Dispatch<React.SetStateAction<ConsultForm>>;
+  rows?: number;
+  placeholder?: string;
+  required?: boolean;
+}
+
+function VoiceTextarea({ label, field, form, setForm, rows = 3, placeholder, required }: VoiceTextareaProps) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <Label>{label}{required && " *"}</Label>
+        <MicBtn field={field} form={form} setForm={setForm} />
+      </div>
+      <Textarea
+        rows={rows}
+        value={(form[field] as string) || ""}
+        onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
+        placeholder={placeholder}
+      />
+    </div>
+  );
 }
 
 // ─── Section wrapper ─────────────────────────────────────────────────────────
@@ -303,7 +217,7 @@ function Section({ num, title, complete, children, defaultOpen = false }: Sectio
         onClick={() => setOpen(o => !o)}
       >
         <span className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${complete ? "bg-green-500 text-white" : "bg-orange-400 text-white"}`}>
-          {num}
+          {num || "★"}
         </span>
         <span className="flex-1 font-semibold text-sm">{title}</span>
         <span className={`text-xs px-2 py-0.5 rounded-full ${complete ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
@@ -314,6 +228,79 @@ function Section({ num, title, complete, children, defaultOpen = false }: Sectio
       {open && <div className="p-4 space-y-4 border-t">{children}</div>}
     </div>
   );
+}
+
+// ─── Form ↔ DB conversion ─────────────────────────────────────────────────────
+
+function formToConsultFields(form: ConsultForm): Partial<Consultation> {
+  const bmiVal = form.bmi ? parseFloat(form.bmi) : undefined;
+  return {
+    symptoms: form.chiefComplaint,
+    diagnosis: form.diagnosis,
+    treatmentPlan: form.treatmentPlan,
+    prescription: form.prescription,
+    notes: form.notes,
+    vitals: {
+      ...form.vitals,
+      weight: form.weight ? parseFloat(form.weight) : form.vitals.weight,
+      height: form.height ? parseFloat(form.height) : form.vitals.height,
+      bmi: bmiVal ?? form.vitals.bmi,
+    },
+    images: form.images,
+    consultType: form.consultType,
+    chiefComplaint: form.chiefComplaint,
+    historyOfPresentIllness: form.historyOfPresentIllness,
+    medicalHistory: form.medicalHistory,
+    dentalHistory: form.dentalHistory,
+    reviewOfSystems: form.reviewOfSystems,
+    generalExam: form.generalExam,
+    anthropometric: {
+      weight: form.weight ? parseFloat(form.weight) : undefined,
+      height: form.height ? parseFloat(form.height) : undefined,
+      bmi: bmiVal,
+    },
+    oralFindings: form.oralFindings,
+    dentalCheckboxes: {
+      caries: form.caries,
+      missingTeeth: form.missingTeeth,
+      mobility: form.mobility,
+      pocketDepth: form.pocketDepth,
+      prosthetics: form.prosthetics,
+      orthodonticAppliances: form.orthodonticAppliances,
+    },
+  };
+}
+
+function consultToForm(c: Consultation): ConsultForm {
+  const dc = c.dentalCheckboxes || {};
+  const anthro = c.anthropometric || {};
+  return {
+    ...EMPTY_FORM,
+    patientId: c.patientId.toString(),
+    consultType: c.consultType || "general",
+    chiefComplaint: c.chiefComplaint || c.symptoms || "",
+    historyOfPresentIllness: c.historyOfPresentIllness || "",
+    medicalHistory: c.medicalHistory || "",
+    dentalHistory: c.dentalHistory || "",
+    reviewOfSystems: c.reviewOfSystems || "",
+    generalExam: c.generalExam || "",
+    vitals: c.vitals || {},
+    weight: anthro.weight != null ? String(anthro.weight) : c.vitals?.weight != null ? String(c.vitals.weight) : "",
+    height: anthro.height != null ? String(anthro.height) : c.vitals?.height != null ? String(c.vitals.height) : "",
+    bmi: anthro.bmi != null ? String(anthro.bmi) : c.vitals?.bmi != null ? String(c.vitals.bmi) : "",
+    oralFindings: c.oralFindings || "",
+    caries: dc.caries ?? false,
+    missingTeeth: dc.missingTeeth ?? false,
+    mobility: dc.mobility ?? false,
+    pocketDepth: dc.pocketDepth ?? false,
+    prosthetics: dc.prosthetics ?? false,
+    orthodonticAppliances: dc.orthodonticAppliances ?? false,
+    diagnosis: c.diagnosis || "",
+    treatmentPlan: c.treatmentPlan || "",
+    prescription: c.prescription || "",
+    notes: c.notes || "",
+    images: (c.images || []).map(i => ({ ...i, imgType: i.imgType ?? "other" })),
+  };
 }
 
 // ─── Main page ───────────────────────────────────────────────────────────────
@@ -328,14 +315,13 @@ export function ConsultationsPage() {
   const [printDialog, setPrintDialog] = useState<Consultation | null>(null);
   const [historyDialog, setHistoryDialog] = useState<ConsultationWithMeta[] | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
-  const [form, setForm] = useState<ObsForm>(EMPTY_FORM);
+  const [form, setForm] = useState<ConsultForm>(EMPTY_FORM);
   const [consultNumber, setConsultNumber] = useState("");
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
   const [annotateImg, setAnnotateImg] = useState<ConsultationImage | null>(null);
   const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
   const [dxOpen, setDxOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const DRAFT_KEY = "divinelink.consultDraft";
 
@@ -352,7 +338,7 @@ export function ConsultationsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const startAutosave = useCallback((getForm: () => ObsForm) => {
+  const startAutosave = useCallback((getForm: () => ConsultForm) => {
     if (autosaveRef.current) clearInterval(autosaveRef.current);
     autosaveRef.current = setInterval(() => {
       try {
@@ -369,7 +355,9 @@ export function ConsultationsPage() {
 
   const openNew = async () => {
     setEditingId(null);
-    const draft = (() => { try { const d = localStorage.getItem(DRAFT_KEY); return d ? JSON.parse(d) : null; } catch { return null; } })();
+    const draft = (() => {
+      try { const d = localStorage.getItem(DRAFT_KEY); return d ? JSON.parse(d) : null; } catch { return null; }
+    })();
     const seq = (await db.consultations.count()) + 1;
     setConsultNumber(generateConsultNumber(seq));
     setForm(draft ?? { ...EMPTY_FORM });
@@ -392,19 +380,19 @@ export function ConsultationsPage() {
     setDialogOpen(false);
   };
 
-  const setFormField = <K extends keyof ObsForm>(key: K, value: ObsForm[K]) => {
-    setForm(f => ({ ...f, [key]: value }));
-  };
-
   // ── Image helpers ──
-  const handleAddImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddImages = async (e: React.ChangeEvent<HTMLInputElement>, forceType?: ConsultationImageType) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     try {
       const newImages: ConsultationImage[] = [];
-      for (const file of files) {
-        const data = await compressImage(file);
-        newImages.push({ id: crypto.randomUUID(), filename: file.name, data, uploadedAt: new Date().toISOString(), caption: "", imgType: "other" });
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const data = await fileToDataUrl(file);
+        const imgType: ConsultationImageType = forceType
+          ? (i % 2 === 0 ? "before" : "after")
+          : "other";
+        newImages.push({ id: crypto.randomUUID(), filename: file.name, data, uploadedAt: new Date().toISOString(), caption: "", imgType });
       }
       setForm(f => ({ ...f, images: [...f.images, ...newImages] }));
     } catch { toast.error("Image error"); }
@@ -412,13 +400,21 @@ export function ConsultationsPage() {
   };
 
   const removeImage = (id: string) => {
-    setForm(f => ({ ...f, images: f.images.filter(i => i.id !== id).map(i => i.pairedWith === id ? { ...i, pairedWith: undefined } : i) }));
+    setForm(f => ({
+      ...f,
+      images: f.images.filter(i => i.id !== id).map(i => i.pairedWith === id ? { ...i, pairedWith: undefined } : i),
+    }));
     setSelectedImgIds(s => s.filter(x => x !== id));
   };
 
-  const updateCaption = (id: string, caption: string) => setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, caption } : i) }));
-  const updateImgType = (id: string, imgType: ConsultationImageType) => setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, imgType } : i) }));
-  const toggleSelect = (id: string) => setSelectedImgIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  const updateCaption = (id: string, caption: string) =>
+    setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, caption } : i) }));
+
+  const updateImgType = (id: string, imgType: ConsultationImageType) =>
+    setForm(f => ({ ...f, images: f.images.map(i => i.id === id ? { ...i, imgType } : i) }));
+
+  const toggleSelect = (id: string) =>
+    setSelectedImgIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
 
   const canPair = useMemo(() => {
     if (selectedImgIds.length !== 2) return false;
@@ -532,10 +528,12 @@ export function ConsultationsPage() {
     const versions = await db.consultations.where("originalId").equals(origId).reverse().toArray();
     const orig = await db.consultations.get(origId);
     const allVersions = orig && !versions.find(v => v.id === orig.id) ? [...versions, orig] : versions;
-    setHistoryDialog(allVersions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(v => {
-      const p = allPatients.find(p => p.id === v.patientId);
-      return { ...v, patientName: p ? `${p.firstName} ${p.lastName}` : "—" };
-    }));
+    setHistoryDialog(
+      allVersions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(v => {
+        const p = allPatients.find(p => p.id === v.patientId);
+        return { ...v, patientName: p ? `${p.firstName} ${p.lastName}` : "—" };
+      })
+    );
   };
 
   const handlePrint = (c: Consultation) => {
@@ -546,12 +544,21 @@ export function ConsultationsPage() {
   const selPat = patients.find(p => p.id?.toString() === form.patientId);
   const hasFatal = hasFatalAllergy(selPat);
 
-  // Progress
-  const sections = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-  const completedSections = sections.filter(n => sectionCompletion(n, form)).length;
-  const progressPct = Math.round((completedSections / sections.length) * 100);
+  const handleWeightHeight = (field: "weight" | "height", val: string) => {
+    setForm(f => {
+      const w = field === "weight" ? parseFloat(val) : parseFloat(f.weight);
+      const h = field === "height" ? parseFloat(val) : parseFloat(f.height);
+      const bmi = computeBMI(w, h);
+      return {
+        ...f,
+        [field]: val,
+        bmi: bmi != null ? bmi.toFixed(1) : f.bmi,
+        vitals: { ...f.vitals, weight: w || undefined, height: h || undefined, bmi: bmi ?? f.vitals.bmi },
+      };
+    });
+  };
 
-  // ─── Render ─────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
@@ -563,55 +570,48 @@ export function ConsultationsPage() {
         <p className="text-muted-foreground text-center py-12">{t("common.noData")}</p>
       ) : (
         <div className="grid gap-3">
-          {consultations.map(c => {
-            let obs: Partial<ObsForm> = {};
-            try { if (c.notes?.startsWith("{")) obs = JSON.parse(c.notes); } catch { /* */ }
-            return (
-              <Card key={c.id}>
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium">{c.patientName}</p>
-                      <p className="text-xs text-muted-foreground">{t("ts.created")}: {formatDateTime(c.createdAt || c.date)}</p>
-                      {c.editedAt && (
-                        <p className="text-xs text-muted-foreground">{t("ts.lastEdited")}: {formatDateTime(c.editedAt)}{c.editedBy ? ` ${t("ts.by")} ${c.editedBy}` : ""}</p>
+          {consultations.map(c => (
+            <Card key={c.id}>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium">{c.patientName}</p>
+                    <p className="text-xs text-muted-foreground">{t("ts.created")}: {formatDateTime(c.createdAt || c.date)}</p>
+                    {c.editedAt && (
+                      <p className="text-xs text-muted-foreground">{t("ts.lastEdited")}: {formatDateTime(c.editedAt)}{c.editedBy ? ` ${t("ts.by")} ${c.editedBy}` : ""}</p>
+                    )}
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      {c.chiefComplaint && (
+                        <span className="text-xs text-muted-foreground">Motif: {c.chiefComplaint}</span>
                       )}
-                      <div className="flex gap-2 mt-1 flex-wrap">
-                        {obs.specialty && (
-                          <Badge variant="outline" className="text-xs">{obs.specialty}</Badge>
-                        )}
-                        {obs.motif && (
-                          <span className="text-xs text-muted-foreground">Motif: {obs.motif}</span>
-                        )}
-                        {c.versionNumber && c.versionNumber > 1 && (
-                          <Badge variant="secondary" className="text-xs">v{c.versionNumber}</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 no-print flex-shrink-0">
-                      {(c.originalId || c.parentId) && (
-                        <Button variant="ghost" size="sm" onClick={() => showHistory(c)} title={t("consult.viewVersions")}><History className="w-4 h-4" /></Button>
+                      {c.versionNumber && c.versionNumber > 1 && (
+                        <Badge variant="secondary" className="text-xs">v{c.versionNumber}</Badge>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(c)} title={t("common.edit")}><Edit className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => exportConsultJson(c)} title={t("download.consultJson")}><Download className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => handlePrint(c)} title={t("consult.print")}><Printer className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(c.id!)} className="text-destructive" title={t("common.delete")}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
-                  {(obs.primaryDx || c.diagnosis) && (
-                    <p className="text-sm"><span className="font-medium">{t("consult.diagnosis")}:</span> {obs.primaryDx || c.diagnosis}</p>
-                  )}
-                  {(obs.orientation || c.treatmentPlan) && (
-                    <p className="text-sm"><span className="font-medium">{t("obs.orientation")}:</span> {obs.orientation || c.treatmentPlan}</p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                  <div className="flex gap-1 no-print flex-shrink-0">
+                    {(c.originalId || c.parentId) && (
+                      <Button variant="ghost" size="sm" onClick={() => showHistory(c)} title={t("consult.viewVersions")}><History className="w-4 h-4" /></Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(c)} title={t("common.edit")}><Edit className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => exportConsultJson(c)} title={t("download.consultJson")}><Download className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => handlePrint(c)} title={t("consult.print")}><Printer className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteConfirm(c.id!)} className="text-destructive" title={t("common.delete")}><Trash2 className="w-4 h-4" /></Button>
+                  </div>
+                </div>
+                {c.diagnosis && (
+                  <p className="text-sm"><span className="font-medium">{t("consult.diagnosis")}:</span> {c.diagnosis}</p>
+                )}
+                {c.treatmentPlan && (
+                  <p className="text-sm"><span className="font-medium">{t("consult.treatment")}:</span> {c.treatmentPlan}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      {/* ── Observation dialog ── */}
+      {/* ── Consultation dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={v => { if (!v) closeDialog(); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -619,20 +619,8 @@ export function ConsultationsPage() {
               <Stethoscope className="w-5 h-5" />
               {editingId ? t("consult.edit") : t("consult.new")}
               {consultNumber && <span className="text-xs font-mono text-muted-foreground">{consultNumber}</span>}
-              <span className="ml-auto"><AIButton onClick={() => setAiOpen(true)} position="inline" /></span>
             </DialogTitle>
           </DialogHeader>
-
-          {/* Mobile progress bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{completedSections}/{sections.length} sections</span>
-              <span>{progressPct}%</span>
-            </div>
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${progressPct}%` }} />
-            </div>
-          </div>
 
           {hasFatal && (
             <div className="bg-destructive text-destructive-foreground rounded-md px-3 py-2 flex items-center gap-2 font-bold text-sm">
@@ -645,11 +633,11 @@ export function ConsultationsPage() {
           <div className="space-y-3">
 
             {/* ─ Section 1: Identification ─ */}
-            <Section num={1} title={t("obs.section1")} complete={sectionCompletion(1, form)} defaultOpen={true}>
+            <Section num={1} title="Identification" complete={!!form.patientId} defaultOpen={true}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>{t("apt.patient")} *</Label>
-                  <Select value={form.patientId} onValueChange={v => setFormField("patientId", v)} disabled={!!editingId}>
+                  <Select value={form.patientId} onValueChange={v => setForm(f => ({ ...f, patientId: v }))} disabled={!!editingId}>
                     <SelectTrigger><SelectValue placeholder="..." /></SelectTrigger>
                     <SelectContent>
                       {patients.map(p => (
@@ -660,7 +648,7 @@ export function ConsultationsPage() {
                 </div>
                 <div>
                   <Label>{t("obs.specialty")}</Label>
-                  <Select value={form.specialty} onValueChange={v => setFormField("specialty", v)}>
+                  <Select value={form.specialty} onValueChange={v => setForm(f => ({ ...f, specialty: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -677,7 +665,7 @@ export function ConsultationsPage() {
               )}
               <div>
                 <Label>{t("consult.type")}</Label>
-                <Select value={form.consultType} onValueChange={v => setFormField("consultType", v as ConsultationType)}>
+                <Select value={form.consultType} onValueChange={v => setForm(f => ({ ...f, consultType: v as ConsultationType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="general">{t("consult.type.general")}</SelectItem>
@@ -687,136 +675,70 @@ export function ConsultationsPage() {
               </div>
             </Section>
 
-            {/* ─ Section 2: Symptômes ─ */}
-            <Section num={2} title={t("obs.section2")} complete={sectionCompletion(2, form)}>
-              <div>
-                <Label>{t("obs.motif")} *</Label>
-                <Input value={form.motif} onChange={e => setFormField("motif", e.target.value)} placeholder="Ex: fièvre, céphalées, douleur abdominale..." />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>{t("obs.onset")}</Label>
-                  <Select value={form.onsetType} onValueChange={v => setFormField("onsetType", v)}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                    <SelectContent>
-                      {ONSET_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{t("obs.duration")}</Label>
-                  <Input value={form.durationText} onChange={e => setFormField("durationText", e.target.value)} placeholder="Ex: 3 jours, 2 semaines..." />
-                </div>
-              </div>
-              <div>
-                <Label>{t("obs.histoire")}</Label>
-                <Textarea rows={3} value={form.histoire} onChange={e => setFormField("histoire", e.target.value)} placeholder="Description chronologique de la maladie actuelle..." />
-              </div>
-              <div>
-                <Label>{t("obs.eva")} — {EVA_FACES[form.eva]} {form.eva}/10</Label>
-                <Slider min={0} max={10} step={1} value={[form.eva]}
-                  onValueChange={([v]) => setFormField("eva", v)}
-                  className="mt-2"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                  <span>0 Aucune</span><span>5 Modérée</span><span>10 Max</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>{t("obs.aggravating")}</Label>
-                  <Input value={form.aggravating} onChange={e => setFormField("aggravating", e.target.value)} />
-                </div>
-                <div>
-                  <Label>{t("obs.relieving")}</Label>
-                  <Input value={form.relieving} onChange={e => setFormField("relieving", e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label>{t("obs.associated")}</Label>
-                <Input value={form.associated} onChange={e => setFormField("associated", e.target.value)} placeholder="Ex: nausées, vomissements, frissons..." />
-              </div>
+            {/* ─ Section 2: Anamnèse ─ */}
+            <Section num={2} title="Anamnèse" complete={!!form.chiefComplaint}>
+              <VoiceTextarea
+                label="Motif de consultation (Chief complaint)"
+                field="chiefComplaint"
+                form={form}
+                setForm={setForm}
+                rows={2}
+                placeholder="Ex: douleur dentaire, saignement des gencives..."
+                required
+              />
+              <VoiceTextarea
+                label="Histoire de la maladie actuelle (HPI)"
+                field="historyOfPresentIllness"
+                form={form}
+                setForm={setForm}
+                rows={3}
+                placeholder="Description chronologique, début, évolution, facteurs aggravants/soulageants..."
+              />
+              <VoiceTextarea
+                label="Antécédents médicaux"
+                field="medicalHistory"
+                form={form}
+                setForm={setForm}
+                rows={3}
+                placeholder="Maladies chroniques, chirurgies, traitements en cours, allergies..."
+              />
+              <VoiceTextarea
+                label="Antécédents dentaires"
+                field="dentalHistory"
+                form={form}
+                setForm={setForm}
+                rows={3}
+                placeholder="Traitements dentaires antérieurs, appareillages, extractions..."
+              />
+              <VoiceTextarea
+                label="Revue des systèmes (optionnel)"
+                field="reviewOfSystems"
+                form={form}
+                setForm={setForm}
+                rows={2}
+                placeholder="Symptômes associés par appareil..."
+              />
             </Section>
 
-            {/* ─ Section 3: Antécédents (auto-filled) ─ */}
-            <Section num={3} title={t("obs.section3")} complete={sectionCompletion(3, form)}>
-              {selPat?.antecedents ? (
-                <div className="space-y-3">
-                  {selPat.antecedents.allergies && selPat.antecedents.allergies.length > 0 && (
-                    <div>
-                      <Label className="text-sm">{t("ant.allergies")}</Label>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {selPat.antecedents.allergies.map((a, i) => (
-                          <Badge key={i} variant={a.severity === "fatal" ? "destructive" : "secondary"} className="gap-1">
-                            {a.severity === "fatal" && "🚨 "}
-                            {a.name} — {a.severity}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {selPat.antecedents.chronicDiseases && selPat.antecedents.chronicDiseases.length > 0 && (
-                    <div>
-                      <Label className="text-sm">{t("ant.chronic")}</Label>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {selPat.antecedents.chronicDiseases.map((d, i) => <Badge key={i} variant="outline">{d}</Badge>)}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {selPat.antecedents.diabetic && <Badge variant="secondary">Diabétique</Badge>}
-                    {selPat.antecedents.hypertensive && <Badge variant="secondary">Hypertendu</Badge>}
-                    {selPat.antecedents.smoker && <Badge variant="secondary">Fumeur</Badge>}
-                    {selPat.antecedents.bloodType && <Badge variant="outline">Gr. {selPat.antecedents.bloodType}</Badge>}
-                  </div>
-                  {selPat.antecedents.familyHistory && (
-                    <p className="text-xs text-muted-foreground"><strong>ATCD familiaux:</strong> {selPat.antecedents.familyHistory}</p>
-                  )}
-                  {selPat.antecedents.surgeries && (
-                    <p className="text-xs text-muted-foreground"><strong>Chirurgies:</strong> {selPat.antecedents.surgeries}</p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {selPat ? "Antécédents non renseignés dans la fiche patient." : "Sélectionnez un patient pour afficher les antécédents."}
-                </p>
-              )}
-            </Section>
+            {/* ─ Section 3: Examen physique général ─ */}
+            <Section num={3} title="Examen physique général" complete={!!form.generalExam || !!form.vitals.bp}>
+              <VoiceTextarea
+                label="Examen général"
+                field="generalExam"
+                form={form}
+                setForm={setForm}
+                rows={3}
+                placeholder="État général, conscience, aspect, coloration..."
+              />
 
-            {/* ─ Section 4: Examen physique ─ */}
-            <Section num={4} title={t("obs.section4")} complete={sectionCompletion(4, form)}>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>{t("obs.etatGeneral")}</Label>
-                  <Select value={form.etatGeneral} onValueChange={v => setFormField("etatGeneral", v)}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                    <SelectContent>
-                      {ETAT_GENERAL_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{t("obs.consciousness")}</Label>
-                  <Select value={form.consciousness} onValueChange={v => setFormField("consciousness", v)}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                    <SelectContent>
-                      {CONSCIOUSNESS_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Vitals */}
+              {/* Vital signs */}
               <div className="border rounded-md p-3 space-y-2">
                 <Label className="text-sm font-semibold">{t("vit.title")}</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { key: "bp", label: t("vit.bp"), placeholder: "120/80", type: "text" },
-                    { key: "temperature", label: t("vit.temp"), placeholder: "37.0", type: "number" },
                     { key: "pulse", label: t("vit.pulse"), placeholder: "72", type: "number" },
-                    { key: "weight", label: t("vit.weight"), placeholder: "70", type: "number" },
-                    { key: "height", label: t("vit.height"), placeholder: "170", type: "number" },
-                    { key: "spo2", label: t("vit.spo2"), placeholder: "98", type: "number" },
+                    { key: "temperature", label: t("vit.temp"), placeholder: "37.0", type: "number" },
                     { key: "respRate", label: t("vit.rr"), placeholder: "16", type: "number" },
                   ].map(({ key, label, placeholder, type }) => {
                     const alertClass = (() => {
@@ -824,7 +746,6 @@ export function ConsultationsPage() {
                       if (!v) return "";
                       if (key === "temperature" && v > 38.5) return "border-red-400";
                       if (key === "pulse" && (v < 50 || v > 120)) return "border-orange-400";
-                      if (key === "spo2" && v < 94) return "border-red-400";
                       if (key === "respRate" && (v < 12 || v > 25)) return "border-orange-400";
                       return "";
                     })();
@@ -838,281 +759,117 @@ export function ConsultationsPage() {
                           value={(form.vitals as any)[key] ?? ""}
                           onChange={e => {
                             const val = type === "text" ? e.target.value : (e.target.value ? parseFloat(e.target.value) : undefined);
-                            const newVitals = { ...form.vitals, [key]: val };
-                            if (key === "weight" || key === "height") {
-                              const bmi = computeBMI(
-                                key === "weight" ? (val as number) : form.vitals.weight,
-                                key === "height" ? (val as number) : form.vitals.height
-                              );
-                              newVitals.bmi = bmi;
-                            }
-                            setFormField("vitals", newVitals);
+                            setForm(f => ({ ...f, vitals: { ...f.vitals, [key]: val } }));
                           }}
                         />
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Anthropometric */}
+              <div className="border rounded-md p-3 space-y-2">
+                <Label className="text-sm font-semibold">Paramètres anthropométriques</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-[10px]">{t("vit.weight")} (kg)</Label>
+                    <Input type="number" placeholder="70" value={form.weight}
+                      onChange={e => handleWeightHeight("weight", e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">{t("vit.height")} (cm)</Label>
+                    <Input type="number" placeholder="170" value={form.height}
+                      onChange={e => handleWeightHeight("height", e.target.value)} />
+                  </div>
                   <div>
                     <Label className="text-[10px]">{t("vit.bmi")}</Label>
-                    <Input value={form.vitals.bmi ?? ""} readOnly className="bg-muted" />
+                    <Input value={form.bmi} readOnly className="bg-muted" placeholder="Auto" />
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <Label>Examen par appareils</Label>
-                <Textarea rows={4} value={form.systemeFindings} onChange={e => setFormField("systemeFindings", e.target.value)}
-                  placeholder="Cardio-vasculaire:&#10;Respiratoire:&#10;Digestif:&#10;Neurologique:&#10;ORL:&#10;Cutané:" />
               </div>
             </Section>
 
-            {/* ─ Section 5: Syndromes ─ */}
-            <Section num={5} title={t("obs.section5")} complete={sectionCompletion(5, form)}>
-              <div className="space-y-3">
-                {SYNDROME_CATEGORIES.map(cat => (
-                  <div key={cat.category}>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">{cat.category}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {cat.syndromes.map(s => {
-                        const active = form.syndromes.some(x => x.name === s);
-                        return (
-                          <button
-                            type="button"
-                            key={s}
-                            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${active ? "bg-blue-600 text-white border-blue-600" : "border-border hover:bg-muted"}`}
-                            onClick={() => {
-                              if (active) {
-                                setFormField("syndromes", form.syndromes.filter(x => x.name !== s));
-                              } else {
-                                setFormField("syndromes", [...form.syndromes, { name: s, category: cat.category }]);
-                              }
-                            }}
-                          >
-                            {s}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-                {form.syndromes.length > 0 && (
-                  <div className="space-y-2 border-t pt-3">
-                    {form.syndromes.map((syn, i) => (
-                      <div key={i} className="flex items-center gap-2 flex-wrap">
-                        <Badge>{syn.name}</Badge>
-                        <Input className="h-7 text-xs w-28" placeholder="Sévérité" value={syn.severite || ""}
-                          onChange={e => setFormField("syndromes", form.syndromes.map((x, j) => j === i ? { ...x, severite: e.target.value } : x))} />
-                        <Input className="h-7 text-xs w-28" placeholder="Évolution" value={syn.evolution || ""}
-                          onChange={e => setFormField("syndromes", form.syndromes.map((x, j) => j === i ? { ...x, evolution: e.target.value } : x))} />
-                        <button type="button" className="text-destructive text-xs" onClick={() => setFormField("syndromes", form.syndromes.filter((_, j) => j !== i))}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Section>
-
-            {/* ─ Section 6: Diagnostic ─ */}
-            <Section num={6} title={t("obs.section6")} complete={sectionCompletion(6, form)}>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>{t("obs.primaryDx")}</Label>
-                  <Input value={form.primaryDx} onChange={e => { setFormField("primaryDx", e.target.value); setFormField("diagnosis", e.target.value); }} />
-                </div>
-                <div>
-                  <Label>{t("obs.certainty")}</Label>
-                  <Select value={form.certainty} onValueChange={v => setFormField("certainty", v)}>
-                    <SelectTrigger><SelectValue placeholder="Niveau..." /></SelectTrigger>
-                    <SelectContent>
-                      {CERTAINTY_LEVELS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
+            {/* ─ Section 4: Examen dentaire ─ */}
+            <Section num={4} title="Examen dentaire" complete={!!form.oralFindings || form.caries || form.missingTeeth}>
+              <VoiceTextarea
+                label="Constatations orales (Oral findings)"
+                field="oralFindings"
+                form={form}
+                setForm={setForm}
+                rows={3}
+                placeholder="Description des constatations bucco-dentaires..."
+              />
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label>{t("obs.differentials")}</Label>
-                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1"
-                    onClick={() => setDxOpen(true)}><Stethoscope className="w-3 h-3" />AI</Button>
-                </div>
-                <div className="space-y-2">
-                  {form.differentials.map((d, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Input className="h-8 text-sm flex-1" value={d.name}
-                        onChange={e => setFormField("differentials", form.differentials.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-                      <button type="button"
-                        className={`text-xs px-2 py-1 rounded-full border transition-colors ${d.status === "retained" ? "bg-green-100 text-green-800 border-green-400" : "bg-red-50 text-red-700 border-red-200"}`}
-                        onClick={() => setFormField("differentials", form.differentials.map((x, j) => j === i ? { ...x, status: x.status === "retained" ? "eliminated" : "retained" } : x))}>
-                        {d.status === "retained" ? t("obs.retained") : t("obs.eliminated")}
-                      </button>
-                      <button type="button" className="text-destructive text-xs" onClick={() => setFormField("differentials", form.differentials.filter((_, j) => j !== i))}>✕</button>
-                    </div>
+                <Label className="text-sm font-semibold mb-2 block">Constatations cliniques</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {([
+                    { key: "caries", label: "Caries" },
+                    { key: "missingTeeth", label: "Dents manquantes" },
+                    { key: "mobility", label: "Mobilité" },
+                    { key: "pocketDepth", label: "Profondeur de poche" },
+                    { key: "prosthetics", label: "Prothèses" },
+                    { key: "orthodonticAppliances", label: "Appareillages ortho" },
+                  ] as { key: keyof ConsultForm; label: string }[]).map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={!!(form[key])}
+                        onCheckedChange={v => setForm(f => ({ ...f, [key]: !!v }))}
+                      />
+                      <span className="text-sm">{label}</span>
+                    </label>
                   ))}
-                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs"
-                    onClick={() => setFormField("differentials", [...form.differentials, { name: "", status: "retained" }])}>
-                    + Ajouter
+                </div>
+              </div>
+            </Section>
+
+            {/* ─ Section 5: Assessment & Plan ─ */}
+            <Section num={5} title="Assessment & Plan" complete={!!form.diagnosis}>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label>Diagnostic *</Label>
+                  <MicBtn field="diagnosis" form={form} setForm={setForm} />
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs ml-auto gap-1"
+                    onClick={() => setDxOpen(true)}>
+                    <Stethoscope className="w-3 h-3" />Base de diagnostics
                   </Button>
                 </div>
+                <Textarea
+                  rows={3}
+                  value={form.diagnosis}
+                  onChange={e => setForm(f => ({ ...f, diagnosis: e.target.value }))}
+                  placeholder="Diagnostic principal et différentiels..."
+                />
               </div>
-
               <div>
-                <Label>À éliminer en urgence</Label>
-                <Input value={form.urgentToEliminate} onChange={e => setFormField("urgentToEliminate", e.target.value)}
-                  placeholder="Ex: méningite, infarctus..." className="border-orange-300" />
-              </div>
-            </Section>
-
-            {/* ─ Section 7: Paraclinique ─ */}
-            <Section num={7} title={t("obs.section7")} complete={sectionCompletion(7, form)}>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-2 block">Examens rapides :</Label>
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_PARACLINICAL.map(name => {
-                    const exists = form.paraclinical.some(x => x.name === name);
-                    return (
-                      <button
-                        type="button"
-                        key={name}
-                        className={`text-xs px-2 py-1 rounded-full border transition-colors ${exists ? "bg-blue-100 text-blue-800 border-blue-400" : "border-border hover:bg-muted"}`}
-                        onClick={() => {
-                          if (!exists) setFormField("paraclinical", [...form.paraclinical, { name, result: "", normal: null }]);
-                        }}
-                      >
-                        {name}
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center gap-2 mb-1">
+                  <Label>Plan de traitement</Label>
+                  <MicBtn field="treatmentPlan" form={form} setForm={setForm} />
                 </div>
+                <Textarea
+                  rows={3}
+                  value={form.treatmentPlan}
+                  onChange={e => setForm(f => ({ ...f, treatmentPlan: e.target.value }))}
+                  placeholder="Actes à réaliser, orientation, suivi..."
+                />
               </div>
-              {form.paraclinical.length > 0 && (
-                <div className="space-y-2 mt-2">
-                  {form.paraclinical.map((p, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-xs w-36 shrink-0">{p.name}</span>
-                      <Input className="h-8 text-xs flex-1" placeholder="Résultat..." value={p.result || ""}
-                        onChange={e => setFormField("paraclinical", form.paraclinical.map((x, j) => j === i ? { ...x, result: e.target.value } : x))} />
-                      <button type="button"
-                        className={`text-xs px-2 py-1 rounded-full border ${p.normal === true ? "bg-green-100 text-green-800 border-green-400" : p.normal === false ? "bg-red-100 text-red-700 border-red-300" : "border-border text-muted-foreground"}`}
-                        onClick={() => {
-                          const next = p.normal === null ? true : p.normal === true ? false : null;
-                          setFormField("paraclinical", form.paraclinical.map((x, j) => j === i ? { ...x, normal: next } : x));
-                        }}>
-                        {p.normal === true ? "Normal" : p.normal === false ? "Anormal" : "—"}
-                      </button>
-                      <button type="button" className="text-destructive text-xs" onClick={() => setFormField("paraclinical", form.paraclinical.filter((_, j) => j !== i))}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div>
-                <Label>Traitement en attente de résultats</Label>
-                <Input value={form.therapeuticAwaiting} onChange={e => setFormField("therapeuticAwaiting", e.target.value)}
-                  placeholder="Ex: anti-paludéen empirique en attente TDR..." />
-              </div>
-              {hasFatal && (
-                <div className="bg-orange-50 border border-orange-300 rounded-md p-2 text-xs text-orange-800">
-                  ⚠ Vérifier les interactions avec les allergies connues du patient avant prescription
-                </div>
-              )}
-            </Section>
-
-            {/* ─ Section 8: Dg de travail ─ */}
-            <Section num={8} title={t("obs.section8")} complete={sectionCompletion(8, form)}>
-              <div className="flex items-center justify-between mb-2">
-                <Label>{t("obs.synthesis")}</Label>
-                <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1"
-                  onClick={() => setFormField("workingDx", generateSynthesis(form, selPat))}>
-                  <RefreshCw className="w-3 h-3" />{t("obs.regenerate")}
-                </Button>
-              </div>
-              <Textarea rows={4} value={form.workingDx} onChange={e => setFormField("workingDx", e.target.value)}
-                placeholder="Cliquez sur Régénérer pour auto-générer la synthèse, ou saisissez manuellement..." />
-            </Section>
-
-            {/* ─ Section 9: Problématique ─ */}
-            <Section num={9} title={t("obs.section9")} complete={sectionCompletion(9, form)}>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label>{t("obs.problems")}</Label>
-                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs"
-                    onClick={() => setFormField("problems", [...form.problems, { text: "" }])}>+ Ajouter</Button>
-                </div>
-                <div className="space-y-2">
-                  {form.problems.map((p, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-4">{i + 1}.</span>
-                      <Input className="h-8 text-sm flex-1" value={p.text}
-                        onChange={e => setFormField("problems", form.problems.map((x, j) => j === i ? { text: e.target.value } : x))} />
-                      <button type="button" className="text-destructive text-xs" onClick={() => setFormField("problems", form.problems.filter((_, j) => j !== i))}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <Label>{t("obs.complications")}</Label>
-                <Textarea rows={2} value={form.complicatingFactors} onChange={e => setFormField("complicatingFactors", e.target.value)} />
-              </div>
-              <div>
-                <Label>{t("obs.objectives")}</Label>
-                <Textarea rows={2} value={form.objectives} onChange={e => setFormField("objectives", e.target.value)}
-                  placeholder="Ex: réduire la fièvre, stabiliser glycémie..." />
-              </div>
-              <div>
-                <Label>{t("obs.watchPoints")}</Label>
-                <Input value={form.watchPoints} onChange={e => setFormField("watchPoints", e.target.value)}
-                  placeholder="Ex: signes de gravité, critères d'hospitalisation..." />
-              </div>
-            </Section>
-
-            {/* ─ Section 10: Traitement ─ */}
-            <Section num={10} title={t("obs.section10")} complete={sectionCompletion(10, form)}>
               <div>
                 <Label>{t("consult.prescription")}</Label>
-                <Textarea rows={4} value={form.prescription} onChange={e => setFormField("prescription", e.target.value)}
-                  placeholder="Médicament — dose — fréquence — durée" />
+                <Textarea
+                  rows={3}
+                  value={form.prescription}
+                  onChange={e => setForm(f => ({ ...f, prescription: e.target.value }))}
+                  placeholder="Médicament — dose — fréquence — durée"
+                />
               </div>
               <div>
-                <Label>{t("obs.nonDrug")}</Label>
-                <Input value={form.nonDrugTreatment} onChange={e => setFormField("nonDrugTreatment", e.target.value)}
-                  placeholder="Ex: repos, régime sans sel, kinésithérapie..." />
-              </div>
-              <div>
-                <Label>{t("obs.orientation")}</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {ORIENTATION_OPTIONS.map(o => (
-                    <button
-                      type="button"
-                      key={o.value}
-                      className={`text-sm px-4 py-2 rounded-lg border transition-colors ${form.orientation === o.value ? "bg-blue-600 text-white border-blue-600" : "border-border hover:bg-muted"}`}
-                      onClick={() => setFormField("orientation", form.orientation === o.value ? "" : o.value)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <Label>{t("consult.treatment")}</Label>
-                <Textarea rows={2} value={form.treatmentPlan} onChange={e => setFormField("treatmentPlan", e.target.value)} />
-              </div>
-            </Section>
-
-            {/* ─ Section 11: Suivi ─ */}
-            <Section num={11} title={t("obs.section11")} complete={sectionCompletion(11, form)}>
-              <div>
-                <Label>{t("obs.nextRdv")}</Label>
-                <Input type="date" value={form.nextRdv} onChange={e => setFormField("nextRdv", e.target.value)} />
-              </div>
-              <div>
-                <Label>{t("obs.reconsult")}</Label>
-                <Textarea rows={2} value={form.reconsultCriteria} onChange={e => setFormField("reconsultCriteria", e.target.value)}
-                  placeholder="Ex: fièvre > 3 jours, aggravation des symptômes..." />
-              </div>
-              <div>
-                <Label>{t("obs.education")}</Label>
-                <Textarea rows={2} value={form.patientEducation} onChange={e => setFormField("patientEducation", e.target.value)}
-                  placeholder="Conseils hygiéno-diététiques, observance, signaux d'alarme..." />
+                <Label>{t("consult.notes")}</Label>
+                <Textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Notes complémentaires..."
+                />
               </div>
             </Section>
 
@@ -1125,23 +882,13 @@ export function ConsultationsPage() {
                 <Button asChild size="sm" variant="outline" type="button">
                   <label className="cursor-pointer">
                     <Upload className="w-4 h-4 mr-2" />{t("doc.addImages")}
-                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleAddImages} />
+                    <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={e => handleAddImages(e)} />
                   </label>
                 </Button>
                 <Button asChild type="button" variant="default" size="sm" className="gap-2">
                   <label className="cursor-pointer">
                     <GitCompareArrows className="w-4 h-4" />{t("ba.add")}
-                    <input type="file" accept="image/*" multiple className="hidden" onChange={async (e) => {
-                      const files = Array.from(e.target.files || []);
-                      if (!files.length) return;
-                      const imgs: ConsultationImage[] = [];
-                      for (let i = 0; i < files.length; i++) {
-                        const data = await compressImage(files[i]);
-                        imgs.push({ id: crypto.randomUUID(), filename: files[i].name, data, uploadedAt: new Date().toISOString(), caption: "", imgType: i % 2 === 0 ? "before" : "after" });
-                      }
-                      setForm(f => ({ ...f, images: [...f.images, ...imgs] }));
-                      e.target.value = "";
-                    }} />
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleAddImages(e, "before")} />
                   </label>
                 </Button>
               </div>
@@ -1149,10 +896,15 @@ export function ConsultationsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
                   {form.images.map(img => {
                     const selected = selectedImgIds.includes(img.id);
+                    const isPdf = img.filename.toLowerCase().endsWith(".pdf") || img.data.startsWith("data:application/pdf");
                     return (
                       <div key={img.id} className={`relative rounded border p-2 space-y-2 ${selected ? "border-primary ring-2 ring-primary/30" : ""}`}>
                         <button type="button" className="block w-full aspect-square rounded overflow-hidden bg-muted" onClick={() => toggleSelect(img.id)}>
-                          <img src={img.data} alt={img.filename} className="w-full h-full object-cover" />
+                          {isPdf ? (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">PDF</div>
+                          ) : (
+                            <img src={img.data} alt={img.filename} className="w-full h-full object-cover" />
+                          )}
                         </button>
                         <div className="flex flex-wrap items-center gap-1">
                           {img.pairedWith && <Badge variant="secondary">{t("img.paired")}</Badge>}
@@ -1168,9 +920,11 @@ export function ConsultationsPage() {
                         </Select>
                         <Input className="h-7 text-xs" placeholder={t("doc.caption")} value={img.caption || ""} onChange={e => updateCaption(img.id, e.target.value)} />
                         <div className="flex flex-wrap gap-1">
-                          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setAnnotateImg(img)}>
-                            <Pencil className="w-3 h-3 mr-1" />{t("img.annotate")}
-                          </Button>
+                          {!isPdf && (
+                            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setAnnotateImg(img)}>
+                              <Pencil className="w-3 h-3 mr-1" />{t("img.annotate")}
+                            </Button>
+                          )}
                           {img.pairedWith && (
                             <>
                               <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => openCompare(img)}>
@@ -1191,12 +945,6 @@ export function ConsultationsPage() {
                 </div>
               )}
             </Section>
-
-            {/* ─ Notes libres ─ */}
-            <div>
-              <Label>{t("consult.notes")}</Label>
-              <Textarea rows={2} value={form.notes} onChange={e => setFormField("notes", e.target.value)} placeholder="Notes complémentaires..." />
-            </div>
           </div>
 
           <DialogFooter>
@@ -1252,6 +1000,7 @@ export function ConsultationsPage() {
                     <span className="text-xs text-muted-foreground">{new Date(v.date).toLocaleString()}</span>
                     {v.editedBy && <span className="text-xs text-muted-foreground">• {t("consult.editedBy")}: {v.editedBy}</span>}
                   </div>
+                  {v.chiefComplaint && <p className="text-sm"><strong>Motif:</strong> {v.chiefComplaint}</p>}
                   {v.diagnosis && <p className="text-sm"><strong>{t("consult.diagnosis")}:</strong> {v.diagnosis}</p>}
                   {v.treatmentPlan && <p className="text-sm"><strong>{t("consult.treatment")}:</strong> {v.treatmentPlan}</p>}
                   {v.prescription && <p className="text-sm"><strong>{t("consult.prescription")}:</strong> {v.prescription}</p>}
@@ -1267,6 +1016,7 @@ export function ConsultationsPage() {
         <div className="hidden print:block p-8">
           <h1 className="text-xl font-bold mb-1">DivineLink — {t("consult.prescription")}</h1>
           <p className="text-sm mb-4">{new Date(printDialog.date).toLocaleDateString()}</p>
+          <p><strong>Motif:</strong> {printDialog.chiefComplaint || printDialog.symptoms}</p>
           <p><strong>{t("consult.diagnosis")}:</strong> {printDialog.diagnosis}</p>
           <p><strong>{t("consult.treatment")}:</strong> {printDialog.treatmentPlan}</p>
           <div className="mt-4 border-t pt-4">
@@ -1285,38 +1035,17 @@ export function ConsultationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Inline differential diagnosis ── */}
+      {/* ── Inline differential diagnosis picker ── */}
       <Dialog open={dxOpen} onOpenChange={setDxOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("consult.differentials")}</DialogTitle></DialogHeader>
           <DifferentialPicker onSelect={dx => {
-            setForm(f => ({
-              ...f,
-              primaryDx: f.primaryDx || dx,
-              diagnosis: f.diagnosis || dx,
-              differentials: f.differentials.some(d => d.name === dx)
-                ? f.differentials
-                : [...f.differentials, { name: dx, status: "retained" }],
-            }));
+            setForm(f => ({ ...f, diagnosis: f.diagnosis ? `${f.diagnosis}, ${dx}` : dx }));
             setDxOpen(false);
             toast.success(t("dx.savedToConsult"));
           }} />
         </DialogContent>
       </Dialog>
-
-      {/* ── AI Clinical Assistant ── */}
-      <AIClinicalAssistant
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        patientContext={selPat ? {
-          patient: selPat,
-          currentVitals: form.vitals,
-        } : undefined}
-        onAddToNotes={text => {
-          setFormField("notes", form.notes ? `${form.notes}\n\n[IA]: ${text}` : `[IA]: ${text}`);
-          toast.success("Réponse IA ajoutée aux notes");
-        }}
-      />
     </div>
   );
 }
