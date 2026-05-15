@@ -36,7 +36,7 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
 
   const handleLogo = async (f?: File) => {
     if (!f) return;
-    const data = await compressImage(f, 400, 0.85);
+    const data = await compressImage(f);
     set("logo", data);
   };
 
