@@ -22,7 +22,18 @@ const isPreviewHost =
 if ("serviceWorker" in navigator) {
   if (!isInIframe && !isPreviewHost) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker.register("/sw.js").then((reg) => {
+        // When a new SW takes over, reload the page so fresh assets are shown immediately.
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "activated") {
+              window.location.reload();
+            }
+          });
+        });
+      }).catch(() => {});
     });
   } else {
     // Defensive: clear any previously registered SW in dev/preview to avoid stale caches.

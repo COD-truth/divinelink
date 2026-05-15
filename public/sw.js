@@ -1,10 +1,10 @@
 /* ============================================================
-   DivineLink Service Worker v6
+   DivineLink Service Worker v7
    Strategy: cache-first for static assets, stale-while-revalidate
    for navigation. Offline fallback page for failed navigations.
    ============================================================ */
 
-const CACHE_NAME = "divinelink-v6";
+const CACHE_NAME = "divinelink-v7";
 
 /* Static shell — always precached on install */
 const PRECACHE_URLS = [
@@ -54,8 +54,12 @@ self.addEventListener("activate", (event) => {
       )
     )
   );
-  /* Take control of all open tabs immediately */
-  self.clients.claim();
+  /* Take control of all open tabs immediately, then reload them so new code is visible */
+  self.clients.claim().then(() => {
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      clients.forEach((client) => client.navigate(client.url));
+    });
+  });
 });
 
 /* ── Fetch: cache-first for assets, stale-while-revalidate for pages ── */
