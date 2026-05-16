@@ -912,6 +912,33 @@ const translations: Record<string, Record<Lang, string>> = {
   "trends.lastMeasure": { en: "Last measurement", fr: "Dernière mesure" },
   "trends.labResults": { en: "Lab results trends", fr: "Résultats paracliniques" },
 
+  // Navigation
+  "nav.equipment": { en: "Equipment stock", fr: "Stock matériel" },
+
+  // Equipment management
+  "equip.title": { en: "Equipment stock", fr: "Stock matériel" },
+  "equip.addStock": { en: "Add stock", fr: "Ajouter" },
+  "equip.removeStock": { en: "Remove stock", fr: "Retirer" },
+  "equip.quantity": { en: "Quantity", fr: "Quantité" },
+  "equip.reason": { en: "Reason", fr: "Motif" },
+  "equip.reasonAddPlaceholder": { en: "e.g. purchase, delivery...", fr: "ex. achat, livraison..." },
+  "equip.reasonRemovePlaceholder": { en: "e.g. used in treatment, damaged...", fr: "ex. utilisé en traitement, endommagé..." },
+  "equip.linkPatient": { en: "Link to patient", fr: "Lier à un patient" },
+  "equip.noPatient": { en: "No patient link", fr: "Sans lien patient" },
+  "equip.currentStock": { en: "Current stock", fr: "Stock actuel" },
+  "equip.units": { en: "units", fr: "unités" },
+  "equip.threshold": { en: "Low stock threshold", fr: "Seuil d'alerte" },
+  "equip.low": { en: "Low", fr: "Faible" },
+  "equip.lowStockAlert": { en: "items low", fr: "articles en rupture" },
+  "equip.lowStockItems": { en: "Items below threshold", fr: "Articles sous le seuil" },
+  "equip.history": { en: "Movement history", fr: "Historique des mouvements" },
+  "equip.noMovements": { en: "No movements recorded yet", fr: "Aucun mouvement enregistré" },
+  "equip.newStock": { en: "New stock", fr: "Nouveau stock" },
+  "equip.updated": { en: "Item updated", fr: "Article mis à jour" },
+  "equip.stockAdded": { en: "Stock added", fr: "Stock ajouté" },
+  "equip.stockRemoved": { en: "Stock removed", fr: "Stock retiré" },
+  "equip.editItem": { en: "Edit item", fr: "Modifier l'article" },
+
   // AI Clinical Assistant
   "ai.title": { en: "AI Clinical Assistant", fr: "Assistant IA Clinique" },
   "ai.offline": { en: "Connection required for AI", fr: "Connexion requise pour l'IA" },

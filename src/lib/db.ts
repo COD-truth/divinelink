@@ -129,6 +129,21 @@ export interface Appointment {
 
 export type ConsultationType = "general" | "dental";
 
+export interface DentalCheckboxes {
+  caries?: boolean;
+  missingTeeth?: boolean;
+  mobility?: boolean;
+  pocketDepth?: boolean;
+  prosthetics?: boolean;
+  orthodonticAppliances?: boolean;
+}
+
+export interface Anthropometric {
+  weight?: number;
+  height?: number;
+  bmi?: number;
+}
+
 export interface Consultation {
   id?: number;
   patientId: number;
@@ -139,6 +154,18 @@ export interface Consultation {
   treatmentPlan: string;
   prescription: string;
   notes: string;
+  /** Anamnèse fields */
+  chiefComplaint?: string;
+  historyOfPresentIllness?: string;
+  medicalHistory?: string;
+  dentalHistory?: string;
+  reviewOfSystems?: string;
+  /** Physical examination */
+  generalExam?: string;
+  anthropometric?: Anthropometric;
+  /** Dental quick exam */
+  oralFindings?: string;
+  dentalCheckboxes?: DentalCheckboxes;
   /** Vital signs taken at consultation */
   vitals?: VitalSigns;
   /** Images attached to this consultation */
@@ -267,6 +294,29 @@ export interface Document {
   updatedBy?: string;
 }
 
+/* Equipment management types */
+export interface EquipmentItem {
+  id?: number;
+  name: string;
+  stock: number;
+  lowStockThreshold: number;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquipmentMovement {
+  id?: number;
+  itemId: number;
+  quantityChange: number;
+  newStock: number;
+  reason: string;
+  performedBy: string;
+  patientId?: number;
+  clinicId?: string;
+  createdAt: string;
+}
+
 export type AuditEventType =
   | "login" | "login_fail" | "logout"
   | "patient_create" | "patient_update" | "patient_delete" | "patient_view"
@@ -287,6 +337,48 @@ export interface AuditLog {
   resource?: string;
   resourceId?: string;
   message?: string;
+}
+
+function EQUIPMENT_DEFAULTS(now: string): Omit<EquipmentItem, "id">[] {
+  const names = [
+    "Brosses/brossettes ortho",
+    "Blouses/urgences",
+    "Sabots",
+    "Mouchoirs-charlottes",
+    "Rouleaux salivaires",
+    "Sacs poubelles-canules",
+    "Aligneurs blanchiment",
+    "Tablier de plomb",
+    "Masque",
+    "Consommable ortho",
+    "Fourre-tout",
+    "Gants-compresse",
+    "Seringue d'irrigation",
+    "Localisation d'apex",
+    "Bandes orthodontiques",
+    "Boîtiers/brackets métal",
+    "Boîtiers/brackets céramique",
+    "Fils orthodontiques NiTi",
+    "Fils orthodontiques acier",
+    "Élastiques/chaînes élastiques",
+    "Bagues/anneaux",
+    "Tubes molaires",
+    "Boutons",
+    "Ressorts",
+    "Ligatures élastiques",
+    "Ligatures métalliques",
+    "Séparateurs",
+    "Matériel de contention (fils, gaines, colle)",
+    "Ciments orthodontiques",
+    "Colles pour brackets",
+  ];
+  return names.map(name => ({
+    name,
+    stock: 10,
+    lowStockThreshold: 5,
+    createdAt: now,
+    updatedAt: now,
+  }));
 }
 
 function ORTHODONTIC_DEFAULTS(now: string): Omit<Drug, "id">[] {
@@ -339,6 +431,8 @@ class DentaDB extends Dexie {
   drugs!: Table<Drug>;
   drugTransactions!: Table<DrugTransaction>;
   generatedDocs!: Table<GeneratedDoc>;
+  equipmentItems!: Table<EquipmentItem>;
+  equipmentMovements!: Table<EquipmentMovement>;
 
   constructor() {
     super("DivineLinkDB");
@@ -524,6 +618,21 @@ class DentaDB extends Dexie {
         await tx.table("drugs").add(item);
       }
     });
+    // v12: add equipment stock management tables
+    this.version(12).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, clinicId",
+      equipmentMovements: "++id, itemId, patientId, createdAt, clinicId",
+    });
   }
 }
 
@@ -574,5 +683,11 @@ export async function seedDatabase() {
   if (drugCount === 0) {
     const now = new Date().toISOString();
     await db.drugs.bulkAdd(ORTHODONTIC_DEFAULTS(now) as Drug[]);
+  }
+
+  const equipCount = await db.equipmentItems.count();
+  if (equipCount === 0) {
+    const now = new Date().toISOString();
+    await db.equipmentItems.bulkAdd(EQUIPMENT_DEFAULTS(now) as EquipmentItem[]);
   }
 }

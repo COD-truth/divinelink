@@ -4,7 +4,7 @@ import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -20,7 +20,7 @@ import { toast } from "sonner";
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
-  | "security" | "research" | "clinic" | "pharmacy" | "dental" | "payments" | "workspace";
+  | "security" | "research" | "clinic" | "pharmacy" | "dental" | "payments" | "workspace" | "equipment";
 
 interface Props {
   currentPage: Page;
@@ -127,6 +127,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   // Collapsible admin section (collapsed by default, muted style)
   const adminNav: NavItem[] = [
     { page: "payments", icon: <CreditCard className="w-5 h-5" />, label: t("nav.payments"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "equipment", icon: <Package className="w-5 h-5" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
     { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
     { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
     { page: "pharmacy", icon: <Pill className="w-5 h-5" />, label: t("nav.pharmacy"), roles: ["admin"] },
@@ -164,6 +165,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
 
   const moreItems = [
     { page: "payments" as Page, icon: <CreditCard className="w-6 h-6" />, label: t("nav.payments"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "equipment" as Page, icon: <Package className="w-6 h-6" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
     { page: "diagnosis" as Page, icon: <Stethoscope className="w-6 h-6" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
     { page: "documents" as Page, icon: <FileImage className="w-6 h-6" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
     { page: "research" as Page, icon: <BarChart3 className="w-6 h-6" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
