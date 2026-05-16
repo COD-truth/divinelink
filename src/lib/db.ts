@@ -632,12 +632,77 @@ export function generateAnonCode(): string {
 
 export const db = new DentaDB();
 
-// Hash PIN using simple SHA-256
+// PIN hashing — PBKDF2-SHA256 with per-user random salt.
+// Storage format: "pbkdf2$<iterations>$<saltB64>$<hashB64>"
+// Legacy format (64-char hex SHA-256 of pin+"dentacare-salt") is still
+// recognized by verifyPin so existing accounts keep working and get
+// transparently upgraded on next successful login.
+const PIN_ITERATIONS = 150_000;
+const LEGACY_PIN_SALT = "dentacare-salt";
+
+function _b64encode(bytes: Uint8Array): string {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function _b64decode(s: string): Uint8Array {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function _pbkdf2(pin: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(pin),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations, hash: "SHA-256" },
+    baseKey,
+    256
+  );
+  return new Uint8Array(bits);
+}
+
+/** Hash a PIN for storage. Returns a "pbkdf2$..." encoded string. */
 export async function hashPin(pin: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin + "dentacare-salt");
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await _pbkdf2(pin, salt, PIN_ITERATIONS);
+  return `pbkdf2$${PIN_ITERATIONS}$${_b64encode(salt)}$${_b64encode(hash)}`;
+}
+
+/** Verify a PIN against a stored hash. Supports legacy SHA-256 hashes. */
+export async function verifyPin(pin: string, stored: string | undefined | null): Promise<boolean> {
+  if (!stored) return false;
+  if (stored.startsWith("pbkdf2$")) {
+    const parts = stored.split("$");
+    if (parts.length !== 4) return false;
+    const iter = parseInt(parts[1], 10);
+    if (!iter || iter < 1000) return false;
+    try {
+      const salt = _b64decode(parts[2]);
+      const expected = _b64decode(parts[3]);
+      const got = await _pbkdf2(pin, salt, iter);
+      if (got.length !== expected.length) return false;
+      let diff = 0;
+      for (let i = 0; i < got.length; i++) diff |= got[i] ^ expected[i];
+      return diff === 0;
+    } catch { return false; }
+  }
+  // Legacy SHA-256(pin + static-salt) — 64 hex chars.
+  if (/^[0-9a-f]{64}$/i.test(stored)) {
+    const data = new TextEncoder().encode(pin + LEGACY_PIN_SALT);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    const hex = Array.from(new Uint8Array(hash))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+    return hex === stored.toLowerCase();
+  }
+  return false;
 }
 
 // Generate next patient ID

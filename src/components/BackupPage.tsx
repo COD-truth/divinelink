@@ -19,6 +19,7 @@ import {
 } from "@/lib/sync";
 import { saveFile, withDateStamp } from "@/lib/download";
 import { logAudit } from "@/lib/audit";
+import { sanitizeBackup, formatRejected } from "@/lib/backupValidate";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function BackupPage() {
@@ -115,7 +116,12 @@ export function BackupPage() {
     if (!jsonPreview) return;
     setJsonImporting(true); setJsonProgress(5);
     try {
-      const incoming = jsonPreview.data.data;
+      const rawIncoming = jsonPreview.data?.data;
+      const { data: incoming, report } = sanitizeBackup(rawIncoming);
+      const rejectedSummary = formatRejected(report);
+      if (rejectedSummary) {
+        toast.warning(`Records rejected (invalid shape): ${rejectedSummary}`);
+      }
 
       if (jsonMode === "replace") {
         await db.transaction("rw", [db.users, db.patients, db.appointments, db.consultations, db.documents], async () => {
@@ -126,7 +132,7 @@ export function BackupPage() {
       setJsonProgress(20);
 
       // Patients
-      if (incoming.patients?.length) {
+      if (incoming.patients.length) {
         const existing = new Map((await db.patients.toArray()).map(p => [p.patientId, p]));
         for (const p of incoming.patients) {
           if (jsonMode === "patientsOnly" || jsonMode === "merge") {
@@ -139,15 +145,15 @@ export function BackupPage() {
       setJsonProgress(50);
 
       if (jsonMode !== "patientsOnly") {
-        if (incoming.consultations?.length) await db.consultations.bulkAdd(incoming.consultations.map((c: any) => ({ ...c, id: undefined })));
+        if (incoming.consultations.length) await db.consultations.bulkAdd(incoming.consultations.map((c: any) => ({ ...c, id: undefined })));
         setJsonProgress(70);
-        if (incoming.appointments?.length) await db.appointments.bulkAdd(incoming.appointments.map((a: any) => ({ ...a, id: undefined })));
-        if (incoming.documents?.length) await db.documents.bulkAdd(incoming.documents.map((d: any) => ({ ...d, id: undefined })));
-        if (incoming.users?.length && jsonMode === "replace") await db.users.bulkAdd(incoming.users.map((u: any) => ({ ...u, id: undefined })));
+        if (incoming.appointments.length) await db.appointments.bulkAdd(incoming.appointments.map((a: any) => ({ ...a, id: undefined })));
+        if (incoming.documents.length) await db.documents.bulkAdd(incoming.documents.map((d: any) => ({ ...d, id: undefined })));
+        if (incoming.users.length && jsonMode === "replace") await db.users.bulkAdd(incoming.users.map((u: any) => ({ ...u, id: undefined })));
       }
       setJsonProgress(100);
 
-      if (user) await logAudit("backup_import", user.name, { message: `json import mode=${jsonMode}` });
+      if (user) await logAudit("backup_import", user.name, { message: `json import mode=${jsonMode} rejected=${rejectedSummary || "none"}` });
       toast.success(t("backup.imported"));
       setJsonPreview(null);
       refreshStorage();
@@ -206,7 +212,10 @@ export function BackupPage() {
       const json = bytes.toString(CryptoJS.enc.Utf8);
       if (!json) throw new Error("Wrong password");
 
-      const data = JSON.parse(json);
+      const parsed = JSON.parse(json);
+      const { data, report } = sanitizeBackup(parsed);
+      const rejectedSummary = formatRejected(report);
+      if (rejectedSummary) toast.warning(`Records rejected: ${rejectedSummary}`);
 
       // Clear and restore
       await db.transaction("rw", [db.users, db.patients, db.appointments, db.consultations, db.documents], async () => {
@@ -216,14 +225,14 @@ export function BackupPage() {
         await db.consultations.clear();
         await db.documents.clear();
 
-        if (data.users?.length) await db.users.bulkAdd(data.users);
-        if (data.patients?.length) {
+        if (data.users.length) await db.users.bulkAdd(data.users);
+        if (data.patients.length) {
           const reEnc = await Promise.all(data.patients.map((p: any) => encryptPatientForSave(p)));
           await db.patients.bulkAdd(reEnc);
         }
-        if (data.appointments?.length) await db.appointments.bulkAdd(data.appointments);
-        if (data.consultations?.length) await db.consultations.bulkAdd(data.consultations);
-        if (data.documents?.length) await db.documents.bulkAdd(data.documents);
+        if (data.appointments.length) await db.appointments.bulkAdd(data.appointments);
+        if (data.consultations.length) await db.consultations.bulkAdd(data.consultations);
+        if (data.documents.length) await db.documents.bulkAdd(data.documents);
       });
 
       toast.success(t("backup.success"));

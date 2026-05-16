@@ -138,13 +138,6 @@ export function LoginScreen() {
             </button>
           </form>
 
-          {/* Demo hint */}
-          <div className="mt-6 pt-5 border-t border-gray-100 text-center">
-            <p className="text-xs text-gray-400">
-              Demo: username <span className="font-semibold text-gray-500">admin</span>
-              {" "}· PIN <span className="font-semibold text-gray-500">1234</span>
-            </p>
-          </div>
         </div>
       </div>
     </div>
