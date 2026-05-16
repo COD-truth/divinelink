@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { db, hashPin, type User, type UserRole } from "@/lib/db";
+import { db, hashPin, verifyPin, type User, type UserRole } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { toast } from "sonner";
 
