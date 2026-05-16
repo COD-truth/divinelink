@@ -86,6 +86,10 @@ function AppContent() {
 
   if (!user) return <LoginScreen />;
 
+  const isAdmin = user.role === "admin";
+  const adminOnly = (node: React.ReactNode): React.ReactNode =>
+    isAdmin ? node : <DashboardPage onNavigate={navigateTo} />;
+
   const pages: Record<Page, React.ReactNode> = {
     dashboard: <DashboardPage onNavigate={navigateTo} />,
     patients: <Suspense fallback={<PageLoader />}><PatientsPage /></Suspense>,
@@ -93,10 +97,10 @@ function AppContent() {
     consultations: <Suspense fallback={<PageLoader />}><ConsultationsPage /></Suspense>,
     documents: <Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense>,
     diagnosis: <Suspense fallback={<PageLoader />}><DiagnosisPage /></Suspense>,
-    users: <Suspense fallback={<PageLoader />}><UsersPage /></Suspense>,
-    backup: <Suspense fallback={<PageLoader />}><BackupPage /></Suspense>,
-    audit: <Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>,
-    security: <Suspense fallback={<PageLoader />}><SecurityPage /></Suspense>,
+    users: adminOnly(<Suspense fallback={<PageLoader />}><UsersPage /></Suspense>),
+    backup: adminOnly(<Suspense fallback={<PageLoader />}><BackupPage /></Suspense>),
+    audit: adminOnly(<Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>),
+    security: adminOnly(<Suspense fallback={<PageLoader />}><SecurityPage /></Suspense>),
     research: <Suspense fallback={<PageLoader />}><ResearchPage /></Suspense>,
     clinic: <Suspense fallback={<PageLoader />}><ClinicSettingsPage /></Suspense>,
     pharmacy: <Suspense fallback={<PageLoader />}><PharmacyPage /></Suspense>,
