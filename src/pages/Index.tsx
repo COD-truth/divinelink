@@ -4,6 +4,7 @@ import { initCrypto } from "@/lib/crypto";
 import { migrateEncryption } from "@/lib/patientCrypto";
 import { autoRestoreIfNeeded, installAutoSnapshotHooks, scheduleSnapshot } from "@/lib/emergencyBackup";
 import { requestNotificationPermission, initSmartNotifications, stopSmartNotifications } from "@/lib/smartNotifications";
+import { initSync, stopSync } from "@/lib/supabaseSync";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LangProvider } from "@/contexts/LangContext";
 import { LoginScreen } from "@/components/LoginScreen";
@@ -128,7 +129,9 @@ const Index = () => {
       installAutoSnapshotHooks();
       // Take an initial snapshot once everything is ready.
       scheduleSnapshot();
+      initSync();
     })();
+    return () => stopSync();
   }, []);
 
   return (

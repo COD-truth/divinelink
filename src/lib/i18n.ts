@@ -939,6 +939,15 @@ const translations: Record<string, Record<Lang, string>> = {
   "equip.stockRemoved": { en: "Stock removed", fr: "Stock retiré" },
   "equip.editItem": { en: "Edit item", fr: "Modifier l'article" },
 
+  // Supabase sync status
+  "sync.status.idle": { en: "Synced", fr: "Synchronisé" },
+  "sync.status.syncing": { en: "Syncing...", fr: "Synchronisation..." },
+  "sync.status.success": { en: "Sync complete", fr: "Sync terminée" },
+  "sync.status.error": { en: "Sync failed", fr: "Échec sync" },
+  "sync.status.offline": { en: "Offline", fr: "Hors ligne" },
+  "sync.manualSync": { en: "Sync now", fr: "Synchroniser" },
+  "sync.notConfigured": { en: "Add Supabase keys to enable sync", fr: "Ajoutez les clés Supabase pour activer la sync" },
+
   // AI Clinical Assistant
   "ai.title": { en: "AI Clinical Assistant", fr: "Assistant IA Clinique" },
   "ai.offline": { en: "Connection required for AI", fr: "Connexion requise pour l'IA" },

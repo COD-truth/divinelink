@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { db, hashPin, type User, type UserRole } from "@/lib/db";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/NotificationBell";
+import { SyncIndicator } from "@/components/SyncIndicator";
 import { isPushSupported, isSubscribed, enablePushNotifications, disablePushNotifications } from "@/lib/pushNotifications";
 import { getClinicId } from "@/lib/clinicSettings";
 import { toast } from "sonner";
@@ -319,6 +320,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             <RefreshCw className="w-4 h-4" />
           </Button>
           <NotificationBell onNavigate={onNavigate} />
+          <SyncIndicator />
 
           {isPushSupported() && (
             <button
