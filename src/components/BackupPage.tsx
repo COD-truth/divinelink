@@ -116,7 +116,12 @@ export function BackupPage() {
     if (!jsonPreview) return;
     setJsonImporting(true); setJsonProgress(5);
     try {
-      const incoming = jsonPreview.data.data;
+      const rawIncoming = jsonPreview.data?.data;
+      const { data: incoming, report } = sanitizeBackup(rawIncoming);
+      const rejectedSummary = formatRejected(report);
+      if (rejectedSummary) {
+        toast.warning(`Records rejected (invalid shape): ${rejectedSummary}`);
+      }
 
       if (jsonMode === "replace") {
         await db.transaction("rw", [db.users, db.patients, db.appointments, db.consultations, db.documents], async () => {
@@ -127,7 +132,7 @@ export function BackupPage() {
       setJsonProgress(20);
 
       // Patients
-      if (incoming.patients?.length) {
+      if (incoming.patients.length) {
         const existing = new Map((await db.patients.toArray()).map(p => [p.patientId, p]));
         for (const p of incoming.patients) {
           if (jsonMode === "patientsOnly" || jsonMode === "merge") {
@@ -140,15 +145,15 @@ export function BackupPage() {
       setJsonProgress(50);
 
       if (jsonMode !== "patientsOnly") {
-        if (incoming.consultations?.length) await db.consultations.bulkAdd(incoming.consultations.map((c: any) => ({ ...c, id: undefined })));
+        if (incoming.consultations.length) await db.consultations.bulkAdd(incoming.consultations.map((c: any) => ({ ...c, id: undefined })));
         setJsonProgress(70);
-        if (incoming.appointments?.length) await db.appointments.bulkAdd(incoming.appointments.map((a: any) => ({ ...a, id: undefined })));
-        if (incoming.documents?.length) await db.documents.bulkAdd(incoming.documents.map((d: any) => ({ ...d, id: undefined })));
-        if (incoming.users?.length && jsonMode === "replace") await db.users.bulkAdd(incoming.users.map((u: any) => ({ ...u, id: undefined })));
+        if (incoming.appointments.length) await db.appointments.bulkAdd(incoming.appointments.map((a: any) => ({ ...a, id: undefined })));
+        if (incoming.documents.length) await db.documents.bulkAdd(incoming.documents.map((d: any) => ({ ...d, id: undefined })));
+        if (incoming.users.length && jsonMode === "replace") await db.users.bulkAdd(incoming.users.map((u: any) => ({ ...u, id: undefined })));
       }
       setJsonProgress(100);
 
-      if (user) await logAudit("backup_import", user.name, { message: `json import mode=${jsonMode}` });
+      if (user) await logAudit("backup_import", user.name, { message: `json import mode=${jsonMode} rejected=${rejectedSummary || "none"}` });
       toast.success(t("backup.imported"));
       setJsonPreview(null);
       refreshStorage();
