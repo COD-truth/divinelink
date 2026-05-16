@@ -157,6 +157,24 @@ export interface Consultation {
   versionNumber?: number;
   editedAt?: string;
   editedBy?: string;
+  /** Clinical history sections */
+  chiefComplaint?: string;
+  historyOfPresentIllness?: string;
+  medicalHistory?: string;
+  dentalHistory?: string;
+  reviewOfSystems?: string;
+  generalExam?: string;
+  anthropometric?: { weight?: number; height?: number; bmi?: number };
+  /** Short dental exam fields */
+  oralFindings?: string;
+  dentalCheckboxes?: {
+    caries?: boolean;
+    missingTeeth?: boolean;
+    mobility?: boolean;
+    pocketDepth?: boolean;
+    prosthetics?: boolean;
+    orthodonticAppliances?: boolean;
+  };
 }
 
 /* Dental module types */
@@ -267,6 +285,29 @@ export interface Document {
   updatedBy?: string;
 }
 
+export interface EquipmentItem {
+  id?: number;
+  name: string;
+  stock: number;
+  lowStockThreshold: number;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquipmentMovement {
+  id?: number;
+  itemId: number;
+  itemName: string;
+  quantityChange: number;
+  newStock: number;
+  reason: string;
+  patientId?: number;
+  userName: string;
+  clinicId?: string;
+  createdAt: string;
+}
+
 export type AuditEventType =
   | "login" | "login_fail" | "logout"
   | "patient_create" | "patient_update" | "patient_delete" | "patient_view"
@@ -328,6 +369,38 @@ function ORTHODONTIC_DEFAULTS(now: string): Omit<Drug, "id">[] {
   ];
 }
 
+export const EQUIPMENT_LIST: string[] = [
+  "Brosses/brossettes ortho",
+  "Blouses/urgences",
+  "Sabots",
+  "Mouchoirs-charlottes",
+  "Rouleaux salivaires",
+  "Sacs poubelles-canules",
+  "Aligneurs blanchiment",
+  "Tablier de plomb",
+  "Masque",
+  "Consommable ortho",
+  "Fourre-tout",
+  "Gants-compresse",
+  "Seringue d'irrigation",
+  "Localisation d'apex",
+  "Bandes orthodontiques",
+  "Boîtiers/brackets métal",
+  "Boîtiers/brackets céramique",
+  "Fils orthodontiques NiTi",
+  "Fils orthodontiques acier",
+  "Élastiques/chaînes élastiques",
+  "Bagues/anneaux",
+  "Tubes molaires",
+  "Boutons",
+  "Ressorts",
+  "Ligatures élastiques et métalliques",
+  "Séparateurs",
+  "Matériel de contention (fils, gaines, colle)",
+  "Ciments orthodontiques",
+  "Colles pour brackets",
+];
+
 class DentaDB extends Dexie {
   users!: Table<User>;
   patients!: Table<Patient>;
@@ -339,6 +412,8 @@ class DentaDB extends Dexie {
   drugs!: Table<Drug>;
   drugTransactions!: Table<DrugTransaction>;
   generatedDocs!: Table<GeneratedDoc>;
+  equipmentItems!: Table<EquipmentItem>;
+  equipmentMovements!: Table<EquipmentMovement>;
 
   constructor() {
     super("DivineLinkDB");
@@ -524,6 +599,21 @@ class DentaDB extends Dexie {
         await tx.table("drugs").add(item);
       }
     });
+    // v12: equipment stock management tables
+    this.version(12).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+    });
   }
 }
 
@@ -574,5 +664,19 @@ export async function seedDatabase() {
   if (drugCount === 0) {
     const now = new Date().toISOString();
     await db.drugs.bulkAdd(ORTHODONTIC_DEFAULTS(now) as Drug[]);
+  }
+
+  const equipCount = await db.equipmentItems.count();
+  if (equipCount === 0) {
+    const now = new Date().toISOString();
+    await db.equipmentItems.bulkAdd(
+      EQUIPMENT_LIST.map(name => ({
+        name,
+        stock: 10,
+        lowStockThreshold: 5,
+        createdAt: now,
+        updatedAt: now,
+      }))
+    );
   }
 }

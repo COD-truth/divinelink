@@ -371,6 +371,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "nav.diagnostics": { en: "Diagnostics", fr: "Diagnostics" },
   "nav.statistics": { en: "Statistics", fr: "Statistiques" },
   "nav.pharmacy": { en: "Pharmacy", fr: "Pharmacie" },
+  "nav.equipment": { en: "Equipment stock", fr: "Stock d'équipement" },
 
   // Dashboard widgets (Phase 2)
   "dash.widget.recentPatients": { en: "Recent Patients", fr: "Patients recents" },

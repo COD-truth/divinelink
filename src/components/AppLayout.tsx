@@ -4,7 +4,7 @@ import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -20,7 +20,7 @@ import { toast } from "sonner";
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
-  | "security" | "research" | "clinic" | "pharmacy" | "dental" | "payments" | "workspace";
+  | "security" | "research" | "clinic" | "pharmacy" | "dental" | "payments" | "workspace" | "equipment";
 
 interface Props {
   currentPage: Page;
@@ -133,6 +133,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },
     { page: "audit", icon: <ScrollText className="w-5 h-5" />, label: t("nav.audit"), roles: ["admin"] },
     { page: "clinic", icon: <Building2 className="w-5 h-5" />, label: t("nav.clinic"), roles: ["admin"] },
+    { page: "equipment", icon: <Package className="w-5 h-5" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
   ];
 
   const visibleMain = mainNav.filter(i => hasRole(i.roles as any));
@@ -174,6 +175,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "security" as Page, icon: <ShieldCheck className="w-6 h-6" />, label: t("nav.security"), roles: ["admin"] },
     { page: "audit" as Page, icon: <ScrollText className="w-6 h-6" />, label: t("nav.audit"), roles: ["admin"] },
     { page: "clinic" as Page, icon: <Building2 className="w-6 h-6" />, label: t("nav.clinic"), roles: ["admin"] },
+    { page: "equipment" as Page, icon: <Package className="w-6 h-6" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
   ].filter(i => hasRole(i.roles as any));
 
   const remainingMs = sessionExpiresAt ? Math.max(0, sessionExpiresAt - Date.now()) : 0;

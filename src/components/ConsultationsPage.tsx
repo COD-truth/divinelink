@@ -544,6 +544,7 @@ export function ConsultationsPage() {
   const selPat = patients.find(p => p.id?.toString() === form.patientId);
   const hasFatal = hasFatalAllergy(selPat);
 
+  // Auto-BMI
   const handleWeightHeight = (field: "weight" | "height", val: string) => {
     setForm(f => {
       const w = field === "weight" ? parseFloat(val) : parseFloat(f.weight);
