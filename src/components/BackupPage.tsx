@@ -212,7 +212,10 @@ export function BackupPage() {
       const json = bytes.toString(CryptoJS.enc.Utf8);
       if (!json) throw new Error("Wrong password");
 
-      const data = JSON.parse(json);
+      const parsed = JSON.parse(json);
+      const { data, report } = sanitizeBackup(parsed);
+      const rejectedSummary = formatRejected(report);
+      if (rejectedSummary) toast.warning(`Records rejected: ${rejectedSummary}`);
 
       // Clear and restore
       await db.transaction("rw", [db.users, db.patients, db.appointments, db.consultations, db.documents], async () => {
@@ -222,14 +225,14 @@ export function BackupPage() {
         await db.consultations.clear();
         await db.documents.clear();
 
-        if (data.users?.length) await db.users.bulkAdd(data.users);
-        if (data.patients?.length) {
+        if (data.users.length) await db.users.bulkAdd(data.users);
+        if (data.patients.length) {
           const reEnc = await Promise.all(data.patients.map((p: any) => encryptPatientForSave(p)));
           await db.patients.bulkAdd(reEnc);
         }
-        if (data.appointments?.length) await db.appointments.bulkAdd(data.appointments);
-        if (data.consultations?.length) await db.consultations.bulkAdd(data.consultations);
-        if (data.documents?.length) await db.documents.bulkAdd(data.documents);
+        if (data.appointments.length) await db.appointments.bulkAdd(data.appointments);
+        if (data.consultations.length) await db.consultations.bulkAdd(data.consultations);
+        if (data.documents.length) await db.documents.bulkAdd(data.documents);
       });
 
       toast.success(t("backup.success"));
