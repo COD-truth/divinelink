@@ -19,6 +19,7 @@ import {
 } from "@/lib/sync";
 import { saveFile, withDateStamp } from "@/lib/download";
 import { logAudit } from "@/lib/audit";
+import { sanitizeBackup, formatRejected } from "@/lib/backupValidate";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function BackupPage() {
