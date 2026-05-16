@@ -100,11 +100,9 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const handleSwitch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pickedUser) return;
-    const expected = await hashPin(switchPin);
-    if (expected === pickedUser.pinHash) {
-      const ok = await login(switchPin);
-      if (ok) setSwitchOpen(false); else setSwitchErr(true);
-    } else setSwitchErr(true);
+    // login() verifies the PIN against the stored per-user salted hash.
+    const ok = await login(switchPin);
+    if (ok) setSwitchOpen(false); else setSwitchErr(true);
   };
 
   const roleBadgeClass = (r?: UserRole) =>
