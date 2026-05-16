@@ -110,9 +110,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, logout]);
 
   const login = async (pin: string): Promise<boolean> => {
-    const hash = await hashPin(pin);
-    const found = await db.users.where("pinHash").equals(hash).first();
-    if (found && found.active && found.id) {
+    // Iterate active users and verify against per-user salted hash.
+    const candidates = await db.users.filter(u => !!u.active).toArray();
+    let found: User | undefined;
+    for (const u of candidates) {
+      if (await verifyPin(pin, u.pinHash)) { found = u; break; }
+    }
+    if (found && found.id) {
+      // Transparently upgrade legacy SHA-256 hashes to PBKDF2 on success.
+      if (!found.pinHash.startsWith("pbkdf2$")) {
+        try {
+          const upgraded = await hashPin(pin);
+          await db.users.update(found.id, { pinHash: upgraded });
+          found = { ...found, pinHash: upgraded };
+        } catch { /* non-fatal */ }
+      }
       setUser(found);
       const exp = writeSession(found.id);
       setSessionExpiresAt(exp);
