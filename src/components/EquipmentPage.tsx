@@ -167,15 +167,17 @@ export function EquipmentPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filtered.map(item => {
+        {filtered.map((item, idx) => {
           const isLow = item.stock <= item.lowStockThreshold;
+          // Disable up/down based on position in the unfiltered list
+          const fullIdx = items.findIndex(i => i.id === item.id);
           return (
             <Card key={item.id} className={isLow ? "border-orange-400" : ""}>
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-medium flex items-start justify-between gap-2">
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 min-w-0">
                     <Package className="w-4 h-4 text-muted-foreground shrink-0" />
-                    {item.name}
+                    <span className="truncate">{item.name}</span>
                   </span>
                   {isLow && <Badge variant="outline" className="text-orange-600 border-orange-400 shrink-0">Faible</Badge>}
                 </CardTitle>
@@ -195,8 +197,25 @@ export function EquipmentPage() {
                     disabled={item.stock === 0}>
                     <Minus className="w-4 h-4" />Retirer
                   </Button>
-                  <Button size="sm" variant="ghost" className="px-2" onClick={() => openHistory(item)}>
+                  <Button size="sm" variant="ghost" className="px-2" onClick={() => openHistory(item)} title="Historique">
                     <History className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex gap-1 pt-1 border-t">
+                  <Button size="sm" variant="ghost" className="px-2 h-8" onClick={() => move(item, -1)}
+                    disabled={fullIdx <= 0} title="Monter">
+                    <ArrowUp className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="px-2 h-8" onClick={() => move(item, 1)}
+                    disabled={fullIdx === items.length - 1} title="Descendre">
+                    <ArrowDown className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="px-2 h-8 ml-auto" onClick={() => openRename(item)} title="Renommer">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="px-2 h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => deleteItem(item)} title="Supprimer">
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -204,6 +223,23 @@ export function EquipmentPage() {
           );
         })}
       </div>
+
+      {/* ── Rename dialog ── */}
+      <Dialog open={!!renameDialog} onOpenChange={v => { if (!v) setRenameDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Renommer l'article</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>Nouveau nom</Label>
+            <Input value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialog(null)}>Annuler</Button>
+            <Button onClick={saveRename}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Movement dialog ── */}
       <Dialog open={!!movementDialog} onOpenChange={v => { if (!v) setMovementDialog(null); }}>
