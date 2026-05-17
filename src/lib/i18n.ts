@@ -584,8 +584,10 @@ const translations: Record<string, Record<Lang, string>> = {
   "consult.template.pulpectomy": { en: "Pulpectomy", fr: "Pulpectomie" },
   "consult.template.crown": { en: "Crown", fr: "Couronne" },
   "consult.type": { en: "Type", fr: "Type" },
-  "consult.type.general": { en: "General", fr: "Générale" },
-  "consult.type.dental": { en: "Dental", fr: "Dentaire" },
+  "consult.type.general": { en: "General medicine", fr: "Médecine générale" },
+  "consult.type.dental": { en: "General dentist", fr: "Dentiste généraliste" },
+  "consult.type.orthodontic": { en: "Orthodontist", fr: "Orthodontiste" },
+  "consult.type.other": { en: "Other specialty", fr: "Autre spécialité" },
   "consult.differentials": { en: "Differential diagnoses", fr: "Diagnostics différentiels" },
   "consult.selectDiagnosis": { en: "Select to fill diagnosis", fr: "Sélectionner pour remplir" },
 

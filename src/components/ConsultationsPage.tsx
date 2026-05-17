@@ -671,6 +671,8 @@ export function ConsultationsPage() {
                   <SelectContent>
                     <SelectItem value="general">{t("consult.type.general")}</SelectItem>
                     <SelectItem value="dental">{t("consult.type.dental")}</SelectItem>
+                    <SelectItem value="orthodontic">{t("consult.type.orthodontic")}</SelectItem>
+                    <SelectItem value="other">{t("consult.type.other")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

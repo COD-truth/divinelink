@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, History, Package, TriangleAlert as AlertTriangle } from "lucide-react";
+import { Plus, Minus, History, Package, TriangleAlert as AlertTriangle, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/dateFormat";
 import { decryptPatients } from "@/lib/patientCrypto";
@@ -38,12 +38,57 @@ export function EquipmentPage() {
   const [patients, setPatients] = useState<{ id: number; name: string }[]>([]);
   const [search, setSearch] = useState("");
 
+  const [renameDialog, setRenameDialog] = useState<EquipmentItem | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
   const load = useCallback(async () => {
     const all = await db.equipmentItems.toArray();
-    setItems(all.sort((a, b) => a.name.localeCompare(b.name)));
+    setItems(all.sort((a, b) => {
+      const pa = a.priority ?? 9999;
+      const pb = b.priority ?? 9999;
+      if (pa !== pb) return pa - pb;
+      return a.name.localeCompare(b.name);
+    }));
     const pats = await decryptPatients(await db.patients.toArray());
     setPatients(pats.map(p => ({ id: p.id!, name: `${p.firstName} ${p.lastName}` })));
   }, []);
+
+  const openRename = (item: EquipmentItem) => {
+    setRenameDialog(item);
+    setRenameValue(item.name);
+  };
+
+  const saveRename = async () => {
+    if (!renameDialog) return;
+    const name = renameValue.trim();
+    if (!name) { toast.error("Nom requis"); return; }
+    await db.equipmentItems.update(renameDialog.id!, { name, updatedAt: new Date().toISOString() });
+    toast.success("Article renommé");
+    setRenameDialog(null);
+    load();
+  };
+
+  const deleteItem = async (item: EquipmentItem) => {
+    if (!confirm(`Supprimer définitivement "${item.name}" ?\n\nL'historique des mouvements sera également supprimé.`)) return;
+    await db.equipmentMovements.where("itemId").equals(item.id!).delete();
+    await db.equipmentItems.delete(item.id!);
+    toast.success("Article supprimé");
+    load();
+  };
+
+  const move = async (item: EquipmentItem, dir: -1 | 1) => {
+    // Normalize priorities based on current ordering
+    const ordered = [...items];
+    const idx = ordered.findIndex(i => i.id === item.id);
+    const target = idx + dir;
+    if (target < 0 || target >= ordered.length) return;
+    [ordered[idx], ordered[target]] = [ordered[target], ordered[idx]];
+    const now = new Date().toISOString();
+    await Promise.all(ordered.map((it, i) =>
+      db.equipmentItems.update(it.id!, { priority: i, updatedAt: now })
+    ));
+    load();
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -122,15 +167,17 @@ export function EquipmentPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filtered.map(item => {
+        {filtered.map((item, idx) => {
           const isLow = item.stock <= item.lowStockThreshold;
+          // Disable up/down based on position in the unfiltered list
+          const fullIdx = items.findIndex(i => i.id === item.id);
           return (
             <Card key={item.id} className={isLow ? "border-orange-400" : ""}>
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-medium flex items-start justify-between gap-2">
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 min-w-0">
                     <Package className="w-4 h-4 text-muted-foreground shrink-0" />
-                    {item.name}
+                    <span className="truncate">{item.name}</span>
                   </span>
                   {isLow && <Badge variant="outline" className="text-orange-600 border-orange-400 shrink-0">Faible</Badge>}
                 </CardTitle>
@@ -150,8 +197,25 @@ export function EquipmentPage() {
                     disabled={item.stock === 0}>
                     <Minus className="w-4 h-4" />Retirer
                   </Button>
-                  <Button size="sm" variant="ghost" className="px-2" onClick={() => openHistory(item)}>
+                  <Button size="sm" variant="ghost" className="px-2" onClick={() => openHistory(item)} title="Historique">
                     <History className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex gap-1 pt-1 border-t">
+                  <Button size="sm" variant="ghost" className="px-2 h-8" onClick={() => move(item, -1)}
+                    disabled={fullIdx <= 0} title="Monter">
+                    <ArrowUp className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="px-2 h-8" onClick={() => move(item, 1)}
+                    disabled={fullIdx === items.length - 1} title="Descendre">
+                    <ArrowDown className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="px-2 h-8 ml-auto" onClick={() => openRename(item)} title="Renommer">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="px-2 h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => deleteItem(item)} title="Supprimer">
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -159,6 +223,23 @@ export function EquipmentPage() {
           );
         })}
       </div>
+
+      {/* ── Rename dialog ── */}
+      <Dialog open={!!renameDialog} onOpenChange={v => { if (!v) setRenameDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Renommer l'article</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>Nouveau nom</Label>
+            <Input value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialog(null)}>Annuler</Button>
+            <Button onClick={saveRename}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Movement dialog ── */}
       <Dialog open={!!movementDialog} onOpenChange={v => { if (!v) setMovementDialog(null); }}>
