@@ -468,21 +468,20 @@ export function DashboardPage({ onNavigate }: Props) {
           })}
         </div>
 
-        {/* Quick actions — compact row of cards */}
+        {/* Quick actions — larger touch-friendly cards */}
         <div>
-          <h2 className="text-sm font-semibold mb-2">{t("dash.quickActions")}</h2>
-          <div className="flex flex-wrap gap-2">
+          <h2 className="text-base font-semibold mb-3">{t("dash.quickActions")}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {actions.map((a, i) => {
               const Icon = a.icon;
               return (
                 <button
                   key={i}
                   onClick={() => onNavigate?.(a.page)}
-                  className={`${a.bg} ${a.fg} rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 hover:scale-[1.03] hover:shadow-md transition-all duration-150 shadow-sm`}
-                  style={{ width: 90, height: 84 }}
+                  className={`${a.bg} ${a.fg} rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 hover:scale-[1.03] hover:shadow-lg transition-all duration-150 shadow-sm py-5 px-3 min-h-[120px]`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-[10px] font-semibold text-center px-1.5 leading-tight">{a.label}</span>
+                  <Icon className="w-8 h-8" />
+                  <span className="text-sm font-semibold text-center leading-tight">{a.label}</span>
                 </button>
               );
             })}

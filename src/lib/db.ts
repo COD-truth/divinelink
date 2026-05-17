@@ -127,7 +127,7 @@ export interface Appointment {
   updatedAt: string;
 }
 
-export type ConsultationType = "general" | "dental";
+export type ConsultationType = "general" | "dental" | "orthodontic" | "other";
 
 export interface Consultation {
   id?: number;
@@ -290,6 +290,7 @@ export interface EquipmentItem {
   name: string;
   stock: number;
   lowStockThreshold: number;
+  priority?: number;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
