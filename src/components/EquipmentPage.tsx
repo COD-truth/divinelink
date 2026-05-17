@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, History, Package, TriangleAlert as AlertTriangle } from "lucide-react";
+import { Plus, Minus, History, Package, TriangleAlert as AlertTriangle, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/dateFormat";
 import { decryptPatients } from "@/lib/patientCrypto";
@@ -38,12 +38,57 @@ export function EquipmentPage() {
   const [patients, setPatients] = useState<{ id: number; name: string }[]>([]);
   const [search, setSearch] = useState("");
 
+  const [renameDialog, setRenameDialog] = useState<EquipmentItem | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
   const load = useCallback(async () => {
     const all = await db.equipmentItems.toArray();
-    setItems(all.sort((a, b) => a.name.localeCompare(b.name)));
+    setItems(all.sort((a, b) => {
+      const pa = a.priority ?? 9999;
+      const pb = b.priority ?? 9999;
+      if (pa !== pb) return pa - pb;
+      return a.name.localeCompare(b.name);
+    }));
     const pats = await decryptPatients(await db.patients.toArray());
     setPatients(pats.map(p => ({ id: p.id!, name: `${p.firstName} ${p.lastName}` })));
   }, []);
+
+  const openRename = (item: EquipmentItem) => {
+    setRenameDialog(item);
+    setRenameValue(item.name);
+  };
+
+  const saveRename = async () => {
+    if (!renameDialog) return;
+    const name = renameValue.trim();
+    if (!name) { toast.error("Nom requis"); return; }
+    await db.equipmentItems.update(renameDialog.id!, { name, updatedAt: new Date().toISOString() });
+    toast.success("Article renommé");
+    setRenameDialog(null);
+    load();
+  };
+
+  const deleteItem = async (item: EquipmentItem) => {
+    if (!confirm(`Supprimer définitivement "${item.name}" ?\n\nL'historique des mouvements sera également supprimé.`)) return;
+    await db.equipmentMovements.where("itemId").equals(item.id!).delete();
+    await db.equipmentItems.delete(item.id!);
+    toast.success("Article supprimé");
+    load();
+  };
+
+  const move = async (item: EquipmentItem, dir: -1 | 1) => {
+    // Normalize priorities based on current ordering
+    const ordered = [...items];
+    const idx = ordered.findIndex(i => i.id === item.id);
+    const target = idx + dir;
+    if (target < 0 || target >= ordered.length) return;
+    [ordered[idx], ordered[target]] = [ordered[target], ordered[idx]];
+    const now = new Date().toISOString();
+    await Promise.all(ordered.map((it, i) =>
+      db.equipmentItems.update(it.id!, { priority: i, updatedAt: now })
+    ));
+    load();
+  };
 
   useEffect(() => { load(); }, [load]);
 
