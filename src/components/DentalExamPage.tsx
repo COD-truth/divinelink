@@ -327,10 +327,10 @@ export function DentalExamPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">{t("dental.material")}</Label>
-                <Select value={selectedRecord.material || ""} onValueChange={v => updateTooth({ material: v as DentalMaterial })}>
+                <Select value={selectedRecord.material || "__none__"} onValueChange={v => updateTooth({ material: (v === "__none__" ? undefined : v) as DentalMaterial })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{t("common.noData")}</SelectItem>
+                    <SelectItem value="__none__">{t("common.noData")}</SelectItem>
                     {MATERIALS.map(m => <SelectItem key={m} value={m}>{t(`dental.mat.${m}`)}</SelectItem>)}
                   </SelectContent>
                 </Select>
