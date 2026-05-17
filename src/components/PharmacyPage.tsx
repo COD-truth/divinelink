@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { db, type Drug, type DrugTransaction, type DrugStatus, type TransactionType, type PaymentStatus, type ExitReason } from "@/lib/db";
+import { db, type Drug, type DrugTransaction, type DrugStatus, type TransactionType, type PaymentStatus, type ExitReason, type Patient } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Download, TriangleAlert as AlertTriangle, ArrowDown, ArrowUp, Bell, Pencil, Trash2, ArrowUpDown, Package } from "lucide-react";
 import { toast } from "sonner";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
-import { decryptPatients, type Patient } from "@/lib/patientCrypto";
+import { decryptPatients } from "@/lib/patientCrypto";
 
 /* ---- Constants ---- */
 const DRUG_CATEGORIES = [

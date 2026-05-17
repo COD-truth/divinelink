@@ -102,7 +102,7 @@ export function GlobalPaymentsPage() {
       "Nbre prestations": p.paymentCount,
       "Dernier mouvement": fmtDate(p.lastPayment||"")
     }));
-    saveFile(toCsv(rows), withDateStamp("paiements-patients")+".csv", "text/csv");
+    saveFile(withDateStamp("paiements-patients")+".csv", toCsv(rows), "csv");
   };
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId);

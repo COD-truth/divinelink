@@ -59,6 +59,7 @@ export interface PaymentInstallment {
   amount: number;
   method: PaymentMethod;
   paidAt: string;
+  receivedBy?: string;
   notes?: string;
 }
 
