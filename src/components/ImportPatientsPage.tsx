@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileSpreadsheet, FolderUp, Save } from "lucide-react";
 import { toast } from "sonner";
-import { logEvent } from "@/lib/audit";
+import { logAudit } from "@/lib/audit";
 
 type DuplicateAction = "ignore" | "update" | "new";
 
