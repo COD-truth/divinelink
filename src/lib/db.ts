@@ -35,6 +35,8 @@ export interface Patient {
   patientId: string;
   /** Anonymous shareable code */
   anonCode?: string;
+  /** External clinic ID (from Excel import) */
+  externalId?: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -176,6 +178,49 @@ export interface Consultation {
     prosthetics?: boolean;
     orthodonticAppliances?: boolean;
   };
+  /** Observation template used for this consultation */
+  templateId?: number;
+  /** Custom fields filled in from the template (id -> value) */
+  customFields?: Record<string, any>;
+}
+
+/* ── Observation templates ── */
+export type TemplateSpecialty = "general" | "dental" | "orthodontic" | "other";
+export type TemplateFieldType =
+  | "short_text" | "long_text" | "checkbox" | "select" | "vitals" | "anthropometric";
+
+export interface TemplateField {
+  id: string;
+  type: TemplateFieldType;
+  label: string;
+  required?: boolean;
+  options?: string[];
+}
+
+export interface ConsultationTemplate {
+  id?: number;
+  name: string;
+  specialty: TemplateSpecialty;
+  fieldsDefinition: TemplateField[];
+  active: boolean;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── Imported Word documents (from clinic Excel/Word migration) ── */
+export interface ImportedDocument {
+  id?: number;
+  patientId: number;
+  filename: string;
+  mimeType: string;
+  /** base64 data URL (so it can be backed up with the rest) */
+  data: string;
+  size: number;
+  source: "import" | "manual";
+  convertedConsultationId?: number;
+  clinicId?: string;
+  uploadedAt: string;
 }
 
 /* Dental module types */
@@ -416,6 +461,8 @@ class DentaDB extends Dexie {
   generatedDocs!: Table<GeneratedDoc>;
   equipmentItems!: Table<EquipmentItem>;
   equipmentMovements!: Table<EquipmentMovement>;
+  consultationTemplates!: Table<ConsultationTemplate>;
+  importedDocuments!: Table<ImportedDocument>;
 
   constructor() {
     super("DivineLinkDB");
@@ -615,6 +662,23 @@ class DentaDB extends Dexie {
       generatedDocs: "++id, type, patientId, createdAt, clinicId",
       equipmentItems: "++id, name, clinicId",
       equipmentMovements: "++id, itemId, createdAt, clinicId",
+    });
+    // v13: observation templates + imported Word docs + external patient ID
+    this.version(13).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, externalId, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, templateId, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+      consultationTemplates: "++id, specialty, active, clinicId, createdAt",
+      importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
     });
   }
 }

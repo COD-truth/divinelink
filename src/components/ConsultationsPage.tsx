@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient, type VitalSigns, type ConsultationType } from "@/lib/db";
+import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient, type VitalSigns, type ConsultationType, type ConsultationTemplate } from "@/lib/db";
+import { TemplateRenderer } from "@/components/TemplateRenderer";
 import { computeBMI, hasFatalAllergy, joinFullName, ageFromDob } from "@/lib/patientHelpers";
 import { TriangleAlert as AlertTri, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -318,6 +319,11 @@ export function ConsultationsPage() {
   const [form, setForm] = useState<ConsultForm>(EMPTY_FORM);
   const [consultNumber, setConsultNumber] = useState("");
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
+  const [templates, setTemplates] = useState<ConsultationTemplate[]>([]);
+  const [templateId, setTemplateId] = useState<string>("__none__");
+  const [customFields, setCustomFields] = useState<Record<string, any>>({});
+  useEffect(() => { db.consultationTemplates.filter(t => t.active).toArray().then(setTemplates); }, []);
+  const selectedTemplate = templates.find(t => t.id === parseInt(templateId));
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
   const [annotateImg, setAnnotateImg] = useState<ConsultationImage | null>(null);
   const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
