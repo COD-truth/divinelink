@@ -35,6 +35,7 @@ import { decryptPatient, encryptPatientForSave } from "@/lib/patientCrypto";
 import { DocGenPanel } from "@/components/DocGenPanel";
 import { AIClinicalAssistant, AIButton } from "@/components/AIClinicalAssistant";
 import { VitalSignsTrends } from "@/components/VitalSignsTrends";
+import { ImportedDocumentsTab } from "@/components/ImportedDocumentsTab";
 
 interface Props {
   patient: Patient;
@@ -357,6 +358,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
             <TabsTrigger value="cons">{t("tab.consultations")}</TabsTrigger>
             <TabsTrigger value="courbes">📈</TabsTrigger>
             <TabsTrigger value="docs">{t("tab.documents")}</TabsTrigger>
+            <TabsTrigger value="imported">📄 Word</TabsTrigger>
             <TabsTrigger value="pay">{t("tab.payments")}</TabsTrigger>
             <TabsTrigger value="tl">{t("tab.timeline")}</TabsTrigger>
           </TabsList>
@@ -375,6 +377,9 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
           </TabsContent>
           <TabsContent value="docs">
             <DocumentsTab patientId={p.id!} />
+          </TabsContent>
+          <TabsContent value="imported">
+            <ImportedDocumentsTab patientId={p.id!} />
           </TabsContent>
           <TabsContent value="pay">
             <PaymentsTab patientId={p.id!} onChanged={onChanged} />

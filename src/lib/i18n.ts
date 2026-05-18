@@ -372,6 +372,9 @@ const translations: Record<string, Record<Lang, string>> = {
   "nav.statistics": { en: "Statistics", fr: "Statistiques" },
   "nav.pharmacy": { en: "Pharmacy", fr: "Pharmacie" },
   "nav.equipment": { en: "Equipment stock", fr: "Stock d'équipement" },
+  "nav.templates": { en: "Observation templates", fr: "Modèles d'observation" },
+  "nav.importPatients": { en: "Import patients", fr: "Importer des patients" },
+  "nav.sync": { en: "Scheduled sync", fr: "Synchronisation planifiée" },
 
   // Dashboard widgets (Phase 2)
   "dash.widget.recentPatients": { en: "Recent Patients", fr: "Patients recents" },
