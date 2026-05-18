@@ -463,6 +463,8 @@ class DentaDB extends Dexie {
   equipmentMovements!: Table<EquipmentMovement>;
   consultationTemplates!: Table<ConsultationTemplate>;
   importedDocuments!: Table<ImportedDocument>;
+
+  constructor() {
     super("DivineLinkDB");
     this.version(1).stores({
       users: "++id, name, role, pinHash",
