@@ -35,6 +35,8 @@ export interface Patient {
   patientId: string;
   /** Anonymous shareable code */
   anonCode?: string;
+  /** External clinic ID (from Excel import) */
+  externalId?: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -176,6 +178,49 @@ export interface Consultation {
     prosthetics?: boolean;
     orthodonticAppliances?: boolean;
   };
+  /** Observation template used for this consultation */
+  templateId?: number;
+  /** Custom fields filled in from the template (id -> value) */
+  customFields?: Record<string, any>;
+}
+
+/* ── Observation templates ── */
+export type TemplateSpecialty = "general" | "dental" | "orthodontic" | "other";
+export type TemplateFieldType =
+  | "short_text" | "long_text" | "checkbox" | "select" | "vitals" | "anthropometric";
+
+export interface TemplateField {
+  id: string;
+  type: TemplateFieldType;
+  label: string;
+  required?: boolean;
+  options?: string[];
+}
+
+export interface ConsultationTemplate {
+  id?: number;
+  name: string;
+  specialty: TemplateSpecialty;
+  fieldsDefinition: TemplateField[];
+  active: boolean;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── Imported Word documents (from clinic Excel/Word migration) ── */
+export interface ImportedDocument {
+  id?: number;
+  patientId: number;
+  filename: string;
+  mimeType: string;
+  /** base64 data URL (so it can be backed up with the rest) */
+  data: string;
+  size: number;
+  source: "import" | "manual";
+  convertedConsultationId?: number;
+  clinicId?: string;
+  uploadedAt: string;
 }
 
 /* Dental module types */
