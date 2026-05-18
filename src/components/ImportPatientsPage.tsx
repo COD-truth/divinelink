@@ -138,7 +138,7 @@ export function ImportPatientsPage() {
         docs++;
       }
     }
-    await logEvent({ type: "backup_import", message: `Import patients: +${created} maj ${updated} doc ${docs}` });
+    await logAudit("backup_import", "system", { message: `Import patients: +${created} maj ${updated} doc ${docs}` });
     toast.success(`${created} créés · ${updated} mis à jour · ${ignored} ignorés · ${docs} documents`);
     setBusy(false);
     setRows([]);
