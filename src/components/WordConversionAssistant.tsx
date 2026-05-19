@@ -107,46 +107,75 @@ export function WordConversionAssistant({ doc, onClose, onDone }: Props) {
     onDone();
   };
 
+  const FIELD_LABELS: Record<string, string> = {
+    chiefComplaint: "Motif de consultation",
+    historyOfPresentIllness: "Histoire de la maladie",
+    medicalHistory: "Antécédents médicaux",
+    generalExam: "Examen général",
+    diagnosis: "Diagnostic",
+    treatmentPlan: "Plan de traitement",
+    prescription: "Prescription",
+    notes: "Notes",
+  };
+
+  const assignSelectionTo = (field: string) => {
+    const sel = window.getSelection()?.toString().trim();
+    if (!sel) { toast.info("Sélectionnez d'abord du texte dans le panneau gauche"); return; }
+    setSections(s => ({ ...s, [field]: (s[field] ? s[field] + "\n" : "") + sel }));
+    toast.success(`Ajouté à « ${FIELD_LABELS[field]} »`);
+  };
+
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full h-[100dvh] max-w-none rounded-none p-4 sm:p-6 sm:h-auto sm:max-w-5xl sm:max-h-[90vh] sm:rounded-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Convertir en consultation — {doc.filename}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-xs">Modèle d'observation</Label>
-            <Select value={templateId} onValueChange={setTemplateId}>
-              <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Aucun</SelectItem>
-                {templates.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* LEFT: raw extracted text + manual mapping */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs font-semibold">Texte extrait (sélectionnez puis assignez)</Label>
+              <Select onValueChange={assignSelectionTo}>
+                <SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue placeholder="Assigner à…" /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(FIELD_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="border rounded-md p-3 bg-muted/30 text-xs whitespace-pre-wrap max-h-[60vh] overflow-y-auto select-text">
+              {rawText || "Extraction…"}
+            </div>
           </div>
-          {selectedTpl && (
-            <div className="border rounded-md p-3">
-              <p className="text-xs font-semibold mb-2">Champs du modèle</p>
-              <TemplateRenderer fields={selectedTpl.fieldsDefinition} values={customValues} onChange={setCustomValues} />
+
+          {/* RIGHT: editable form fields */}
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div>
+              <Label className="text-xs">Modèle d'observation</Label>
+              <Select value={templateId} onValueChange={setTemplateId}>
+                <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Aucun</SelectItem>
+                  {templates.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          {Object.entries({
-            chiefComplaint: "Motif de consultation",
-            historyOfPresentIllness: "Histoire de la maladie",
-            medicalHistory: "Antécédents médicaux",
-            generalExam: "Examen général",
-            diagnosis: "Diagnostic",
-            treatmentPlan: "Plan de traitement",
-            prescription: "Prescription",
-            notes: "Notes",
-          }).map(([k, label]) => (
-            <div key={k}>
-              <Label className="text-xs">{label}</Label>
-              <Textarea
-                rows={2}
-                value={sections[k] || ""}
-                onChange={e => setSections(s => ({ ...s, [k]: e.target.value }))}
-              />
-            </div>
-          ))}
+            {selectedTpl && (
+              <div className="border rounded-md p-3">
+                <p className="text-xs font-semibold mb-2">Champs du modèle</p>
+                <TemplateRenderer fields={selectedTpl.fieldsDefinition} values={customValues} onChange={setCustomValues} />
+              </div>
+            )}
+            {Object.entries(FIELD_LABELS).map(([k, label]) => (
+              <div key={k}>
+                <Label className="text-xs">{label}</Label>
+                <Textarea
+                  rows={2}
+                  value={sections[k] || ""}
+                  onChange={e => setSections(s => ({ ...s, [k]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
