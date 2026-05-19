@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, TriangleAlert as AlertTriangle, Trash2, Upload, X, Download, Copy, Share2, CalendarPlus, Camera, QrCode, Printer } from "lucide-react";
-import { getClinicName } from "@/lib/clinicSettings";
+import { getClinicSettings } from "@/lib/clinicSettings";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
 import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
