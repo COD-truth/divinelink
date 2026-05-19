@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, TriangleAlert as AlertTriangle, Trash2, Upload, X, Download, Copy, Share2, CalendarPlus } from "lucide-react";
+import { Plus, Search, TriangleAlert as AlertTriangle, Trash2, Upload, X, Download, Copy, Share2, CalendarPlus, Camera, QrCode, Printer } from "lucide-react";
+import { getClinicName } from "@/lib/clinicSettings";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageUtils";
 import { decryptPatients, encryptPatientForSave } from "@/lib/patientCrypto";
@@ -26,6 +27,7 @@ export function PatientsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [profile, setProfile] = useState<Patient | null>(null);
   const [referral, setReferral] = useState<Patient | null>(null);
+  const [codeCard, setCodeCard] = useState<Patient | null>(null);
   const [paySummary, setPaySummary] = useState<Record<number, { status: "paid"|"partial"|"unpaid"; balance: number }>>({});
   const [lastVisitMap, setLastVisitMap] = useState<Record<number, { days: number; lastDx: string }>>({});
 
@@ -198,7 +200,9 @@ export function PatientsPage() {
                     </p>
                     {p.anonCode && (
                       <div className="flex items-center gap-1 mt-1">
-                        <code className="text-[10px] bg-accent px-1.5 py-0.5 rounded font-mono">{p.anonCode}</code>
+                        <button type="button" className="text-[10px] bg-accent hover:bg-accent/70 px-1.5 py-0.5 rounded font-mono inline-flex items-center gap-1" onClick={(e) => { e.stopPropagation(); setCodeCard(p); }} title="Show code card">
+                          <QrCode className="w-3 h-3" />{p.anonCode}
+                        </button>
                         <Button variant="ghost" size="icon" className="w-5 h-5" onClick={(e) => { e.stopPropagation(); copyText(p.anonCode!); }}>
                           <Copy className="w-3 h-3" />
                         </Button>
@@ -233,13 +237,22 @@ export function PatientsPage() {
                 ) : <span>{t("doc.profilePhoto")}</span>}
               </div>
               <div className="flex flex-col gap-2">
-                <Button asChild size="sm" variant="outline" type="button">
-                  <label className="cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    {form.photo ? t("doc.changePhoto") : t("doc.profilePhoto")}
-                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                  </label>
-                </Button>
+                <div className="flex gap-2">
+                  <Button asChild size="sm" variant="outline" type="button">
+                    <label className="cursor-pointer">
+                      <Camera className="w-4 h-4 mr-1" />
+                      Photo
+                      <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoUpload} />
+                    </label>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" type="button">
+                    <label className="cursor-pointer">
+                      <Upload className="w-4 h-4 mr-1" />
+                      {form.photo ? t("doc.changePhoto") : t("doc.profilePhoto")}
+                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                    </label>
+                  </Button>
+                </div>
                 {form.photo && (
                   <Button size="sm" variant="ghost" type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))}>
                     <X className="w-4 h-4 mr-1" /> {t("doc.removePhoto")}
@@ -321,6 +334,30 @@ export function PatientsPage() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Patient code card */}
+      <Dialog open={!!codeCard} onOpenChange={() => setCodeCard(null)}>
+        <DialogContent className="max-w-sm print:shadow-none">
+          <DialogHeader><DialogTitle>Patient Code Card</DialogTitle></DialogHeader>
+          {codeCard && (
+            <div id="code-card-print" className="border-2 border-primary rounded-xl p-6 bg-white text-center space-y-4">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">{getClinicName() || "DivineLink Clinic"}</p>
+              <p className="font-mono font-bold text-3xl tracking-wider text-primary break-all">{codeCard.anonCode || codeCard.patientId}</p>
+              <div className="flex justify-center items-end gap-[2px] h-12 px-2" aria-hidden>
+                {(codeCard.anonCode || codeCard.patientId).split("").map((ch, i) => {
+                  const v = (ch.charCodeAt(0) % 5) + 1;
+                  return <span key={i} className="bg-black" style={{ width: 3 + (v % 3), height: 20 + v * 5 }} />;
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Présentez cette carte lors de vos visites · No personal data shown</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCodeCard(null)}>{t("common.cancel")}</Button>
+            <Button onClick={() => window.print()} className="gap-2"><Printer className="w-4 h-4" />Print</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
