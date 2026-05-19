@@ -154,6 +154,7 @@ function ToothChart({ teeth, pediatric, onSelect }: { teeth: ToothRecord[]; pedi
 export function DentalExamPage() {
   const { user } = useAuth();
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [pediatric, setPediatric] = useState(false);
@@ -302,53 +303,29 @@ export function DentalExamPage() {
         </CardContent>
       </Card>
 
-      {/* Selected tooth panel */}
-      {selectedTooth !== null && selectedRecord && (
+      {/* Selected tooth panel — Sheet on mobile, Card on desktop */}
+      {selectedTooth !== null && selectedRecord && !isMobile && (
         <Card className="border-primary">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t("dental.tooth")} {selectedTooth} {CONDITION_EMOJI[selectedRecord.condition]}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">{t("dental.condition")}</Label>
-                <Select value={selectedRecord.condition} onValueChange={v => updateTooth({ condition: v as ToothCondition })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CONDITIONS.map(c => <SelectItem key={c} value={c}>{CONDITION_EMOJI[c]} {t(`dental.${c}`)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">{t("dental.treatment")}</Label>
-                <Select value={selectedRecord.treatmentDone || "__none__"} onValueChange={v => updateTooth({ treatmentDone: (v === "__none__" ? undefined : v) as DentalTreatment })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{t("common.noData")}</SelectItem>
-                    {TREATMENTS.map(tr => <SelectItem key={tr} value={tr}>{t(`dental.${tr}`)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">{t("dental.material")}</Label>
-                <Select value={selectedRecord.material || "__none__"} onValueChange={v => updateTooth({ material: (v === "__none__" ? undefined : v) as DentalMaterial })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{t("common.noData")}</SelectItem>
-                    {MATERIALS.map(m => <SelectItem key={m} value={m}>{t(`dental.mat.${m}`)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">{t("dental.notes")}</Label>
-                <Input value={selectedRecord.notes || ""} onChange={e => updateTooth({ notes: e.target.value })} />
-              </div>
-            </div>
+            <ToothEditor selectedRecord={selectedRecord} updateTooth={updateTooth} t={t} />
           </CardContent>
         </Card>
       )}
+      <Sheet open={isMobile && selectedTooth !== null} onOpenChange={o => !o && setSelectedTooth(null)}>
+        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{t("dental.tooth")} {selectedTooth} {selectedRecord && CONDITION_EMOJI[selectedRecord.condition]}</SheetTitle>
+          </SheetHeader>
+          {selectedRecord && (
+            <div className="mt-4 space-y-3">
+              <ToothEditor selectedRecord={selectedRecord} updateTooth={updateTooth} t={t} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Periodontal section */}
       <Card>
