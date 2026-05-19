@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,18 @@ export function DocumentsPage() {
   const [uploadDialog, setUploadDialog] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingTag, setPendingTag] = useState<DocumentTag>("other");
+  const [clinicalNotes, setClinicalNotes] = useState("");
+
+  // Load per-patient clinical notes from localStorage
+  useEffect(() => {
+    if (!selectedPatient) { setClinicalNotes(""); return; }
+    setClinicalNotes(localStorage.getItem(`dl.docNotes.${selectedPatient}`) || "");
+  }, [selectedPatient]);
+
+  const updateNotes = (v: string) => {
+    setClinicalNotes(v);
+    if (selectedPatient) localStorage.setItem(`dl.docNotes.${selectedPatient}`, v);
+  };
 
   const load = async () => {
     setPatients(await decryptPatients(await db.patients.toArray()));
@@ -163,6 +176,20 @@ export function DocumentsPage() {
 
   return (
     <div className="space-y-4">
+      {selectedPatient && (
+        <div className="sticky top-0 z-20 -mx-4 px-4 sm:mx-0 sm:px-0 pt-2 pb-3 bg-background/95 backdrop-blur border-b">
+          <Label className="text-xs font-semibold flex items-center gap-1 mb-1">
+            <FileText className="w-3 h-3" /> Clinical Notes
+          </Label>
+          <Textarea
+            value={clinicalNotes}
+            onChange={e => updateNotes(e.target.value)}
+            placeholder="Free-form notes for this patient (auto-saved locally)..."
+            rows={2}
+            className="text-sm"
+          />
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 min-w-0">
           <Label>{t("apt.patient")}</Label>
