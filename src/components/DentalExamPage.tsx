@@ -9,13 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, RotateCcw, Download, Search } from "lucide-react";
+import { Save, RotateCcw, Download, Search, UserPlus } from "lucide-react";
 import { AIClinicalAssistant, AIButton } from "@/components/AIClinicalAssistant";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 
