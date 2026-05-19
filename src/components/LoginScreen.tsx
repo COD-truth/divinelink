@@ -3,6 +3,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
 import { Loader as Loader2 } from "lucide-react";
+import { db } from "@/lib/db";
+
+const ROLE_COLORS: Record<string, string> = {
+  admin: "bg-red-100 text-red-700 border-red-300",
+  doctor: "bg-blue-100 text-blue-700 border-blue-300",
+  receptionist: "bg-emerald-100 text-emerald-700 border-emerald-300",
+  assistant: "bg-amber-100 text-amber-700 border-amber-300",
+};
 
 export function LoginScreen() {
   const { login } = useAuth();
@@ -11,16 +19,30 @@ export function LoginScreen() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [welcomeRole, setWelcomeRole] = useState<string | null>(null);
+  const [welcomeName, setWelcomeName] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(false);
     setLoading(true);
+    // Pre-resolve the user so we can show the role badge before navigating
+    try {
+      const candidates = await db.users.filter(u => !!u.active).toArray();
+      const { verifyPin } = await import("@/lib/db");
+      let matched: any = null;
+      for (const u of candidates) { if (await verifyPin(pin, u.pinHash)) { matched = u; break; } }
+      if (matched) {
+        setWelcomeRole(matched.role);
+        setWelcomeName(matched.name);
+      }
+    } catch { /* fall through */ }
     const ok = await login(pin);
     setLoading(false);
     if (!ok) {
       setError(true);
       setPin("");
+      setWelcomeRole(null);
     }
   };
 
