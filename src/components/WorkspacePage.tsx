@@ -479,7 +479,7 @@ export function WorkspacePage() {
       <h1 className="text-2xl font-bold text-slate-800">{t("ws.title")}</h1>
 
       <Tabs defaultValue="watched" className="w-full">
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="watched" className="text-xs sm:text-sm">
             <FileText className="w-4 h-4 mr-1" />
             {t("ws.watched")}
@@ -495,6 +495,9 @@ export function WorkspacePage() {
           <TabsTrigger value="docs" className="text-xs sm:text-sm">
             <Upload className="w-4 h-4 mr-1" />
             {t("ws.docs")}
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="text-xs sm:text-sm">
+            📊 Stats
           </TabsTrigger>
         </TabsList>
 
