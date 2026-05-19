@@ -150,6 +150,51 @@ function ToothChart({ teeth, pediatric, onSelect }: { teeth: ToothRecord[]; pedi
   );
 }
 
+/* Reusable tooth editor used in both desktop Card and mobile Sheet */
+function ToothEditor({ selectedRecord, updateTooth, t }: { selectedRecord: ToothRecord; updateTooth: (p: Partial<ToothRecord>) => void; t: (k: string) => string }) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">{t("dental.condition")}</Label>
+          <Select value={selectedRecord.condition} onValueChange={v => updateTooth({ condition: v as ToothCondition })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CONDITIONS.map(c => <SelectItem key={c} value={c}>{CONDITION_EMOJI[c]} {t(`dental.${c}`)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">{t("dental.treatment")}</Label>
+          <Select value={selectedRecord.treatmentDone || "__none__"} onValueChange={v => updateTooth({ treatmentDone: (v === "__none__" ? undefined : v) as DentalTreatment })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">{t("common.noData")}</SelectItem>
+              {TREATMENTS.map(tr => <SelectItem key={tr} value={tr}>{t(`dental.${tr}`)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">{t("dental.material")}</Label>
+          <Select value={selectedRecord.material || "__none__"} onValueChange={v => updateTooth({ material: (v === "__none__" ? undefined : v) as DentalMaterial })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">{t("common.noData")}</SelectItem>
+              {MATERIALS.map(m => <SelectItem key={m} value={m}>{t(`dental.mat.${m}`)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">{t("dental.notes")}</Label>
+          <Input value={selectedRecord.notes || ""} onChange={e => updateTooth({ notes: e.target.value })} />
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ============ Main page ============ */
 export function DentalExamPage() {
   const { user } = useAuth();
