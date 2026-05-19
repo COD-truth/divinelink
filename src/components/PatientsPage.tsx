@@ -343,7 +343,7 @@ export function PatientsPage() {
           <DialogHeader><DialogTitle>Patient Code Card</DialogTitle></DialogHeader>
           {codeCard && (
             <div id="code-card-print" className="border-2 border-primary rounded-xl p-6 bg-white text-center space-y-4">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">{getClinicName() || "DivineLink Clinic"}</p>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">{getClinicSettings()?.name || "DivineLink Clinic"}</p>
               <p className="font-mono font-bold text-3xl tracking-wider text-primary break-all">{codeCard.anonCode || codeCard.patientId}</p>
               <div className="flex justify-center items-end gap-[2px] h-12 px-2" aria-hidden>
                 {(codeCard.anonCode || codeCard.patientId).split("").map((ch, i) => {
