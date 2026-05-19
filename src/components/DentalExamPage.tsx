@@ -408,29 +408,46 @@ export function DentalExamPage() {
         </CardContent>
       </Card>
 
-      {/* Clinical form */}
+      {/* Clinical form — collapsible accordion */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">{t("consult.new")}</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label className="text-xs">{t("dental.motif")}</Label><Input value={dental.motif || ""} onChange={e => setDental(d => ({ ...d, motif: e.target.value }))} /></div>
-            <div><Label className="text-xs">{t("dental.painType")}</Label><Input value={dental.painType || ""} onChange={e => setDental(d => ({ ...d, painType: e.target.value }))} /></div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label className="text-xs">{t("dental.painIntensity")}</Label>
-              <div className="flex items-center gap-2">
-                <Slider value={[dental.painIntensity || 0]} onValueChange={([v]) => setDental(d => ({ ...d, painIntensity: v }))} min={0} max={10} step={1} className="flex-1" />
-                <span className="text-sm font-bold w-6 text-center">{dental.painIntensity || 0}</span>
-              </div>
-            </div>
-            <div><Label className="text-xs">{t("dental.painDuration")}</Label><Input value={dental.painDuration || ""} onChange={e => setDental(d => ({ ...d, painDuration: e.target.value }))} /></div>
-            <div><Label className="text-xs">{t("dental.nextAppt")}</Label><Input type="date" value={dental.nextAppointment || ""} onChange={e => setDental(d => ({ ...d, nextAppointment: e.target.value }))} /></div>
-          </div>
-          <div><Label className="text-xs">{t("dental.findings")}</Label><Textarea value={dental.findings || ""} onChange={e => setDental(d => ({ ...d, findings: e.target.value }))} /></div>
-          <div><Label className="text-xs">{t("dental.diagnosis")}</Label><Textarea value={dental.dentalDiagnosis || ""} onChange={e => setDental(d => ({ ...d, dentalDiagnosis: e.target.value }))} /></div>
-          <div><Label className="text-xs">{t("dental.plan")}</Label><Textarea value={dental.treatmentPlan || ""} onChange={e => setDental(d => ({ ...d, treatmentPlan: e.target.value }))} /></div>
-          <div><Label className="text-xs">{t("dental.done")}</Label><Textarea value={dental.treatmentDone || ""} onChange={e => setDental(d => ({ ...d, treatmentDone: e.target.value }))} /></div>
+        <CardContent className="pt-4">
+          <Accordion type="multiple" defaultValue={["motif", "diagnosis"]} className="w-full">
+            <AccordionItem value="motif">
+              <AccordionTrigger className="text-sm font-semibold">Motif & Douleur</AccordionTrigger>
+              <AccordionContent className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div><Label className="text-xs">{t("dental.motif")}</Label><Input value={dental.motif || ""} onChange={e => setDental(d => ({ ...d, motif: e.target.value }))} /></div>
+                  <div><Label className="text-xs">{t("dental.painType")}</Label><Input value={dental.painType || ""} onChange={e => setDental(d => ({ ...d, painType: e.target.value }))} /></div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">{t("dental.painIntensity")}</Label>
+                    <div className="flex items-center gap-2">
+                      <Slider value={[dental.painIntensity || 0]} onValueChange={([v]) => setDental(d => ({ ...d, painIntensity: v }))} min={0} max={10} step={1} className="flex-1" />
+                      <span className="text-sm font-bold w-6 text-center">{dental.painIntensity || 0}</span>
+                    </div>
+                  </div>
+                  <div><Label className="text-xs">{t("dental.painDuration")}</Label><Input value={dental.painDuration || ""} onChange={e => setDental(d => ({ ...d, painDuration: e.target.value }))} /></div>
+                  <div><Label className="text-xs">{t("dental.nextAppt")}</Label><Input type="date" value={dental.nextAppointment || ""} onChange={e => setDental(d => ({ ...d, nextAppointment: e.target.value }))} /></div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="findings">
+              <AccordionTrigger className="text-sm font-semibold">Examen & Findings</AccordionTrigger>
+              <AccordionContent>
+                <Label className="text-xs">{t("dental.findings")}</Label>
+                <Textarea value={dental.findings || ""} onChange={e => setDental(d => ({ ...d, findings: e.target.value }))} rows={4} />
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="diagnosis">
+              <AccordionTrigger className="text-sm font-semibold">Diagnostic & Plan</AccordionTrigger>
+              <AccordionContent className="space-y-3">
+                <div><Label className="text-xs">{t("dental.diagnosis")}</Label><Textarea value={dental.dentalDiagnosis || ""} onChange={e => setDental(d => ({ ...d, dentalDiagnosis: e.target.value }))} /></div>
+                <div><Label className="text-xs">{t("dental.plan")}</Label><Textarea value={dental.treatmentPlan || ""} onChange={e => setDental(d => ({ ...d, treatmentPlan: e.target.value }))} /></div>
+                <div><Label className="text-xs">{t("dental.done")}</Label><Textarea value={dental.treatmentDone || ""} onChange={e => setDental(d => ({ ...d, treatmentDone: e.target.value }))} /></div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
 
