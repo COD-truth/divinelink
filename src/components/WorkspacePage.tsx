@@ -479,7 +479,7 @@ export function WorkspacePage() {
       <h1 className="text-2xl font-bold text-slate-800">{t("ws.title")}</h1>
 
       <Tabs defaultValue="watched" className="w-full">
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="watched" className="text-xs sm:text-sm">
             <FileText className="w-4 h-4 mr-1" />
             {t("ws.watched")}
@@ -495,6 +495,9 @@ export function WorkspacePage() {
           <TabsTrigger value="docs" className="text-xs sm:text-sm">
             <Upload className="w-4 h-4 mr-1" />
             {t("ws.docs")}
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="text-xs sm:text-sm">
+            📊 Stats
           </TabsTrigger>
         </TabsList>
 
@@ -578,6 +581,9 @@ export function WorkspacePage() {
                           {lastConsult?.diagnosis || "—"}
                         </p>
                       </div>
+
+                      {/* Vital-signs sparkline (consultation count over last 8 weeks) */}
+                      <PatientSparkline patientId={p.id!} consultations={allConsultations} />
 
                       {isExpanded && (
                         <div className="mt-2 pt-2 border-t border-slate-100 text-sm text-slate-600 space-y-1">
@@ -1317,6 +1323,10 @@ export function WorkspacePage() {
             </DialogContent>
           </Dialog>
         </TabsContent>
+        {/* ── Tab 5: Statistics ─────────────────────────────────────── */}
+        <TabsContent value="stats" className="space-y-4 mt-4">
+          <StatsTab consultations={allConsultations} patients={decryptedPatients} />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -1343,5 +1353,164 @@ function PaymentBadge({ patientId }: { patientId: number }) {
     <span className="text-sm" title={status}>
       {paymentBadgeEmoji(status)}
     </span>
+  );
+}
+
+/** Inline SVG sparkline of consultation frequency over last 8 weeks. */
+function PatientSparkline({ patientId, consultations }: { patientId: number; consultations: Consultation[] }) {
+  const data = useMemo(() => {
+    const weeks = 8;
+    const now = Date.now();
+    const buckets = new Array(weeks).fill(0);
+    consultations
+      .filter(c => c.patientId === patientId && c.isLatest !== false)
+      .forEach(c => {
+        const t = new Date(c.date || c.createdAt).getTime();
+        const diffWeeks = Math.floor((now - t) / (7 * 86400000));
+        if (diffWeeks >= 0 && diffWeeks < weeks) buckets[weeks - 1 - diffWeeks]++;
+      });
+    return buckets;
+  }, [patientId, consultations]);
+  const max = Math.max(1, ...data);
+  const w = 120, h = 24;
+  const step = w / (data.length - 1 || 1);
+  const points = data.map((v, i) => `${i * step},${h - (v / max) * h}`).join(" ");
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <span className="text-[10px] text-slate-500">Activité 8 sem.</span>
+      <svg width={w} height={h} className="text-blue-500">
+        <polyline fill="none" stroke="currentColor" strokeWidth="1.5" points={points} />
+        {data.map((v, i) => (
+          <circle key={i} cx={i * step} cy={h - (v / max) * h} r={1.5} fill="currentColor" />
+        ))}
+      </svg>
+      <span className="text-[10px] text-slate-500">{data.reduce((a, b) => a + b, 0)} cons.</span>
+    </div>
+  );
+}
+
+/** Statistics tab with bar chart, pie chart, and lost-patients list. */
+function StatsTab({ consultations, patients }: { consultations: Consultation[]; patients: Patient[] }) {
+  const latest = useMemo(() => consultations.filter(c => c.isLatest !== false), [consultations]);
+
+  const weeklyBars = useMemo(() => {
+    const weeks = 12;
+    const now = Date.now();
+    const buckets = new Array(weeks).fill(0);
+    latest.forEach(c => {
+      const diff = Math.floor((now - new Date(c.date || c.createdAt).getTime()) / (7 * 86400000));
+      if (diff >= 0 && diff < weeks) buckets[weeks - 1 - diff]++;
+    });
+    return buckets;
+  }, [latest]);
+
+  const topDiagnoses = useMemo(() => {
+    const counts: Record<string, number> = {};
+    latest.forEach(c => {
+      const d = (c.diagnosis || "").trim();
+      if (d) counts[d] = (counts[d] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  }, [latest]);
+  const totalDx = topDiagnoses.reduce((s, [, n]) => s + n, 0) || 1;
+  const PIE_COLORS = ["#3b82f6", "#10b981", "#f97316", "#a855f7", "#ef4444"];
+
+  const lostPatients = useMemo(() => {
+    const lastByPatient = new Map<number, string>();
+    latest.forEach(c => {
+      const d = c.date || c.createdAt;
+      const ex = lastByPatient.get(c.patientId);
+      if (!ex || d > ex) lastByPatient.set(c.patientId, d);
+    });
+    const now = Date.now();
+    return patients
+      .map(p => {
+        if (!p.id) return null;
+        const last = lastByPatient.get(p.id);
+        if (!last) return { p, days: 9999 };
+        const days = Math.floor((now - new Date(last).getTime()) / 86400000);
+        return days > 90 ? { p, days } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b!.days - a!.days))
+      .slice(0, 20) as { p: Patient; days: number }[];
+  }, [latest, patients]);
+
+  const maxBar = Math.max(1, ...weeklyBars);
+
+  // Pie slices
+  let cumulative = 0;
+  const cx = 60, cy = 60, r = 50;
+  const slices = topDiagnoses.map(([label, n], i) => {
+    const start = cumulative / totalDx;
+    cumulative += n;
+    const end = cumulative / totalDx;
+    const a1 = start * 2 * Math.PI - Math.PI / 2;
+    const a2 = end * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+    const large = end - start > 0.5 ? 1 : 0;
+    return { path: `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z`, color: PIE_COLORS[i % PIE_COLORS.length], label, n };
+  });
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <Card>
+        <CardContent className="p-4">
+          <h3 className="text-sm font-semibold mb-3">Consultations / semaine (12 sem.)</h3>
+          <svg viewBox="0 0 240 100" className="w-full h-32">
+            {weeklyBars.map((v, i) => {
+              const bw = 240 / weeklyBars.length;
+              const bh = (v / maxBar) * 80;
+              return <rect key={i} x={i * bw + 2} y={90 - bh} width={bw - 4} height={bh} fill="#3b82f6" rx={2} />;
+            })}
+            <line x1={0} y1={90} x2={240} y2={90} stroke="#94a3b8" strokeWidth="0.5" />
+          </svg>
+          <p className="text-xs text-slate-500 mt-1">Total: {weeklyBars.reduce((a, b) => a + b, 0)} consultations</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4">
+          <h3 className="text-sm font-semibold mb-3">Top 5 diagnostics</h3>
+          {topDiagnoses.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Aucun diagnostic enregistré.</p>
+          ) : (
+            <div className="flex items-center gap-4">
+              <svg viewBox="0 0 120 120" className="w-28 h-28 flex-shrink-0">
+                {slices.map((s, i) => <path key={i} d={s.path} fill={s.color} />)}
+              </svg>
+              <ul className="text-xs space-y-1 flex-1 min-w-0">
+                {slices.map((s, i) => (
+                  <li key={i} className="flex items-center gap-2 truncate">
+                    <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: s.color }} />
+                    <span className="truncate">{s.label}</span>
+                    <span className="text-muted-foreground ml-auto">{s.n}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardContent className="p-4">
+          <h3 className="text-sm font-semibold mb-3">Patients perdus de vue ({'>'}90 j)</h3>
+          {lostPatients.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Aucun patient en alerte.</p>
+          ) : (
+            <ul className="divide-y text-sm">
+              {lostPatients.map(({ p, days }) => (
+                <li key={p.id} className="py-2 flex items-center justify-between">
+                  <span className="truncate">{p.anonCode || p.patientId} — {p.firstName} {p.lastName}</span>
+                  <Badge variant="destructive" className="text-[10px]">{days === 9999 ? "Jamais vu" : `${days} j`}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
