@@ -272,6 +272,9 @@ export function DentalExamPage() {
             </SelectContent>
           </Select>
         </div>
+        <Button variant="outline" className="gap-2" onClick={() => window.location.hash = "#patients"}>
+          <UserPlus className="w-4 h-4" /> Nouveau patient
+        </Button>
         <div className="flex items-center gap-2 border rounded-md px-3 py-2">
           <span className="text-sm">{t("dental.adult")}</span>
           <Switch checked={pediatric} onCheckedChange={togglePediatric} />
