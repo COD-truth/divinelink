@@ -33,15 +33,27 @@ export function ImportedDocumentsTab({ patientId }: Props) {
     const reader = new FileReader();
     reader.onload = async () => {
       const now = new Date().toISOString();
-      await db.importedDocuments.add({
+      const id = await db.importedDocuments.add({
         patientId, filename: file.name, mimeType: file.type || "application/octet-stream",
         data: reader.result as string, size: file.size, source: "manual",
         clinicId: getClinicId(), uploadedAt: now,
       });
       toast.success("Document ajouté");
-      load();
+      await load();
+      // Auto-trigger conversion for .docx files
+      if (/\.docx?$/i.test(file.name)) {
+        const inserted = await db.importedDocuments.get(id as number);
+        if (inserted) setConvertDoc(inserted);
+      }
     };
     reader.readAsDataURL(file);
+  };
+
+  const [dragOver, setDragOver] = useState(false);
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) upload(file);
   };
 
   const download = (d: ImportedDocument) => {
@@ -71,6 +83,15 @@ export function ImportedDocumentsTab({ patientId }: Props) {
           <input type="file" accept=".doc,.docx,.pdf" className="hidden" onChange={e => e.target.files && upload(e.target.files[0])} />
           <span className="inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-md border hover:bg-accent"><Upload className="w-3 h-3" />Ajouter</span>
         </label>
+      </div>
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        className={`border-2 border-dashed rounded-lg p-6 text-center text-xs transition-colors ${dragOver ? "border-primary bg-primary/5" : "border-muted-foreground/30"}`}
+      >
+        <Upload className="w-6 h-6 mx-auto mb-1 text-muted-foreground" />
+        Glissez-déposez un fichier .docx ici (conversion automatique)
       </div>
       {docs.length === 0 && <p className="text-sm text-muted-foreground">Aucun document importé.</p>}
       {docs.map(d => (
