@@ -130,6 +130,13 @@ export function LoginScreen() {
               />
             </div>
 
+            {/* Role badge after successful PIN */}
+            {welcomeRole && !error && (
+              <div className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold ${ROLE_COLORS[welcomeRole] || "bg-gray-100 text-gray-700 border-gray-300"}`}>
+                ✓ {welcomeName} — {welcomeRole.charAt(0).toUpperCase() + welcomeRole.slice(1)}
+              </div>
+            )}
+
             {/* Error */}
             {error && (
               <p className="text-red-500 text-sm text-center font-medium">
