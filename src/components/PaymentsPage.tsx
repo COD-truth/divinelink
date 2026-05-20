@@ -175,6 +175,10 @@ export function PaymentsPage() {
       status: newStatus, paidAt: now,
       installments, updatedAt: now
     });
+    await logAudit("payment_installment", actor, {
+      resource: "payment", resourceId: selectedPayment.id,
+      message: `+${instForm.amount} ${instForm.method} → ${newStatus} (paid ${newPaid}/${selectedPayment.amountDue})`
+    });
     toast.success(`✅ +${instForm.amount.toLocaleString()} FCFA enregistré`);
     if (newStatus === "paid") toast.success("🎉 Solde soldé complètement!");
     setInstallmentOpen(false);
