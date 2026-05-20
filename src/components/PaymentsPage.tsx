@@ -138,7 +138,7 @@ export function PaymentsPage() {
       id: Date.now().toString(), amount: paid,
       method: form.method, paidAt: now, notes: form.notes||undefined
     }] : [];
-    await db.payments.add({
+    const id = await db.payments.add({
       patientId: Number(form.patientId),
       label: form.label,
       amountDue: due, amountPaid: paid,
@@ -149,6 +149,11 @@ export function PaymentsPage() {
       installments, notes: form.notes || undefined,
       clinicId, createdAt: now, updatedAt: now
     } as Payment);
+    const pat = patients.find(p => p.id === Number(form.patientId));
+    await logAudit("payment_create", actor, {
+      resource: "payment", resourceId: id,
+      message: `${pat?.name || "?"} · ${form.label} · due=${due} paid=${paid} (${status}) ${form.method}`
+    });
     toast.success("Paiement enregistré ✅");
     setAddOpen(false);
     setForm({ patientId:"", label:"Consultation générale", amountDue:0, amountPaid:0, method:"cash", dueDate:"", notes:"" });
