@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Download, TriangleAlert as AlertTriangle, ArrowDown, ArrowUp, Bell, Pencil, Trash2, ArrowUpDown, Package } from "lucide-react";
 import { toast } from "sonner";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
+import { logAudit } from "@/lib/audit";
 import { decryptPatients } from "@/lib/patientCrypto";
 
 /* ---- Constants ---- */
