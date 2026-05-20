@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLang } from "@/contexts/LangContext";
 import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { InstallPWAButton } from "@/components/InstallPWAButton";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -351,6 +352,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             </PopoverContent>
           </Popover>
 
+          <InstallPWAButton />
           <LangToggle />
         </header>
 

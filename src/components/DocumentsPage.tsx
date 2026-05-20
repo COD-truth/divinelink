@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/VoiceTextarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -181,9 +182,9 @@ export function DocumentsPage() {
           <Label className="text-xs font-semibold flex items-center gap-1 mb-1">
             <FileText className="w-3 h-3" /> Clinical Notes
           </Label>
-          <Textarea
+          <VoiceTextarea
             value={clinicalNotes}
-            onChange={e => updateNotes(e.target.value)}
+            onChange={updateNotes}
             placeholder="Free-form notes for this patient (auto-saved locally)..."
             rows={2}
             className="text-sm"
