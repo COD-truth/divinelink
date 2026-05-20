@@ -592,6 +592,10 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
       notes: notes || undefined, clinicId: cid, createdAt: now,
     });
     await db.drugs.update(selectedDrug.id!, { stock: stockAfter, updatedAt: now });
+    await logAudit("drug_dispense", user?.name || "unknown", {
+      resource: "drug", resourceId: selectedDrug.id,
+      message: `${selectedDrug.name} -${q} ${selectedDrug.unit} (${stockBefore}→${stockAfter})${patientId !== "__none__" ? ` · patient#${patientId}` : ""} · ${exitReason} · ${payStatus}`
+    });
     toast.success(t("common.save"));
     setDrugId(""); setQty(""); setPatientId("__none__"); setPrice(""); setBatchNumber(""); setNotes("");
     onRefresh();
