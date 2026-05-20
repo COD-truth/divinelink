@@ -170,6 +170,8 @@ export function PharmacyPage() {
 /* ============ Inventory Tab ============ */
 function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; transactions: DrugTransaction[]; onRefresh: () => void }) {
   const { t } = useLang();
+  const { user } = useAuth();
+  const actor = user?.name || "unknown";
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("az");
   const [filterCategory, setFilterCategory] = useState("all");
