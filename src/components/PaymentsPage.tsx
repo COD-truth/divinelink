@@ -50,6 +50,8 @@ const SERVICES = [
 
 export function PaymentsPage() {
   const clinicId = localStorage.getItem("divinelink.clinicId") || "";
+  const { user } = useAuth();
+  const actor = user?.name || "unknown";
   const [payments, setPayments] = useState<Payment[]>([]);
   const [patients, setPatients] = useState<{ id:number; name:string; anonCode:string }[]>([]);
   const [search, setSearch] = useState("");
