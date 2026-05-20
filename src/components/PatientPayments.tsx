@@ -93,7 +93,7 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
       notes: form.notes
     }] : [];
 
-    await db.payments.add({
+    const newId = await db.payments.add({
       patientId, label: form.label,
       amountDue: form.amountDue,
       amountPaid: form.amountPaid,
@@ -103,6 +103,10 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
       installments, notes: form.notes,
       clinicId, createdAt: now, updatedAt: now
     } as Payment);
+    await logAudit("payment_create", user?.name || "unknown", {
+      resource: "payment", resourceId: newId,
+      message: `patient#${patientId} · ${form.label} · due=${form.amountDue} paid=${form.amountPaid} (${status})`
+    });
 
     toast.success("Paiement enregistré ✅");
     setAddOpen(false);
