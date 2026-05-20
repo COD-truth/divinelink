@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { db, type Payment, type PaymentInstallment, type PaymentMethod } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/audit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
