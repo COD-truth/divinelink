@@ -434,7 +434,11 @@ export function PaymentsPage() {
                           </Button>
                         )}
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={async () => {
-                          if (p.id) { await db.payments.delete(p.id); toast.success("Supprimé"); load(); }
+                          if (p.id) {
+                            await db.payments.delete(p.id);
+                            await logAudit("payment_delete", actor, { resource: "payment", resourceId: p.id, message: `${p.label} · ${p.amountDue} FCFA` });
+                            toast.success("Supprimé"); load();
+                          }
                         }}>
                           <Trash2 className="w-3 h-3"/>
                         </Button>
