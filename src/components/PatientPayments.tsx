@@ -430,6 +430,7 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
             <Button variant="destructive" onClick={async () => {
               if (deletePayment?.id) {
                 await db.payments.delete(deletePayment.id);
+                await logAudit("payment_delete", user?.name || "unknown", { resource: "payment", resourceId: deletePayment.id, message: `${deletePayment.label} · ${deletePayment.amountDue} FCFA` });
                 toast.success("Prestation supprimée");
                 setDeletePayment(null);
                 load();
