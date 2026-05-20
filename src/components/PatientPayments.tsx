@@ -139,6 +139,10 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
       installments: updatedInstallments,
       updatedAt: now
     });
+    await logAudit("payment_installment", user?.name || "unknown", {
+      resource: "payment", resourceId: selectedPayment.id,
+      message: `+${instForm.amount} ${instForm.method} → ${newStatus}`
+    });
 
     toast.success(`✅ ${instForm.amount.toLocaleString()} FCFA enregistrés`);
     if (newBalance <= 0) toast.success("🎉 Solde soldé!");
