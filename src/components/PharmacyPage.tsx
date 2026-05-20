@@ -221,6 +221,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
         location: form.location || undefined, updatedAt: now,
         status: computeStatus({ ...editDrug, stock: stockVal, expiration: form.expiration || undefined, minStock: parseInt(form.minStock) || 5 }),
       });
+      await logAudit("drug_update", actor, { resource: "drug", resourceId: editDrug.id, message: `${form.name} · stock=${stockVal} ${form.unit} (was ${editDrug.stock})` });
       toast.success(t("common.save"));
       setEditDrug(null);
     } else {
@@ -234,7 +235,8 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
         createdAt: now, updatedAt: now,
       };
       drug.status = computeStatus(drug as Drug);
-      await db.drugs.add(drug as Drug);
+      const newId = await db.drugs.add(drug as Drug);
+      await logAudit("drug_create", actor, { resource: "drug", resourceId: newId, message: `${form.name} · stock=${stockVal} ${form.unit}` });
       toast.success(t("common.save"));
       setAddOpen(false);
     }
