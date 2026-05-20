@@ -512,6 +512,10 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
       batchNumber: batchNumber || selectedDrug.batchNumber,
       buyPrice: parseFloat(price) || selectedDrug.buyPrice,
     });
+    await logAudit("drug_receive", user?.name || "unknown", {
+      resource: "drug", resourceId: selectedDrug.id,
+      message: `${selectedDrug.name} +${q} ${selectedDrug.unit} (${stockBefore}→${stockAfter})${supplier ? ` · ${supplier}` : ""}`
+    });
     toast.success(t("common.save"));
     setDrugId(""); setQty(""); setPrice(""); setExpiry(""); setSupplier(""); setBatchNumber(""); setNotes("");
     onRefresh();
