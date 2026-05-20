@@ -257,6 +257,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
   const deleteDrug = async (d: Drug) => {
     if (!d.id) return;
     await db.drugs.delete(d.id);
+    await logAudit("drug_delete", actor, { resource: "drug", resourceId: d.id, message: `${d.name} (last stock=${d.stock})` });
     toast.success(t("common.delete"));
     setDeleteConfirm(null);
     onRefresh();
