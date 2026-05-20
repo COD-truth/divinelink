@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { db, type Payment, type PaymentStatus, type PaymentMethod, type PaymentInstallment } from "@/lib/db";
+import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/audit";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,8 @@ const SERVICES = [
 
 export function PaymentsPage() {
   const clinicId = localStorage.getItem("divinelink.clinicId") || "";
+  const { user } = useAuth();
+  const actor = user?.name || "unknown";
   const [payments, setPayments] = useState<Payment[]>([]);
   const [patients, setPatients] = useState<{ id:number; name:string; anonCode:string }[]>([]);
   const [search, setSearch] = useState("");
@@ -134,7 +138,7 @@ export function PaymentsPage() {
       id: Date.now().toString(), amount: paid,
       method: form.method, paidAt: now, notes: form.notes||undefined
     }] : [];
-    await db.payments.add({
+    const id = await db.payments.add({
       patientId: Number(form.patientId),
       label: form.label,
       amountDue: due, amountPaid: paid,
@@ -145,6 +149,11 @@ export function PaymentsPage() {
       installments, notes: form.notes || undefined,
       clinicId, createdAt: now, updatedAt: now
     } as Payment);
+    const pat = patients.find(p => p.id === Number(form.patientId));
+    await logAudit("payment_create", actor, {
+      resource: "payment", resourceId: id,
+      message: `${pat?.name || "?"} · ${form.label} · due=${due} paid=${paid} (${status}) ${form.method}`
+    });
     toast.success("Paiement enregistré ✅");
     setAddOpen(false);
     setForm({ patientId:"", label:"Consultation générale", amountDue:0, amountPaid:0, method:"cash", dueDate:"", notes:"" });
@@ -165,6 +174,10 @@ export function PaymentsPage() {
       amountPaid: newPaid, balance: Math.max(0, newBalance),
       status: newStatus, paidAt: now,
       installments, updatedAt: now
+    });
+    await logAudit("payment_installment", actor, {
+      resource: "payment", resourceId: selectedPayment.id,
+      message: `+${instForm.amount} ${instForm.method} → ${newStatus} (paid ${newPaid}/${selectedPayment.amountDue})`
     });
     toast.success(`✅ +${instForm.amount.toLocaleString()} FCFA enregistré`);
     if (newStatus === "paid") toast.success("🎉 Solde soldé complètement!");
@@ -421,7 +434,11 @@ export function PaymentsPage() {
                           </Button>
                         )}
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={async () => {
-                          if (p.id) { await db.payments.delete(p.id); toast.success("Supprimé"); load(); }
+                          if (p.id) {
+                            await db.payments.delete(p.id);
+                            await logAudit("payment_delete", actor, { resource: "payment", resourceId: p.id, message: `${p.label} · ${p.amountDue} FCFA` });
+                            toast.success("Supprimé"); load();
+                          }
                         }}>
                           <Trash2 className="w-3 h-3"/>
                         </Button>

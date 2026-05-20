@@ -12,9 +12,9 @@ import { Plus, CreditCard as Edit, UserCog } from "lucide-react";
 import { toast } from "sonner";
 
 const roleBadge: Record<UserRole, string> = {
-  admin: "bg-destructive text-destructive-foreground",
-  doctor: "bg-primary text-primary-foreground",
-  receptionist: "bg-secondary text-secondary-foreground",
+  admin: "bg-red-600 text-white hover:bg-red-600/90",
+  doctor: "bg-blue-600 text-white hover:bg-blue-600/90",
+  receptionist: "bg-green-600 text-white hover:bg-green-600/90",
 };
 
 export function UsersPage() {

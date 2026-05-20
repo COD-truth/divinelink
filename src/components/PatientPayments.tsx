@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { db, type Payment, type PaymentInstallment, type PaymentMethod } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
+import { logAudit } from "@/lib/audit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +93,7 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
       notes: form.notes
     }] : [];
 
-    await db.payments.add({
+    const newId = await db.payments.add({
       patientId, label: form.label,
       amountDue: form.amountDue,
       amountPaid: form.amountPaid,
@@ -102,6 +103,10 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
       installments, notes: form.notes,
       clinicId, createdAt: now, updatedAt: now
     } as Payment);
+    await logAudit("payment_create", user?.name || "unknown", {
+      resource: "payment", resourceId: newId,
+      message: `patient#${patientId} · ${form.label} · due=${form.amountDue} paid=${form.amountPaid} (${status})`
+    });
 
     toast.success("Paiement enregistré ✅");
     setAddOpen(false);
@@ -133,6 +138,10 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
       paidAt: newBalance <= 0 ? now : selectedPayment.paidAt,
       installments: updatedInstallments,
       updatedAt: now
+    });
+    await logAudit("payment_installment", user?.name || "unknown", {
+      resource: "payment", resourceId: selectedPayment.id,
+      message: `+${instForm.amount} ${instForm.method} → ${newStatus}`
     });
 
     toast.success(`✅ ${instForm.amount.toLocaleString()} FCFA enregistrés`);
@@ -421,6 +430,7 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
             <Button variant="destructive" onClick={async () => {
               if (deletePayment?.id) {
                 await db.payments.delete(deletePayment.id);
+                await logAudit("payment_delete", user?.name || "unknown", { resource: "payment", resourceId: deletePayment.id, message: `${deletePayment.label} · ${deletePayment.amountDue} FCFA` });
                 toast.success("Prestation supprimée");
                 setDeletePayment(null);
                 load();

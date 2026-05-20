@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Download, TriangleAlert as AlertTriangle, ArrowDown, ArrowUp, Bell, Pencil, Trash2, ArrowUpDown, Package } from "lucide-react";
 import { toast } from "sonner";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
+import { logAudit } from "@/lib/audit";
 import { decryptPatients } from "@/lib/patientCrypto";
 
 /* ---- Constants ---- */
@@ -169,6 +170,8 @@ export function PharmacyPage() {
 /* ============ Inventory Tab ============ */
 function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; transactions: DrugTransaction[]; onRefresh: () => void }) {
   const { t } = useLang();
+  const { user } = useAuth();
+  const actor = user?.name || "unknown";
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("az");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -218,6 +221,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
         location: form.location || undefined, updatedAt: now,
         status: computeStatus({ ...editDrug, stock: stockVal, expiration: form.expiration || undefined, minStock: parseInt(form.minStock) || 5 }),
       });
+      await logAudit("drug_update", actor, { resource: "drug", resourceId: editDrug.id, message: `${form.name} · stock=${stockVal} ${form.unit} (was ${editDrug.stock})` });
       toast.success(t("common.save"));
       setEditDrug(null);
     } else {
@@ -231,7 +235,8 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
         createdAt: now, updatedAt: now,
       };
       drug.status = computeStatus(drug as Drug);
-      await db.drugs.add(drug as Drug);
+      const newId = await db.drugs.add(drug as Drug);
+      await logAudit("drug_create", actor, { resource: "drug", resourceId: newId, message: `${form.name} · stock=${stockVal} ${form.unit}` });
       toast.success(t("common.save"));
       setAddOpen(false);
     }
@@ -252,6 +257,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
   const deleteDrug = async (d: Drug) => {
     if (!d.id) return;
     await db.drugs.delete(d.id);
+    await logAudit("drug_delete", actor, { resource: "drug", resourceId: d.id, message: `${d.name} (last stock=${d.stock})` });
     toast.success(t("common.delete"));
     setDeleteConfirm(null);
     onRefresh();
@@ -506,6 +512,10 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
       batchNumber: batchNumber || selectedDrug.batchNumber,
       buyPrice: parseFloat(price) || selectedDrug.buyPrice,
     });
+    await logAudit("drug_receive", user?.name || "unknown", {
+      resource: "drug", resourceId: selectedDrug.id,
+      message: `${selectedDrug.name} +${q} ${selectedDrug.unit} (${stockBefore}→${stockAfter})${supplier ? ` · ${supplier}` : ""}`
+    });
     toast.success(t("common.save"));
     setDrugId(""); setQty(""); setPrice(""); setExpiry(""); setSupplier(""); setBatchNumber(""); setNotes("");
     onRefresh();
@@ -582,6 +592,10 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
       notes: notes || undefined, clinicId: cid, createdAt: now,
     });
     await db.drugs.update(selectedDrug.id!, { stock: stockAfter, updatedAt: now });
+    await logAudit("drug_dispense", user?.name || "unknown", {
+      resource: "drug", resourceId: selectedDrug.id,
+      message: `${selectedDrug.name} -${q} ${selectedDrug.unit} (${stockBefore}→${stockAfter})${patientId !== "__none__" ? ` · patient#${patientId}` : ""} · ${exitReason} · ${payStatus}`
+    });
     toast.success(t("common.save"));
     setDrugId(""); setQty(""); setPatientId("__none__"); setPrice(""); setBatchNumber(""); setNotes("");
     onRefresh();

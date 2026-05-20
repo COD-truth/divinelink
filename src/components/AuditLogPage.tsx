@@ -21,6 +21,8 @@ const TYPES: AuditEventType[] = [
   "backup_export", "backup_import",
   "wipe_secret_generated", "wipe_secret_changed",
   "master_pin_changed", "audit_export",
+  "payment_create", "payment_update", "payment_delete", "payment_installment",
+  "drug_create", "drug_update", "drug_delete", "drug_receive", "drug_dispense",
 ];
 
 export function AuditLogPage() {
