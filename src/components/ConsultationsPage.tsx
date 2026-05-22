@@ -694,7 +694,7 @@ export function ConsultationsPage() {
                   <Select value={form.specialty} onValueChange={v => setForm(f => ({ ...f, specialty: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {SPECIALTIES.map(s => <SelectItem key={s.value} value={s.value}>{t(s.key)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -706,18 +706,6 @@ export function ConsultationsPage() {
                   <div><span className="text-muted-foreground">Médecin: </span>{user?.name}</div>
                 </div>
               )}
-              <div>
-                <Label>{t("consult.type")}</Label>
-                <Select value={form.consultType} onValueChange={v => setForm(f => ({ ...f, consultType: v as ConsultationType }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">{t("consult.type.general")}</SelectItem>
-                    <SelectItem value="dental">{t("consult.type.dental")}</SelectItem>
-                    <SelectItem value="orthodontic">{t("consult.type.orthodontic")}</SelectItem>
-                    <SelectItem value="other">{t("consult.type.other")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </Section>
 
             {/* ─ Section 2: Anamnèse ─ */}
