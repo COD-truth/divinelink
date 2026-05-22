@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Printer, Pencil as Edit, Trash2, History, TriangleAlert as AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download, Stethoscope, Save, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
+import { ToothChartEmbed } from "@/components/ToothChartEmbed";
+import type { ToothRecord } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { fileToDataUrl } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
@@ -57,23 +59,49 @@ interface ConsultForm {
   notes: string;
   // Images
   images: ConsultationImage[];
+  // Examination continuation (saved into customFields)
+  currentMedications: string;
+  allergiesList: string[];
+  rosSystems: Record<string, boolean>;
+  investigations: string;
+  followUpDate: string;
+  followUpInstructions: string;
+  // Tooth chart (saved into dental.teeth when specialty=dentistry)
+  teeth: ToothRecord[];
 }
 
 type ConsultationWithMeta = Consultation & { patientName: string };
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const SPECIALTIES = [
-  "Médecine générale", "Pédiatrie", "Chirurgie", "Gynécologie", "Cardiologie",
-  "Neurologie", "Pneumologie", "Gastroentérologie", "Ophtalmologie", "ORL",
-  "Dermatologie", "Urologie", "Rhumatologie", "Endocrinologie", "Psychiatrie",
-  "Oncologie", "Infectiologie", "Traumatologie", "Dentisterie", "Autre",
+// Specialty slugs in the required display order. Labels are translated via i18n.
+const SPECIALTIES: { value: string; key: string }[] = [
+  { value: "general",      key: "spec.general" },
+  { value: "dentistry",    key: "spec.dentistry" },
+  { value: "orthodontic",  key: "spec.orthodontic" },
+  { value: "ent",          key: "spec.ent" },
+  { value: "pediatric",    key: "spec.pediatric" },
+  { value: "surgery",      key: "spec.surgery" },
+  { value: "gynecology",   key: "spec.gynecology" },
+  { value: "ophthalmology",key: "spec.ophthalmology" },
+  { value: "dermatology",  key: "spec.dermatology" },
+  { value: "cardiology",   key: "spec.cardiology" },
+  { value: "other",        key: "spec.other" },
 ];
+const ROS_SYSTEMS = [
+  "cardiovascular", "respiratory", "digestive", "neurological",
+  "musculoskeletal", "urogenital", "skin",
+] as const;
+function specialtyToConsultType(spec: string): ConsultationType {
+  if (spec === "dentistry") return "dental";
+  if (spec === "orthodontic") return "orthodontic";
+  return "general";
+}
 
 const EMPTY_FORM: ConsultForm = {
   patientId: "",
   consultType: "general",
-  specialty: "Médecine générale",
+  specialty: "general",
   chiefComplaint: "",
   historyOfPresentIllness: "",
   medicalHistory: "",
@@ -96,6 +124,14 @@ const EMPTY_FORM: ConsultForm = {
   prescription: "",
   notes: "",
   images: [],
+  // New examination-continuation fields (persisted via customFields on save)
+  currentMedications: "",
+  allergiesList: [],
+  rosSystems: {},
+  investigations: "",
+  followUpDate: "",
+  followUpInstructions: "",
+  teeth: [],
 };
 
 function generateConsultNumber(seq: number): string {
