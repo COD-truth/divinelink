@@ -357,6 +357,13 @@ function consultToForm(c: Consultation): ConsultForm {
     prescription: c.prescription || "",
     notes: c.notes || "",
     images: (c.images || []).map(i => ({ ...i, imgType: i.imgType ?? "other" })),
+    currentMedications: cf.currentMedications || "",
+    allergiesList: Array.isArray(cf.allergiesList) ? cf.allergiesList : [],
+    rosSystems: cf.rosSystems || {},
+    investigations: cf.investigations || "",
+    followUpDate: cf.followUpDate || "",
+    followUpInstructions: cf.followUpInstructions || "",
+    teeth: c.dental?.teeth || [],
   };
 }
 
