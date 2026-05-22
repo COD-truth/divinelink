@@ -823,38 +823,115 @@ export function ConsultationsPage() {
               </div>
             </Section>
 
-            {/* ─ Section 4: Examen dentaire ─ */}
-            <Section num={4} title="Examen dentaire" complete={!!form.oralFindings || form.caries || form.missingTeeth}>
-              <VoiceTextarea
-                label="Constatations orales (Oral findings)"
-                field="oralFindings"
-                form={form}
-                setForm={setForm}
-                rows={3}
-                placeholder="Description des constatations bucco-dentaires..."
-              />
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">Constatations cliniques</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {([
-                    { key: "caries", label: "Caries" },
-                    { key: "missingTeeth", label: "Dents manquantes" },
-                    { key: "mobility", label: "Mobilité" },
-                    { key: "pocketDepth", label: "Profondeur de poche" },
-                    { key: "prosthetics", label: "Prothèses" },
-                    { key: "orthodonticAppliances", label: "Appareillages ortho" },
-                  ] as { key: keyof ConsultForm; label: string }[]).map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={!!(form[key])}
-                        onCheckedChange={v => setForm(f => ({ ...f, [key]: !!v }))}
-                      />
-                      <span className="text-sm">{label}</span>
-                    </label>
-                  ))}
+            {/* ─ Section 4: Dental — only for dentistry/orthodontic ─ */}
+            {(form.specialty === "dentistry" || form.specialty === "orthodontic") && (
+              <Section num={4} title={t("consult.dentalExam")} complete={!!form.oralFindings || form.caries || form.missingTeeth} defaultOpen>
+                {form.specialty === "dentistry" && (
+                  <ToothChartEmbed
+                    teeth={form.teeth}
+                    onChange={teeth => setForm(f => ({ ...f, teeth }))}
+                  />
+                )}
+                <VoiceTextarea
+                  label={t("consult.oralFindings")}
+                  field="oralFindings"
+                  form={form}
+                  setForm={setForm}
+                  rows={3}
+                  placeholder=""
+                />
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">{t("consult.clinicalFindings")}</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {([
+                      { key: "caries", label: t("dental.caries") },
+                      { key: "missingTeeth", label: t("dental.missingTeeth") },
+                      { key: "mobility", label: t("dental.mobility") },
+                      { key: "pocketDepth", label: t("dental.pocketDepth") },
+                      { key: "prosthetics", label: t("dental.prosthetics") },
+                      { key: "orthodonticAppliances", label: t("dental.orthoAppliances") },
+                    ] as { key: keyof ConsultForm; label: string }[]).map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={!!(form[key])} onCheckedChange={v => setForm(f => ({ ...f, [key]: !!v }))} />
+                        <span className="text-sm">{label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Section>
+              </Section>
+            )}
+
+            {/* ─ Section 4-bis: Full observation continuation (non-dental/ortho) ─ */}
+            {form.specialty !== "dentistry" && form.specialty !== "orthodontic" && (
+              <Section num={4} title={t("consult.examContinuation")} complete={!!form.investigations || !!form.followUpDate}>
+                <VoiceTextarea
+                  label={t("consult.currentMedications")}
+                  field="currentMedications"
+                  form={form}
+                  setForm={setForm}
+                  rows={2}
+                />
+                <div>
+                  <Label>{t("consult.allergies")}</Label>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {form.allergiesList.map((a, i) => (
+                      <Badge key={i} variant="secondary" className="gap-1">
+                        {a}
+                        <button type="button" onClick={() => setForm(f => ({ ...f, allergiesList: f.allergiesList.filter((_, j) => j !== i) }))} aria-label="remove">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <Input
+                    placeholder={t("consult.allergyAddHint")}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const v = (e.target as HTMLInputElement).value.trim();
+                        if (v) {
+                          setForm(f => ({ ...f, allergiesList: [...f.allergiesList, v] }));
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">{t("consult.ros")}</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ROS_SYSTEMS.map(sys => (
+                      <label key={sys} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <Checkbox
+                          checked={!!form.rosSystems[sys]}
+                          onCheckedChange={v => setForm(f => ({ ...f, rosSystems: { ...f.rosSystems, [sys]: !!v } }))}
+                        />
+                        {t(`ros.${sys}`)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <VoiceTextarea
+                  label={t("consult.investigations")}
+                  field="investigations"
+                  form={form}
+                  setForm={setForm}
+                  rows={2}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>{t("consult.followUpDate")}</Label>
+                    <Input type="date" value={form.followUpDate}
+                      onChange={e => setForm(f => ({ ...f, followUpDate: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>{t("consult.followUpInstructions")}</Label>
+                    <Textarea rows={2} value={form.followUpInstructions}
+                      onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} />
+                  </div>
+                </div>
+              </Section>
+            )}
 
             {/* ─ Section 5: Assessment & Plan ─ */}
             <Section num={5} title="Assessment & Plan" complete={!!form.diagnosis}>
