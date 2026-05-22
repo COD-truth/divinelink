@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Printer, Pencil as Edit, Trash2, History, TriangleAlert as AlertTriangle, Upload, X, Pencil, GitCompareArrows, Download, Stethoscope, Save, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
+import { ToothChartEmbed } from "@/components/ToothChartEmbed";
+import type { ToothRecord } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { fileToDataUrl } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
@@ -57,23 +59,49 @@ interface ConsultForm {
   notes: string;
   // Images
   images: ConsultationImage[];
+  // Examination continuation (saved into customFields)
+  currentMedications: string;
+  allergiesList: string[];
+  rosSystems: Record<string, boolean>;
+  investigations: string;
+  followUpDate: string;
+  followUpInstructions: string;
+  // Tooth chart (saved into dental.teeth when specialty=dentistry)
+  teeth: ToothRecord[];
 }
 
 type ConsultationWithMeta = Consultation & { patientName: string };
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const SPECIALTIES = [
-  "Médecine générale", "Pédiatrie", "Chirurgie", "Gynécologie", "Cardiologie",
-  "Neurologie", "Pneumologie", "Gastroentérologie", "Ophtalmologie", "ORL",
-  "Dermatologie", "Urologie", "Rhumatologie", "Endocrinologie", "Psychiatrie",
-  "Oncologie", "Infectiologie", "Traumatologie", "Dentisterie", "Autre",
+// Specialty slugs in the required display order. Labels are translated via i18n.
+const SPECIALTIES: { value: string; key: string }[] = [
+  { value: "general",      key: "spec.general" },
+  { value: "dentistry",    key: "spec.dentistry" },
+  { value: "orthodontic",  key: "spec.orthodontic" },
+  { value: "ent",          key: "spec.ent" },
+  { value: "pediatric",    key: "spec.pediatric" },
+  { value: "surgery",      key: "spec.surgery" },
+  { value: "gynecology",   key: "spec.gynecology" },
+  { value: "ophthalmology",key: "spec.ophthalmology" },
+  { value: "dermatology",  key: "spec.dermatology" },
+  { value: "cardiology",   key: "spec.cardiology" },
+  { value: "other",        key: "spec.other" },
 ];
+const ROS_SYSTEMS = [
+  "cardiovascular", "respiratory", "digestive", "neurological",
+  "musculoskeletal", "urogenital", "skin",
+] as const;
+function specialtyToConsultType(spec: string): ConsultationType {
+  if (spec === "dentistry") return "dental";
+  if (spec === "orthodontic") return "orthodontic";
+  return "general";
+}
 
 const EMPTY_FORM: ConsultForm = {
   patientId: "",
   consultType: "general",
-  specialty: "Médecine générale",
+  specialty: "general",
   chiefComplaint: "",
   historyOfPresentIllness: "",
   medicalHistory: "",
@@ -96,6 +124,14 @@ const EMPTY_FORM: ConsultForm = {
   prescription: "",
   notes: "",
   images: [],
+  // New examination-continuation fields (persisted via customFields on save)
+  currentMedications: "",
+  allergiesList: [],
+  rosSystems: {},
+  investigations: "",
+  followUpDate: "",
+  followUpInstructions: "",
+  teeth: [],
 };
 
 function generateConsultNumber(seq: number): string {
@@ -235,6 +271,16 @@ function Section({ num, title, complete, children, defaultOpen = false }: Sectio
 
 function formToConsultFields(form: ConsultForm): Partial<Consultation> {
   const bmiVal = form.bmi ? parseFloat(form.bmi) : undefined;
+  const ct = specialtyToConsultType(form.specialty);
+  const extra = {
+    currentMedications: form.currentMedications,
+    allergiesList: form.allergiesList,
+    rosSystems: form.rosSystems,
+    investigations: form.investigations,
+    followUpDate: form.followUpDate,
+    followUpInstructions: form.followUpInstructions,
+    specialty: form.specialty,
+  };
   return {
     symptoms: form.chiefComplaint,
     diagnosis: form.diagnosis,
@@ -248,7 +294,7 @@ function formToConsultFields(form: ConsultForm): Partial<Consultation> {
       bmi: bmiVal ?? form.vitals.bmi,
     },
     images: form.images,
-    consultType: form.consultType,
+    consultType: ct,
     chiefComplaint: form.chiefComplaint,
     historyOfPresentIllness: form.historyOfPresentIllness,
     medicalHistory: form.medicalHistory,
@@ -269,16 +315,26 @@ function formToConsultFields(form: ConsultForm): Partial<Consultation> {
       prosthetics: form.prosthetics,
       orthodonticAppliances: form.orthodonticAppliances,
     },
+    dental: ct === "dental" ? {
+      teeth: form.teeth,
+      motif: form.chiefComplaint,
+      findings: form.oralFindings,
+      dentalDiagnosis: form.diagnosis,
+      treatmentPlan: form.treatmentPlan,
+    } : undefined,
+    customFields: extra,
   };
 }
 
 function consultToForm(c: Consultation): ConsultForm {
   const dc = c.dentalCheckboxes || {};
   const anthro = c.anthropometric || {};
+  const cf = (c.customFields || {}) as Partial<ConsultForm> & { specialty?: string };
   return {
     ...EMPTY_FORM,
     patientId: c.patientId.toString(),
     consultType: c.consultType || "general",
+    specialty: cf.specialty || (c.consultType === "dental" ? "dentistry" : c.consultType === "orthodontic" ? "orthodontic" : "general"),
     chiefComplaint: c.chiefComplaint || c.symptoms || "",
     historyOfPresentIllness: c.historyOfPresentIllness || "",
     medicalHistory: c.medicalHistory || "",
@@ -301,6 +357,13 @@ function consultToForm(c: Consultation): ConsultForm {
     prescription: c.prescription || "",
     notes: c.notes || "",
     images: (c.images || []).map(i => ({ ...i, imgType: i.imgType ?? "other" })),
+    currentMedications: cf.currentMedications || "",
+    allergiesList: Array.isArray(cf.allergiesList) ? cf.allergiesList : [],
+    rosSystems: cf.rosSystems || {},
+    investigations: cf.investigations || "",
+    followUpDate: cf.followUpDate || "",
+    followUpInstructions: cf.followUpInstructions || "",
+    teeth: c.dental?.teeth || [],
   };
 }
 
@@ -658,7 +721,7 @@ export function ConsultationsPage() {
                   <Select value={form.specialty} onValueChange={v => setForm(f => ({ ...f, specialty: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {SPECIALTIES.map(s => <SelectItem key={s.value} value={s.value}>{t(s.key)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -670,18 +733,6 @@ export function ConsultationsPage() {
                   <div><span className="text-muted-foreground">Médecin: </span>{user?.name}</div>
                 </div>
               )}
-              <div>
-                <Label>{t("consult.type")}</Label>
-                <Select value={form.consultType} onValueChange={v => setForm(f => ({ ...f, consultType: v as ConsultationType }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">{t("consult.type.general")}</SelectItem>
-                    <SelectItem value="dental">{t("consult.type.dental")}</SelectItem>
-                    <SelectItem value="orthodontic">{t("consult.type.orthodontic")}</SelectItem>
-                    <SelectItem value="other">{t("consult.type.other")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </Section>
 
             {/* ─ Section 2: Anamnèse ─ */}
@@ -799,38 +850,115 @@ export function ConsultationsPage() {
               </div>
             </Section>
 
-            {/* ─ Section 4: Examen dentaire ─ */}
-            <Section num={4} title="Examen dentaire" complete={!!form.oralFindings || form.caries || form.missingTeeth}>
-              <VoiceTextarea
-                label="Constatations orales (Oral findings)"
-                field="oralFindings"
-                form={form}
-                setForm={setForm}
-                rows={3}
-                placeholder="Description des constatations bucco-dentaires..."
-              />
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">Constatations cliniques</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {([
-                    { key: "caries", label: "Caries" },
-                    { key: "missingTeeth", label: "Dents manquantes" },
-                    { key: "mobility", label: "Mobilité" },
-                    { key: "pocketDepth", label: "Profondeur de poche" },
-                    { key: "prosthetics", label: "Prothèses" },
-                    { key: "orthodonticAppliances", label: "Appareillages ortho" },
-                  ] as { key: keyof ConsultForm; label: string }[]).map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={!!(form[key])}
-                        onCheckedChange={v => setForm(f => ({ ...f, [key]: !!v }))}
-                      />
-                      <span className="text-sm">{label}</span>
-                    </label>
-                  ))}
+            {/* ─ Section 4: Dental — only for dentistry/orthodontic ─ */}
+            {(form.specialty === "dentistry" || form.specialty === "orthodontic") && (
+              <Section num={4} title={t("consult.dentalExam")} complete={!!form.oralFindings || form.caries || form.missingTeeth} defaultOpen>
+                {form.specialty === "dentistry" && (
+                  <ToothChartEmbed
+                    teeth={form.teeth}
+                    onChange={teeth => setForm(f => ({ ...f, teeth }))}
+                  />
+                )}
+                <VoiceTextarea
+                  label={t("consult.oralFindings")}
+                  field="oralFindings"
+                  form={form}
+                  setForm={setForm}
+                  rows={3}
+                  placeholder=""
+                />
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">{t("consult.clinicalFindings")}</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {([
+                      { key: "caries", label: t("dental.caries") },
+                      { key: "missingTeeth", label: t("dental.missingTeeth") },
+                      { key: "mobility", label: t("dental.mobility") },
+                      { key: "pocketDepth", label: t("dental.pocketDepth") },
+                      { key: "prosthetics", label: t("dental.prosthetics") },
+                      { key: "orthodonticAppliances", label: t("dental.orthoAppliances") },
+                    ] as { key: keyof ConsultForm; label: string }[]).map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={!!(form[key])} onCheckedChange={v => setForm(f => ({ ...f, [key]: !!v }))} />
+                        <span className="text-sm">{label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Section>
+              </Section>
+            )}
+
+            {/* ─ Section 4-bis: Full observation continuation (non-dental/ortho) ─ */}
+            {form.specialty !== "dentistry" && form.specialty !== "orthodontic" && (
+              <Section num={4} title={t("consult.examContinuation")} complete={!!form.investigations || !!form.followUpDate}>
+                <VoiceTextarea
+                  label={t("consult.currentMedications")}
+                  field="currentMedications"
+                  form={form}
+                  setForm={setForm}
+                  rows={2}
+                />
+                <div>
+                  <Label>{t("consult.allergies")}</Label>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {form.allergiesList.map((a, i) => (
+                      <Badge key={i} variant="secondary" className="gap-1">
+                        {a}
+                        <button type="button" onClick={() => setForm(f => ({ ...f, allergiesList: f.allergiesList.filter((_, j) => j !== i) }))} aria-label="remove">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <Input
+                    placeholder={t("consult.allergyAddHint")}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const v = (e.target as HTMLInputElement).value.trim();
+                        if (v) {
+                          setForm(f => ({ ...f, allergiesList: [...f.allergiesList, v] }));
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">{t("consult.ros")}</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ROS_SYSTEMS.map(sys => (
+                      <label key={sys} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <Checkbox
+                          checked={!!form.rosSystems[sys]}
+                          onCheckedChange={v => setForm(f => ({ ...f, rosSystems: { ...f.rosSystems, [sys]: !!v } }))}
+                        />
+                        {t(`ros.${sys}`)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <VoiceTextarea
+                  label={t("consult.investigations")}
+                  field="investigations"
+                  form={form}
+                  setForm={setForm}
+                  rows={2}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>{t("consult.followUpDate")}</Label>
+                    <Input type="date" value={form.followUpDate}
+                      onChange={e => setForm(f => ({ ...f, followUpDate: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>{t("consult.followUpInstructions")}</Label>
+                    <Textarea rows={2} value={form.followUpInstructions}
+                      onChange={e => setForm(f => ({ ...f, followUpInstructions: e.target.value }))} />
+                  </div>
+                </div>
+              </Section>
+            )}
 
             {/* ─ Section 5: Assessment & Plan ─ */}
             <Section num={5} title="Assessment & Plan" complete={!!form.diagnosis}>

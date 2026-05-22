@@ -230,34 +230,42 @@ export function PatientsPage() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("patient.register")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center text-muted-foreground text-xs">
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative w-28 h-28 rounded-full border-2 border-dashed border-muted-foreground/40 overflow-hidden flex items-center justify-center bg-muted/30">
                 {form.photo ? (
-                  <img src={form.photo} alt="" className="w-full h-full object-cover" />
-                ) : <span>{t("doc.profilePhoto")}</span>}
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <Button asChild size="sm" variant="outline" type="button">
-                    <label className="cursor-pointer">
-                      <Camera className="w-4 h-4 mr-1" />
-                      Photo
-                      <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoUpload} />
-                    </label>
-                  </Button>
-                  <Button asChild size="sm" variant="outline" type="button">
-                    <label className="cursor-pointer">
-                      <Upload className="w-4 h-4 mr-1" />
-                      {form.photo ? t("doc.changePhoto") : t("doc.profilePhoto")}
-                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                    </label>
-                  </Button>
-                </div>
-                {form.photo && (
-                  <Button size="sm" variant="ghost" type="button" onClick={() => setForm(f => ({ ...f, photo: "" }))}>
-                    <X className="w-4 h-4 mr-1" /> {t("doc.removePhoto")}
-                  </Button>
+                  <>
+                    <img src={form.photo} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      aria-label={t("doc.removePhoto")}
+                      onClick={() => setForm(f => ({ ...f, photo: "" }))}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center text-muted-foreground">
+                    <Camera className="w-6 h-6 mb-1" />
+                    <span className="text-[10px] text-center px-1 leading-tight">{t("doc.profilePhoto")}</span>
+                  </div>
                 )}
+              </div>
+              <div className="flex gap-2">
+                <Button asChild size="sm" variant="outline" type="button">
+                  <label className="cursor-pointer">
+                    <Camera className="w-4 h-4 mr-1" />
+                    {t("patient.photoCamera")}
+                    <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoUpload} />
+                  </label>
+                </Button>
+                <Button asChild size="sm" variant="outline" type="button">
+                  <label className="cursor-pointer">
+                    <Upload className="w-4 h-4 mr-1" />
+                    {t("patient.photoImport")}
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  </label>
+                </Button>
               </div>
             </div>
 
