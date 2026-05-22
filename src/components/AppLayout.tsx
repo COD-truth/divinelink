@@ -17,6 +17,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { isPushSupported, isSubscribed, enablePushNotifications, disablePushNotifications } from "@/lib/pushNotifications";
 import { getClinicId } from "@/lib/clinicSettings";
 import { toast } from "sonner";
+import { getNavOrder, applyOrder } from "@/lib/navOrder";
 
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
@@ -139,8 +140,9 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
   ];
 
-  const visibleMain = mainNav.filter(i => hasRole(i.roles as any));
-  const visibleAdmin = adminNav.filter(i => hasRole(i.roles as any));
+  const savedOrder = getNavOrder(user?.id);
+  const visibleMain = applyOrder(mainNav.filter(i => hasRole(i.roles as any)), savedOrder);
+  const visibleAdmin = applyOrder(adminNav.filter(i => hasRole(i.roles as any)), savedOrder);
   const allItems = [...visibleMain, ...visibleAdmin];
   const currentLabel = allItems.find(i => i.page === currentPage)?.label || "";
 
