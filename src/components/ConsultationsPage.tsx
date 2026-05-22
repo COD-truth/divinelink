@@ -271,6 +271,16 @@ function Section({ num, title, complete, children, defaultOpen = false }: Sectio
 
 function formToConsultFields(form: ConsultForm): Partial<Consultation> {
   const bmiVal = form.bmi ? parseFloat(form.bmi) : undefined;
+  const ct = specialtyToConsultType(form.specialty);
+  const extra = {
+    currentMedications: form.currentMedications,
+    allergiesList: form.allergiesList,
+    rosSystems: form.rosSystems,
+    investigations: form.investigations,
+    followUpDate: form.followUpDate,
+    followUpInstructions: form.followUpInstructions,
+    specialty: form.specialty,
+  };
   return {
     symptoms: form.chiefComplaint,
     diagnosis: form.diagnosis,
@@ -284,7 +294,7 @@ function formToConsultFields(form: ConsultForm): Partial<Consultation> {
       bmi: bmiVal ?? form.vitals.bmi,
     },
     images: form.images,
-    consultType: form.consultType,
+    consultType: ct,
     chiefComplaint: form.chiefComplaint,
     historyOfPresentIllness: form.historyOfPresentIllness,
     medicalHistory: form.medicalHistory,
@@ -305,16 +315,26 @@ function formToConsultFields(form: ConsultForm): Partial<Consultation> {
       prosthetics: form.prosthetics,
       orthodonticAppliances: form.orthodonticAppliances,
     },
+    dental: ct === "dental" ? {
+      teeth: form.teeth,
+      motif: form.chiefComplaint,
+      findings: form.oralFindings,
+      dentalDiagnosis: form.diagnosis,
+      treatmentPlan: form.treatmentPlan,
+    } : undefined,
+    customFields: extra,
   };
 }
 
 function consultToForm(c: Consultation): ConsultForm {
   const dc = c.dentalCheckboxes || {};
   const anthro = c.anthropometric || {};
+  const cf = (c.customFields || {}) as Partial<ConsultForm> & { specialty?: string };
   return {
     ...EMPTY_FORM,
     patientId: c.patientId.toString(),
     consultType: c.consultType || "general",
+    specialty: cf.specialty || (c.consultType === "dental" ? "dentistry" : c.consultType === "orthodontic" ? "orthodontic" : "general"),
     chiefComplaint: c.chiefComplaint || c.symptoms || "",
     historyOfPresentIllness: c.historyOfPresentIllness || "",
     medicalHistory: c.medicalHistory || "",
