@@ -371,6 +371,7 @@ export function ConsultationsPage() {
     setConsultNumber(generateConsultNumber(seq));
     setForm(draft ?? { ...EMPTY_FORM });
     setSelectedImgIds([]);
+    setPendingAttachments([]);
     setDialogOpen(true);
     startAutosave(() => formRef.current);
   };
