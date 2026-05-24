@@ -35,6 +35,7 @@ export function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<"all" | DocumentTag>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "pdf" | "other">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "carnet">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("dateDesc");
@@ -43,6 +44,7 @@ export function DocumentsPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingTag, setPendingTag] = useState<DocumentTag>("other");
   const [clinicalNotes, setClinicalNotes] = useState("");
+  const [lightbox, setLightbox] = useState<Doc | null>(null);
 
   // Load per-patient clinical notes from localStorage
   useEffect(() => {
