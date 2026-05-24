@@ -312,6 +312,14 @@ export function PatientsPage() {
               <Label>{t("patient.alerts")}</Label>
               <Textarea value={form.medicalAlerts} onChange={e => setForm(f => ({ ...f, medicalAlerts: e.target.value }))} placeholder="Allergies, conditions..." />
             </div>
+            <div className="pt-2 border-t">
+              <AttachmentsField
+                files={pendingDocs}
+                onChange={setPendingDocs}
+                label={t("attach.initialDocs")}
+                helper={t("attach.initialDocsHint")}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
