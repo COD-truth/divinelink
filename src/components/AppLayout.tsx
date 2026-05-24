@@ -163,8 +163,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
   ];
 
-  const visibleMain = mainNav.filter(i => hasRole(i.roles as any));
-  const visibleAdmin = adminNav.filter(i => hasRole(i.roles as any));
+  const visibleMain = applyOrder(mainNav.filter(i => hasRole(i.roles as any)), navOrder);
+  const visibleAdmin = applyOrder(adminNav.filter(i => hasRole(i.roles as any)), navOrder);
   const allItems = [...visibleMain, ...visibleAdmin];
   const currentLabel = allItems.find(i => i.page === currentPage)?.label || "";
 
