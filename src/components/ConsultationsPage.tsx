@@ -331,6 +331,7 @@ export function ConsultationsPage() {
   const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
   const [dxOpen, setDxOpen] = useState(false);
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
   const DRAFT_KEY = "divinelink.consultDraft";
 
   const load = useCallback(async () => {
