@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 interface AuthCtx {
   user: User | null;
-  login: (pin: string) => Promise<boolean>;
+  login: (pin: string, username?: string) => Promise<boolean>;
   logout: () => void;
   hasRole: (roles: UserRole[]) => boolean;
   lockNow: () => void;
