@@ -218,6 +218,16 @@ export function DocumentsPage() {
         )}
       </div>
 
+      {/* Source tabs (All / Carnet) */}
+      <div className="flex gap-2">
+        <Button size="sm" variant={sourceFilter === "all" ? "default" : "outline"} onClick={() => setSourceFilter("all")}>
+          {t("doc.allSources")}
+        </Button>
+        <Button size="sm" variant={sourceFilter === "carnet" ? "default" : "outline"} onClick={() => setSourceFilter("carnet")}>
+          📋 {t("doc.carnet")}
+        </Button>
+      </div>
+
       {/* Search + filter row 1 */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
