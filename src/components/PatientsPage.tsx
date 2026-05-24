@@ -41,6 +41,7 @@ export function PatientsPage() {
     medicalAlerts: "",
     photo: "" as string | undefined,
   });
+  const [pendingDocs, setPendingDocs] = useState<File[]>([]);
 
   const load = async () => {
     const all = await db.patients.reverse().toArray();
