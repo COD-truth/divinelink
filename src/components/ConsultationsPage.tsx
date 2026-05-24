@@ -987,7 +987,19 @@ export function ConsultationsPage() {
                 </div>
               )}
             </Section>
+
+            <div className="pt-3 mt-3 border-t">
+              <AttachmentsField
+                files={pendingAttachments}
+                onChange={setPendingAttachments}
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                label={t("attach.consultDocs")}
+                helper={t("attach.consultDocsHint")}
+              />
+            </div>
           </div>
+
+
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => {
