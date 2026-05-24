@@ -389,6 +389,13 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
           </TabsContent>
         </Tabs>
 
+        {/* Medical booklet scanner — full-width at the very bottom */}
+        {p.id && (
+          <div className="mt-4">
+            <MedicalBookletScanner patientId={p.id} />
+          </div>
+        )}
+
         {/* Floating AI button */}
         <AIButton onClick={() => setAiOpen(true)} position="bottom-right" />
 
