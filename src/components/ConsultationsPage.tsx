@@ -20,6 +20,8 @@ import { fileToDataUrl } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { AnnotateImageModal } from "@/components/AnnotateImageModal";
 import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
+import { AttachmentsField, readFileAsDataUrl } from "@/components/AttachmentsField";
+import { getClinicId } from "@/lib/clinicSettings";
 import { saveFile, withDateStamp } from "@/lib/download";
 import { formatDateTime } from "@/lib/dateFormat";
 
