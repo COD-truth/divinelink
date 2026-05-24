@@ -109,9 +109,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [user, logout]);
 
-  const login = async (pin: string): Promise<boolean> => {
+  const login = async (pin: string, username?: string): Promise<boolean> => {
     // Iterate active users and verify against per-user salted hash.
-    const candidates = await db.users.filter(u => !!u.active).toArray();
+    let candidates = await db.users.filter(u => !!u.active).toArray();
+    // If a username/role hint is provided, narrow candidates by case-insensitive name or role match.
+    if (username && username.trim()) {
+      const q = username.trim().toLowerCase();
+      const narrowed = candidates.filter(u =>
+        u.name.toLowerCase() === q ||
+        u.name.toLowerCase().includes(q) ||
+        u.role.toLowerCase() === q
+      );
+      if (narrowed.length > 0) candidates = narrowed;
+    }
     let found: User | undefined;
     for (const u of candidates) {
       if (await verifyPin(pin, u.pinHash)) { found = u; break; }
