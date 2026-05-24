@@ -54,6 +54,30 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const [switchPin, setSwitchPin] = useState("");
   const [switchErr, setSwitchErr] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [navOrder, setNavOrder] = useState<Page[]>([]);
+  const [draftOrder, setDraftOrder] = useState<Page[]>([]);
+  const dragFromRef = React.useRef<number | null>(null);
+
+  const orderKey = `navOrder_${user?.id ?? "anon"}`;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(orderKey);
+      if (raw) setNavOrder(JSON.parse(raw));
+      else setNavOrder([]);
+    } catch { setNavOrder([]); }
+  }, [orderKey]);
+
+  const applyOrder = (items: NavItem[], order: Page[]): NavItem[] => {
+    if (!order.length) return items;
+    const map = new Map(items.map(i => [i.page, i]));
+    const ordered: NavItem[] = [];
+    for (const p of order) {
+      const it = map.get(p);
+      if (it) { ordered.push(it); map.delete(p); }
+    }
+    return [...ordered, ...Array.from(map.values())];
+  };
 
   // Check push subscription status on mount
   useEffect(() => {
