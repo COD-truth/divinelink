@@ -484,15 +484,17 @@ export function ConsultationsPage() {
     if (!form.patientId) return;
     const now = new Date().toISOString();
     const fields = formToConsultFields(form);
+    const patientIdNum = parseInt(form.patientId);
+    let consultIdForAttachments: number | undefined;
 
     if (editingId) {
       const old = await db.consultations.get(editingId);
       if (old) {
         await db.consultations.update(editingId, { isLatest: false });
         const originalId = old.originalId || old.id!;
-        await db.consultations.add({
+        const newId = await db.consultations.add({
           ...fields,
-          patientId: parseInt(form.patientId),
+          patientId: patientIdNum,
           doctorId: user!.id!,
           date: now,
           createdAt: now,
@@ -502,20 +504,46 @@ export function ConsultationsPage() {
           editedAt: now,
           editedBy: user!.name,
         } as Consultation);
+        consultIdForAttachments = newId as number;
       }
       toast.success(t("consult.updated"));
     } else {
       const id = await db.consultations.add({
         ...fields,
-        patientId: parseInt(form.patientId),
+        patientId: patientIdNum,
         doctorId: user!.id!,
         date: now,
         createdAt: now,
         versionNumber: 1,
       } as Consultation);
       await db.consultations.update(id as number, { originalId: id as number });
+      consultIdForAttachments = id as number;
       toast.success(t("consult.new"));
     }
+
+    // Save staged attachments as document rows linked to this consultation
+    if (consultIdForAttachments && pendingAttachments.length) {
+      const cid = getClinicId();
+      for (const f of pendingAttachments) {
+        try {
+          const data = await readFileAsDataUrl(f);
+          await db.documents.add({
+            patientId: patientIdNum,
+            consultId: consultIdForAttachments,
+            name: f.name,
+            type: f.type || "application/octet-stream",
+            data,
+            size: f.size,
+            source: "consultation_upload",
+            clinicId: cid,
+            createdAt: now,
+            updatedAt: now,
+            updatedBy: user?.name,
+          });
+        } catch { /* skip */ }
+      }
+    }
+    setPendingAttachments([]);
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     closeDialog();
     load();
