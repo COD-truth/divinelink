@@ -288,6 +288,29 @@ export function DocumentsPage() {
 
       {filtered.length === 0 ? (
         <p className="text-muted-foreground text-center py-12">{selectedPatient ? t("doc.noFiles") : t("common.noData")}</p>
+      ) : sourceFilter === "carnet" ? (
+        <div className="space-y-3">
+          {filtered.map(d => (
+            <Card key={d.id} className="group relative cursor-pointer" onClick={() => setLightbox(d)}>
+              <CardContent className="p-2">
+                {isImage(d) ? (
+                  <img src={d.data} alt={d.name} className="w-full max-h-[60vh] object-contain rounded" />
+                ) : (
+                  <div className="flex items-center justify-center py-8"><FileText className="w-12 h-12 text-muted-foreground" /></div>
+                )}
+                <div className="flex items-center justify-between mt-2 text-xs">
+                  <span className="truncate">{d.name} · {patientName(d.patientId)}</span>
+                  <span className="text-muted-foreground">{formatDateTime(d.createdAt)}</span>
+                </div>
+                <Button
+                  variant="destructive" size="icon"
+                  className="absolute top-2 right-2 w-7 h-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={e => { e.stopPropagation(); handleDelete(d.id!); }}
+                ><Trash2 className="w-3 h-3" /></Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {filtered.map(d => (
