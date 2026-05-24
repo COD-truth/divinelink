@@ -18,6 +18,7 @@ import {
   patientPaymentSummary, paymentBadgeEmoji,
 } from "@/lib/patientHelpers";
 import { PatientProfile } from "@/components/PatientProfile";
+import { AttachmentsField, readFileAsDataUrl } from "@/components/AttachmentsField";
 
 export function PatientsPage() {
   const { t } = useLang();
