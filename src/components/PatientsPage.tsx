@@ -118,9 +118,27 @@ export function PatientsPage() {
     const patientId = await generatePatientId();
     const anonCode = generateAnonCode();
     const cid = localStorage.getItem("divinelink.clinicId") || undefined;
-    await db.patients.add({ ...(payload as any), patientId, anonCode, clinicId: cid, createdAt: now, updatedAt: now });
+    const newId = await db.patients.add({ ...(payload as any), patientId, anonCode, clinicId: cid, createdAt: now, updatedAt: now }) as number;
+    // Save initial documents attached during registration
+    for (const f of pendingDocs) {
+      try {
+        const data = await readFileAsDataUrl(f);
+        await db.documents.add({
+          patientId: newId,
+          name: f.name,
+          type: f.type || "application/octet-stream",
+          data,
+          size: f.size,
+          source: "registration_upload",
+          clinicId: cid,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch { /* skip bad file */ }
+    }
     toast.success(t("patient.register"));
     setDialogOpen(false);
+    setPendingDocs([]);
     load();
   };
 
