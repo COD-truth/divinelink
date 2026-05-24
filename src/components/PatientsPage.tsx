@@ -88,6 +88,7 @@ export function PatientsPage() {
 
   const openNew = () => {
     setForm({ fullName: "", phone: "", dob: "", age: "", address: "", medicalAlerts: "", photo: "" });
+    setPendingDocs([]);
     setDialogOpen(true);
   };
 
