@@ -928,6 +928,20 @@ const translations: Record<string, Record<Lang, string>> = {
   "ai.apiKey": { en: "Anthropic API key required", fr: "Clé API Anthropic requise" },
   "ai.configureKey": { en: "Configure API key", fr: "Configurer la clé API" },
   "ai.changeKey": { en: "Change API key", fr: "Changer la clé API" },
+
+  // Attachments
+  "attach.initialDocs": { en: "📎 Initial documents", fr: "📎 Documents initiaux" },
+  "attach.initialDocsHint": { en: "Optional: ID, prior records, referrals…", fr: "Optionnel : pièce d'identité, dossiers, lettres…" },
+  "attach.consultDocs": { en: "📎 Attachments", fr: "📎 Pièces jointes" },
+  "attach.consultDocsHint": { en: "X-rays, photos, lab results…", fr: "Radiographies, photos, résultats…" },
+
+  // Carnet / Documents
+  "doc.allSources": { en: "All documents", fr: "Tous les documents" },
+  "doc.carnet": { en: "Booklet", fr: "Carnet de santé" },
+
+  // Navigation reorder
+  "nav.reorder": { en: "Reorder menu", fr: "Réorganiser le menu" },
+  "nav.reorderSave": { en: "Save order", fr: "Enregistrer" },
 };
 
 export function t(key: string, lang: Lang): string {
