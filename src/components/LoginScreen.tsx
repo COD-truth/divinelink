@@ -28,16 +28,20 @@ export function LoginScreen() {
     setLoading(true);
     // Pre-resolve the user so we can show the role badge before navigating
     try {
-      const candidates = await db.users.filter(u => !!u.active).toArray();
+      const all = await db.users.filter(u => !!u.active).toArray();
       const { verifyPin } = await import("@/lib/db");
+      const q = username.trim().toLowerCase();
+      const narrowed = q
+        ? all.filter(u => u.name.toLowerCase() === q || u.name.toLowerCase().includes(q) || u.role.toLowerCase() === q)
+        : all;
       let matched: any = null;
-      for (const u of candidates) { if (await verifyPin(pin, u.pinHash)) { matched = u; break; } }
+      for (const u of narrowed) { if (await verifyPin(pin, u.pinHash)) { matched = u; break; } }
       if (matched) {
         setWelcomeRole(matched.role);
         setWelcomeName(matched.name);
       }
     } catch { /* fall through */ }
-    const ok = await login(pin);
+    const ok = await login(pin, username);
     setLoading(false);
     if (!ok) {
       setError(true);
@@ -128,6 +132,9 @@ export function LoginScreen() {
                 autoFocus
                 autoComplete="current-password"
               />
+              <p className="text-[11px] text-gray-400 mt-1.5 text-center">
+                Type <b>admin</b>, <b>doctor</b> or <b>receptionist</b> as username · default PIN <b>1234</b>
+              </p>
             </div>
 
             {/* Role badge after successful PIN */}

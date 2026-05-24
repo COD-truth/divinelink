@@ -784,14 +784,23 @@ export async function generatePatientId(): Promise<string> {
 export async function seedDatabase() {
   const userCount = await db.users.count();
   if (userCount === 0) {
+    const now = new Date().toISOString();
     const pin = await hashPin("1234");
-    await db.users.add({
-      name: "Admin",
-      role: "admin",
-      pinHash: pin,
-      active: true,
-      createdAt: new Date().toISOString(),
-    });
+    await db.users.bulkAdd([
+      { name: "Admin",        role: "admin",        pinHash: pin, active: true, createdAt: now },
+      { name: "Doctor",       role: "doctor",       pinHash: pin, active: true, createdAt: now },
+      { name: "Receptionist", role: "receptionist", pinHash: pin, active: true, createdAt: now },
+    ]);
+  } else {
+    // Backfill missing default doctor/receptionist accounts so all 3 roles can sign in.
+    const now = new Date().toISOString();
+    const pin = await hashPin("1234");
+    const hasDoctor = await db.users.where("role").equals("doctor").count();
+    if (!hasDoctor) await db.users.add({ name: "Doctor", role: "doctor", pinHash: pin, active: true, createdAt: now });
+    const hasRecep = await db.users.where("role").equals("receptionist").count();
+    if (!hasRecep) await db.users.add({ name: "Receptionist", role: "receptionist", pinHash: pin, active: true, createdAt: now });
+    const hasAdmin = await db.users.where("role").equals("admin").count();
+    if (!hasAdmin) await db.users.add({ name: "Admin", role: "admin", pinHash: pin, active: true, createdAt: now });
   }
 
   const drugCount = await db.drugs.count();
