@@ -106,7 +106,7 @@ export function DocumentsPage() {
       }
     });
     return out;
-  }, [docs, search, tagFilter, typeFilter, dateFrom, dateTo, sortKey, patients, t]);
+  }, [docs, search, tagFilter, typeFilter, sourceFilter, dateFrom, dateTo, sortKey, patients, t]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Doc[]>();
