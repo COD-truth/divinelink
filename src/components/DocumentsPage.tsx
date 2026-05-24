@@ -83,6 +83,7 @@ export function DocumentsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let out = docs.filter(d => {
+      if (sourceFilter === "carnet" && d.source !== "carnet_capture") return false;
       if (tagFilter !== "all" && d.tag !== tagFilter) return false;
       if (typeFilter === "image" && !d.type.startsWith("image/")) return false;
       if (typeFilter === "pdf" && d.type !== "application/pdf") return false;
