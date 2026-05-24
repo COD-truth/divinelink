@@ -5,7 +5,7 @@ import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { InstallPWAButton } from "@/components/InstallPWAButton";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -54,6 +54,30 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const [switchPin, setSwitchPin] = useState("");
   const [switchErr, setSwitchErr] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [navOrder, setNavOrder] = useState<Page[]>([]);
+  const [draftOrder, setDraftOrder] = useState<Page[]>([]);
+  const dragFromRef = React.useRef<number | null>(null);
+
+  const orderKey = `navOrder_${user?.id ?? "anon"}`;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(orderKey);
+      if (raw) setNavOrder(JSON.parse(raw));
+      else setNavOrder([]);
+    } catch { setNavOrder([]); }
+  }, [orderKey]);
+
+  const applyOrder = (items: NavItem[], order: Page[]): NavItem[] => {
+    if (!order.length) return items;
+    const map = new Map(items.map(i => [i.page, i]));
+    const ordered: NavItem[] = [];
+    for (const p of order) {
+      const it = map.get(p);
+      if (it) { ordered.push(it); map.delete(p); }
+    }
+    return [...ordered, ...Array.from(map.values())];
+  };
 
   // Check push subscription status on mount
   useEffect(() => {
@@ -139,8 +163,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
   ];
 
-  const visibleMain = mainNav.filter(i => hasRole(i.roles as any));
-  const visibleAdmin = adminNav.filter(i => hasRole(i.roles as any));
+  const visibleMain = applyOrder(mainNav.filter(i => hasRole(i.roles as any)), navOrder);
+  const visibleAdmin = applyOrder(adminNav.filter(i => hasRole(i.roles as any)), navOrder);
   const allItems = [...visibleMain, ...visibleAdmin];
   const currentLabel = allItems.find(i => i.page === currentPage)?.label || "";
 
@@ -184,29 +208,111 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const remainingMs = sessionExpiresAt ? Math.max(0, sessionExpiresAt - Date.now()) : 0;
   const remainingMin = Math.ceil(remainingMs / 60000);
 
+  // Reorder helpers
+  const startReorder = () => {
+    const combined = [...visibleMain, ...visibleAdmin].map(i => i.page);
+    setDraftOrder(combined);
+    setReorderMode(true);
+  };
+  const saveReorder = () => {
+    setNavOrder(draftOrder);
+    try { localStorage.setItem(orderKey, JSON.stringify(draftOrder)); } catch { /* */ }
+    setReorderMode(false);
+  };
+  const cancelReorder = () => { setReorderMode(false); setDraftOrder([]); };
+
+  const onDragStart = (i: number) => () => { dragFromRef.current = i; };
+  const onDragOver = (i: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragFromRef.current;
+    if (from == null || from === i) return;
+    setDraftOrder(prev => {
+      const next = [...prev];
+      const [m] = next.splice(from, 1);
+      next.splice(i, 0, m);
+      dragFromRef.current = i;
+      return next;
+    });
+  };
+  const onDragEnd = () => { dragFromRef.current = null; };
+
+  const renderReorderList = () => {
+    const all = [...visibleMain, ...visibleAdmin];
+    const byPage = new Map(all.map(i => [i.page, i]));
+    return (
+      <div className="space-y-1">
+        {draftOrder.map((p, i) => {
+          const it = byPage.get(p);
+          if (!it) return null;
+          return (
+            <div
+              key={p}
+              draggable
+              onDragStart={onDragStart(i)}
+              onDragOver={onDragOver(i)}
+              onDragEnd={onDragEnd}
+              className="flex items-center gap-2 px-2 py-2 rounded bg-sidebar-accent/40 cursor-move text-sm"
+            >
+              <GripVertical className="w-4 h-4 text-sidebar-foreground/50" />
+              {it.icon}
+              <span className="truncate">{it.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderSidebarNav = (isCollapsed: boolean) => (
     <>
-      {/* Main nav — flat list */}
-      {visibleMain.map(item => (
-        <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} />
-      ))}
+      {reorderMode && !isCollapsed ? (
+        <>
+          {renderReorderList()}
+          <div className="flex gap-2 pt-2">
+            <Button size="sm" className="flex-1 gap-1" onClick={saveReorder}>
+              <Check className="w-3 h-3" /> {t("nav.reorderSave")}
+            </Button>
+            <Button size="sm" variant="outline" className="flex-1" onClick={cancelReorder}>
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Main nav — flat list */}
+          {visibleMain.map(item => (
+            <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} />
+          ))}
 
-      {/* Admin section — collapsible, muted */}
-      {visibleAdmin.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-sidebar-border/50">
+          {/* Admin section — collapsible, muted */}
+          {visibleAdmin.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-sidebar-border/50">
+              {!isCollapsed && (
+                <button
+                  onClick={() => setAdminOpen(o => !o)}
+                  className="w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5"><Settings className="w-3 h-3" />{t("nav.group.admin")}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${adminOpen ? "" : "-rotate-90"}`} />
+                </button>
+              )}
+              {(isCollapsed || adminOpen) && visibleAdmin.map(item => (
+                <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} muted />
+              ))}
+            </div>
+          )}
+
+          {/* Reorder trigger — bottom of sidebar nav, expanded only */}
           {!isCollapsed && (
             <button
-              onClick={() => setAdminOpen(o => !o)}
-              className="w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
+              onClick={startReorder}
+              className="w-full mt-3 pt-2 border-t border-sidebar-border/50 flex items-center gap-2 px-3 py-2 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground/90 transition-colors"
             >
-              <span className="flex items-center gap-1.5"><Settings className="w-3 h-3" />{t("nav.group.admin")}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${adminOpen ? "" : "-rotate-90"}`} />
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              {t("nav.reorder")}
             </button>
           )}
-          {(isCollapsed || adminOpen) && visibleAdmin.map(item => (
-            <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} muted />
-          ))}
-        </div>
+        </>
       )}
     </>
   );

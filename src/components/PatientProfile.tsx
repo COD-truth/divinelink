@@ -36,6 +36,7 @@ import { DocGenPanel } from "@/components/DocGenPanel";
 import { AIClinicalAssistant, AIButton } from "@/components/AIClinicalAssistant";
 import { VitalSignsTrends } from "@/components/VitalSignsTrends";
 import { ImportedDocumentsTab } from "@/components/ImportedDocumentsTab";
+import { MedicalBookletScanner } from "@/components/MedicalBookletScanner";
 
 interface Props {
   patient: Patient;
@@ -388,6 +389,13 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
             <TimelineTab patientId={p.id!} />
           </TabsContent>
         </Tabs>
+
+        {/* Medical booklet scanner — full-width at the very bottom */}
+        {p.id && (
+          <div className="mt-4">
+            <MedicalBookletScanner patientId={p.id} />
+          </div>
+        )}
 
         {/* Floating AI button */}
         <AIButton onClick={() => setAiOpen(true)} position="bottom-right" />

@@ -35,6 +35,7 @@ export function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<"all" | DocumentTag>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "pdf" | "other">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "carnet">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("dateDesc");
@@ -43,6 +44,7 @@ export function DocumentsPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingTag, setPendingTag] = useState<DocumentTag>("other");
   const [clinicalNotes, setClinicalNotes] = useState("");
+  const [lightbox, setLightbox] = useState<Doc | null>(null);
 
   // Load per-patient clinical notes from localStorage
   useEffect(() => {
@@ -81,6 +83,7 @@ export function DocumentsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let out = docs.filter(d => {
+      if (sourceFilter === "carnet" && d.source !== "carnet_capture") return false;
       if (tagFilter !== "all" && d.tag !== tagFilter) return false;
       if (typeFilter === "image" && !d.type.startsWith("image/")) return false;
       if (typeFilter === "pdf" && d.type !== "application/pdf") return false;
@@ -103,7 +106,7 @@ export function DocumentsPage() {
       }
     });
     return out;
-  }, [docs, search, tagFilter, typeFilter, dateFrom, dateTo, sortKey, patients, t]);
+  }, [docs, search, tagFilter, typeFilter, sourceFilter, dateFrom, dateTo, sortKey, patients, t]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Doc[]>();
@@ -215,6 +218,16 @@ export function DocumentsPage() {
         )}
       </div>
 
+      {/* Source tabs (All / Carnet) */}
+      <div className="flex gap-2">
+        <Button size="sm" variant={sourceFilter === "all" ? "default" : "outline"} onClick={() => setSourceFilter("all")}>
+          {t("doc.allSources")}
+        </Button>
+        <Button size="sm" variant={sourceFilter === "carnet" ? "default" : "outline"} onClick={() => setSourceFilter("carnet")}>
+          📋 {t("doc.carnet")}
+        </Button>
+      </div>
+
       {/* Search + filter row 1 */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
@@ -275,6 +288,29 @@ export function DocumentsPage() {
 
       {filtered.length === 0 ? (
         <p className="text-muted-foreground text-center py-12">{selectedPatient ? t("doc.noFiles") : t("common.noData")}</p>
+      ) : sourceFilter === "carnet" ? (
+        <div className="space-y-3">
+          {filtered.map(d => (
+            <Card key={d.id} className="group relative cursor-pointer" onClick={() => setLightbox(d)}>
+              <CardContent className="p-2">
+                {isImage(d) ? (
+                  <img src={d.data} alt={d.name} className="w-full max-h-[60vh] object-contain rounded" />
+                ) : (
+                  <div className="flex items-center justify-center py-8"><FileText className="w-12 h-12 text-muted-foreground" /></div>
+                )}
+                <div className="flex items-center justify-between mt-2 text-xs">
+                  <span className="truncate">{d.name} · {patientName(d.patientId)}</span>
+                  <span className="text-muted-foreground">{formatDateTime(d.createdAt)}</span>
+                </div>
+                <Button
+                  variant="destructive" size="icon"
+                  className="absolute top-2 right-2 w-7 h-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={e => { e.stopPropagation(); handleDelete(d.id!); }}
+                ><Trash2 className="w-3 h-3" /></Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {filtered.map(d => (
@@ -419,6 +455,19 @@ export function DocumentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          {isImage(lightbox) ? (
+            <img src={lightbox.data} alt={lightbox.name} className="max-w-full max-h-full object-contain" />
+          ) : (
+            <div className="bg-card p-6 rounded">{lightbox.name}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

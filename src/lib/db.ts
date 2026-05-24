@@ -316,6 +316,13 @@ export interface GeneratedDoc {
 
 export type DocumentTag = "lab" | "referral" | "xray" | "other";
 
+export type DocumentSource =
+  | "carnet_capture"
+  | "registration_upload"
+  | "consultation_upload"
+  | "word_import"
+  | "import";
+
 export interface Document {
   id?: number;
   patientId: number;
@@ -325,6 +332,10 @@ export interface Document {
   size: number;
   /** Optional category tag */
   tag?: DocumentTag;
+  /** Optional provenance / how this doc entered the system */
+  source?: DocumentSource;
+  /** Optional link to a consultation record */
+  consultId?: number;
   clinicId?: string;
   createdAt: string;
   updatedAt?: string;

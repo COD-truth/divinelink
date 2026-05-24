@@ -18,6 +18,7 @@ import {
   patientPaymentSummary, paymentBadgeEmoji,
 } from "@/lib/patientHelpers";
 import { PatientProfile } from "@/components/PatientProfile";
+import { AttachmentsField, readFileAsDataUrl } from "@/components/AttachmentsField";
 
 export function PatientsPage() {
   const { t } = useLang();
@@ -40,6 +41,7 @@ export function PatientsPage() {
     medicalAlerts: "",
     photo: "" as string | undefined,
   });
+  const [pendingDocs, setPendingDocs] = useState<File[]>([]);
 
   const load = async () => {
     const all = await db.patients.reverse().toArray();
@@ -86,6 +88,7 @@ export function PatientsPage() {
 
   const openNew = () => {
     setForm({ fullName: "", phone: "", dob: "", age: "", address: "", medicalAlerts: "", photo: "" });
+    setPendingDocs([]);
     setDialogOpen(true);
   };
 
@@ -115,9 +118,27 @@ export function PatientsPage() {
     const patientId = await generatePatientId();
     const anonCode = generateAnonCode();
     const cid = localStorage.getItem("divinelink.clinicId") || undefined;
-    await db.patients.add({ ...(payload as any), patientId, anonCode, clinicId: cid, createdAt: now, updatedAt: now });
+    const newId = await db.patients.add({ ...(payload as any), patientId, anonCode, clinicId: cid, createdAt: now, updatedAt: now }) as number;
+    // Save initial documents attached during registration
+    for (const f of pendingDocs) {
+      try {
+        const data = await readFileAsDataUrl(f);
+        await db.documents.add({
+          patientId: newId,
+          name: f.name,
+          type: f.type || "application/octet-stream",
+          data,
+          size: f.size,
+          source: "registration_upload",
+          clinicId: cid,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch { /* skip bad file */ }
+    }
     toast.success(t("patient.register"));
     setDialogOpen(false);
+    setPendingDocs([]);
     load();
   };
 
@@ -290,6 +311,14 @@ export function PatientsPage() {
             <div>
               <Label>{t("patient.alerts")}</Label>
               <Textarea value={form.medicalAlerts} onChange={e => setForm(f => ({ ...f, medicalAlerts: e.target.value }))} placeholder="Allergies, conditions..." />
+            </div>
+            <div className="pt-2 border-t">
+              <AttachmentsField
+                files={pendingDocs}
+                onChange={setPendingDocs}
+                label={t("attach.initialDocs")}
+                helper={t("attach.initialDocsHint")}
+              />
             </div>
           </div>
           <DialogFooter>
