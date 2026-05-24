@@ -132,6 +132,9 @@ export function LoginScreen() {
                 autoFocus
                 autoComplete="current-password"
               />
+              <p className="text-[11px] text-gray-400 mt-1.5 text-center">
+                Type <b>admin</b>, <b>doctor</b> or <b>receptionist</b> as username · default PIN <b>1234</b>
+              </p>
             </div>
 
             {/* Role badge after successful PIN */}
