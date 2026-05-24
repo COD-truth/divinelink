@@ -381,6 +381,7 @@ export function ConsultationsPage() {
     setForm(consultToForm(c));
     setConsultNumber(`CONS-${new Date(c.createdAt || c.date).getFullYear()}-????`);
     setSelectedImgIds([]);
+    setPendingAttachments([]);
     setDialogOpen(true);
     startAutosave(() => formRef.current);
   };
