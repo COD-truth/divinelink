@@ -115,6 +115,7 @@ function AppContent() {
     templates: adminOnly(<Suspense fallback={<PageLoader />}><ObservationTemplatesPage /></Suspense>),
     importPatients: adminOnly(<Suspense fallback={<PageLoader />}><ImportPatientsPage /></Suspense>),
     sync: adminOnly(<Suspense fallback={<PageLoader />}><ScheduledSyncPage /></Suspense>),
+    conflicts: adminOnly(<Suspense fallback={<PageLoader />}><SyncConflictsPage /></Suspense>),
   };
 
   return (
