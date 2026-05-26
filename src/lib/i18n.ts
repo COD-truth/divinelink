@@ -375,6 +375,18 @@ const translations: Record<string, Record<Lang, string>> = {
   "nav.templates": { en: "Observation templates", fr: "Modèles d'observation" },
   "nav.importPatients": { en: "Import patients", fr: "Importer des patients" },
   "nav.sync": { en: "Scheduled sync", fr: "Synchronisation planifiée" },
+  "nav.conflicts": { en: "Sync conflicts", fr: "Conflits de synchronisation" },
+  "conflicts.title": { en: "Sync conflicts", fr: "Conflits de synchronisation" },
+  "conflicts.subtitle": { en: "Records edited on two devices while offline. Pick which version to keep.", fr: "Enregistrements modifiés sur deux appareils hors ligne. Choisissez la version à conserver." },
+  "conflicts.pending": { en: "Pending", fr: "En attente" },
+  "conflicts.history": { en: "History", fr: "Historique" },
+  "conflicts.empty": { en: "No conflicts to review.", fr: "Aucun conflit à examiner." },
+  "conflicts.local": { en: "This device", fr: "Cet appareil" },
+  "conflicts.remote": { en: "Incoming", fr: "Reçu" },
+  "conflicts.keepLocal": { en: "Keep this device", fr: "Garder cet appareil" },
+  "conflicts.keepRemote": { en: "Keep incoming", fr: "Garder la version reçue" },
+  "conflicts.detected": { en: "Detected", fr: "Détecté" },
+  "conflicts.resolved": { en: "Conflict resolved", fr: "Conflit résolu" },
 
   // Dashboard widgets (Phase 2)
   "dash.widget.recentPatients": { en: "Recent Patients", fr: "Patients recents" },
