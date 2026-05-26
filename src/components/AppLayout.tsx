@@ -161,6 +161,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "templates", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.templates"), roles: ["admin"] },
     { page: "importPatients", icon: <Upload className="w-5 h-5" />, label: t("nav.importPatients"), roles: ["admin"] },
     { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
+    { page: "conflicts", icon: <AlertTriangle className="w-5 h-5" />, label: t("nav.conflicts"), roles: ["admin"] },
   ];
 
   const visibleMain = applyOrder(mainNav.filter(i => hasRole(i.roles as any)), navOrder);
