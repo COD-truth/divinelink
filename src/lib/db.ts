@@ -499,6 +499,7 @@ class DentaDB extends Dexie {
   equipmentMovements!: Table<EquipmentMovement>;
   consultationTemplates!: Table<ConsultationTemplate>;
   importedDocuments!: Table<ImportedDocument>;
+  syncConflicts!: Table<SyncConflict>;
 
   constructor() {
     super("DivineLinkDB");
