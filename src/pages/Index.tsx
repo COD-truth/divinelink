@@ -33,6 +33,7 @@ const EquipmentPage = lazy(() => import("@/components/EquipmentPage").then(m => 
 const ObservationTemplatesPage = lazy(() => import("@/components/ObservationTemplatesPage").then(m => ({ default: m.ObservationTemplatesPage })));
 const ImportPatientsPage = lazy(() => import("@/components/ImportPatientsPage").then(m => ({ default: m.ImportPatientsPage })));
 const ScheduledSyncPage = lazy(() => import("@/components/ScheduledSyncPage").then(m => ({ default: m.ScheduledSyncPage })));
+const SyncConflictsPage = lazy(() => import("@/components/SyncConflictsPage").then(m => ({ default: m.SyncConflictsPage })));
 
 function PageLoader() {
   return (
@@ -114,6 +115,7 @@ function AppContent() {
     templates: adminOnly(<Suspense fallback={<PageLoader />}><ObservationTemplatesPage /></Suspense>),
     importPatients: adminOnly(<Suspense fallback={<PageLoader />}><ImportPatientsPage /></Suspense>),
     sync: adminOnly(<Suspense fallback={<PageLoader />}><ScheduledSyncPage /></Suspense>),
+    conflicts: adminOnly(<Suspense fallback={<PageLoader />}><SyncConflictsPage /></Suspense>),
   };
 
   return (

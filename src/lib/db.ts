@@ -391,6 +391,28 @@ export interface AuditLog {
   message?: string;
 }
 
+/* ── Sync conflict review (when two devices edit the same record offline) ── */
+export type SyncConflictResource =
+  | "patient" | "consultation" | "appointment" | "document" | "user" | "payment";
+export type SyncConflictStatus = "pending" | "resolved_local" | "resolved_remote" | "resolved_merged";
+
+export interface SyncConflict {
+  id?: number;
+  resource: SyncConflictResource;
+  localId?: number;
+  matchKey: string;
+  localData: any;
+  remoteData: any;
+  label: string;
+  localUpdatedAt?: string;
+  remoteUpdatedAt?: string;
+  detectedAt: string;
+  status: SyncConflictStatus;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  clinicId?: string;
+}
+
 function ORTHODONTIC_DEFAULTS(now: string): Omit<Drug, "id">[] {
   const item = (name: string, category: string, stock: number, unit: string, minStock: number): Omit<Drug, "id"> => ({
     name, category, stock, initialStock: stock, unit,
@@ -477,6 +499,7 @@ class DentaDB extends Dexie {
   equipmentMovements!: Table<EquipmentMovement>;
   consultationTemplates!: Table<ConsultationTemplate>;
   importedDocuments!: Table<ImportedDocument>;
+  syncConflicts!: Table<SyncConflict>;
 
   constructor() {
     super("DivineLinkDB");
@@ -693,6 +716,24 @@ class DentaDB extends Dexie {
       equipmentMovements: "++id, itemId, createdAt, clinicId",
       consultationTemplates: "++id, specialty, active, clinicId, createdAt",
       importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
+    });
+    // v14: sync conflict review queue
+    this.version(14).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, externalId, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, templateId, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+      consultationTemplates: "++id, specialty, active, clinicId, createdAt",
+      importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
+      syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
     });
   }
 }
