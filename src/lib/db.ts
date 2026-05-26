@@ -391,6 +391,28 @@ export interface AuditLog {
   message?: string;
 }
 
+/* ── Sync conflict review (when two devices edit the same record offline) ── */
+export type SyncConflictResource =
+  | "patient" | "consultation" | "appointment" | "document" | "user" | "payment";
+export type SyncConflictStatus = "pending" | "resolved_local" | "resolved_remote" | "resolved_merged";
+
+export interface SyncConflict {
+  id?: number;
+  resource: SyncConflictResource;
+  localId?: number;
+  matchKey: string;
+  localData: any;
+  remoteData: any;
+  label: string;
+  localUpdatedAt?: string;
+  remoteUpdatedAt?: string;
+  detectedAt: string;
+  status: SyncConflictStatus;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  clinicId?: string;
+}
+
 function ORTHODONTIC_DEFAULTS(now: string): Omit<Drug, "id">[] {
   const item = (name: string, category: string, stock: number, unit: string, minStock: number): Omit<Drug, "id"> => ({
     name, category, stock, initialStock: stock, unit,
