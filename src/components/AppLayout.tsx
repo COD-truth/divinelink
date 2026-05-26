@@ -22,7 +22,7 @@ export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
   | "security" | "research" | "clinic" | "pharmacy" | "dental" | "payments" | "workspace" | "equipment"
-  | "templates" | "importPatients" | "sync";
+  | "templates" | "importPatients" | "sync" | "conflicts";
 
 interface Props {
   currentPage: Page;
