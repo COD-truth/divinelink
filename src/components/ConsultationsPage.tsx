@@ -386,8 +386,6 @@ export function ConsultationsPage() {
   useEffect(() => () => { if (autosaveRef.current) clearInterval(autosaveRef.current); }, []);
 
   const formRef = useRef(form);
-  useEffect(() => { formRef.current = form; }, [form]);
-
   const openNew = async () => {
     setEditingId(null);
     const draft = (() => {
@@ -396,6 +394,7 @@ export function ConsultationsPage() {
     const seq = (await db.consultations.count()) + 1;
     setConsultNumber(generateConsultNumber(seq));
     setForm(draft ?? { ...EMPTY_FORM });
+    setCustomFields({});
     setSelectedImgIds([]);
     setPendingAttachments([]);
     setDialogOpen(true);
@@ -405,10 +404,13 @@ export function ConsultationsPage() {
   const openEdit = (c: Consultation) => {
     setEditingId(c.id!);
     setForm(consultToForm(c));
+    setCustomFields(c.customFields || {});
     setConsultNumber(`CONS-${new Date(c.createdAt || c.date).getFullYear()}-????`);
     setSelectedImgIds([]);
     setPendingAttachments([]);
     setDialogOpen(true);
+    startAutosave(() => formRef.current);
+  };
     startAutosave(() => formRef.current);
   };
 
