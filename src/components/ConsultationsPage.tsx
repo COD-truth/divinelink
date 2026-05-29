@@ -713,6 +713,7 @@ export function ConsultationsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
                 <div>
                   <Label className="flex items-center gap-2">
                     {t("obs.specialty")}
