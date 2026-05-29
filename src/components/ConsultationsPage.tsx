@@ -713,15 +713,26 @@ export function ConsultationsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
                 <div>
-                  <Label>{t("obs.specialty")}</Label>
-                  <Select value={form.specialty} onValueChange={v => setForm(f => ({ ...f, specialty: v }))}>
+                  <Label className="flex items-center gap-2">
+                    {t("obs.specialty")}
+                    {specialtyLocked && (
+                      <span className="text-[10px] text-muted-foreground">🔒 verrouillée (nouvelle consultation pour changer)</span>
+                    )}
+                  </Label>
+                  <Select
+                    value={form.specialty}
+                    disabled={specialtyLocked}
+                    onValueChange={v => setForm(f => ({ ...f, specialty: v, consultType: specialtyToConsultType(v) }))}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {activeTemplate && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Modèle: {activeTemplate.name}</p>
+                  )}
                 </div>
               </div>
               {selPat && (
@@ -731,18 +742,6 @@ export function ConsultationsPage() {
                   <div><span className="text-muted-foreground">Médecin: </span>{user?.name}</div>
                 </div>
               )}
-              <div>
-                <Label>{t("consult.type")}</Label>
-                <Select value={form.consultType} onValueChange={v => setForm(f => ({ ...f, consultType: v as ConsultationType }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">{t("consult.type.general")}</SelectItem>
-                    <SelectItem value="dental">{t("consult.type.dental")}</SelectItem>
-                    <SelectItem value="orthodontic">{t("consult.type.orthodontic")}</SelectItem>
-                    <SelectItem value="other">{t("consult.type.other")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </Section>
 
             {/* ─ Section 2: Anamnèse ─ */}
