@@ -511,7 +511,7 @@ export function ConsultationsPage() {
   const save = async () => {
     if (!form.patientId) return;
     const now = new Date().toISOString();
-    const fields = formToConsultFields(form);
+    const fields = formToConsultFields(form, activeTemplate?.id, customFields);
     const patientIdNum = parseInt(form.patientId);
     let consultIdForAttachments: number | undefined;
 
