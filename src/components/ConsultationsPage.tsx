@@ -386,6 +386,8 @@ export function ConsultationsPage() {
   useEffect(() => () => { if (autosaveRef.current) clearInterval(autosaveRef.current); }, []);
 
   const formRef = useRef(form);
+  useEffect(() => { formRef.current = form; }, [form]);
+
   const openNew = async () => {
     setEditingId(null);
     const draft = (() => {
@@ -409,8 +411,6 @@ export function ConsultationsPage() {
     setSelectedImgIds([]);
     setPendingAttachments([]);
     setDialogOpen(true);
-    startAutosave(() => formRef.current);
-  };
     startAutosave(() => formRef.current);
   };
 
