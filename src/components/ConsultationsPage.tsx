@@ -346,10 +346,12 @@ export function ConsultationsPage() {
   const [consultNumber, setConsultNumber] = useState("");
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
   const [templates, setTemplates] = useState<ConsultationTemplate[]>([]);
-  const [templateId, setTemplateId] = useState<string>("__none__");
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
   useEffect(() => { db.consultationTemplates.filter(t => t.active).toArray().then(setTemplates); }, []);
-  const selectedTemplate = templates.find(t => t.id === parseInt(templateId));
+  // The active template is derived from the locked specialty (built-in mapping).
+  const activeTemplateCode = SPECIALTY_OPTIONS.find(s => s.value === form.specialty)?.templateCode || "general";
+  const activeTemplate = templates.find(t => t.builtinCode === activeTemplateCode);
+  const specialtyLocked = editingId !== null;
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
   const [annotateImg, setAnnotateImg] = useState<ConsultationImage | null>(null);
   const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
