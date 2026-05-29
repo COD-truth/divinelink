@@ -943,6 +943,22 @@ export function ConsultationsPage() {
               </div>
             </Section>
 
+            {/* ─ Specialty-specific template fields (Template B Dentisterie / Template C Orthodontie) ─ */}
+            {activeTemplate && activeTemplate.fieldsDefinition.length > 0 && (
+              <Section
+                num={6}
+                title={`Examen spécialisé — ${activeTemplate.name}`}
+                complete={Object.keys(customFields).length > 0}
+                defaultOpen={true}
+              >
+                <TemplateRenderer
+                  fields={activeTemplate.fieldsDefinition}
+                  values={customFields}
+                  onChange={setCustomFields}
+                />
+              </Section>
+            )}
+
             {/* ─ Images ─ */}
             <Section num={0} title={`${t("doc.images")} (${form.images.length})`} complete={form.images.length > 0}>
               <div className="flex items-center gap-2 flex-wrap">
