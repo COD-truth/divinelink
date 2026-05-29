@@ -967,8 +967,3 @@ async function seedBuiltinTemplates() {
     }
   } catch { /* ignore */ }
 }
-
-      }))
-    );
-  }
-}
