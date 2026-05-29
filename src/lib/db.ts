@@ -860,10 +860,6 @@ export async function seedDatabase() {
   }
 
   const drugCount = await db.drugs.count();
-  if (drugCount === 0) {
-    const now = new Date().toISOString();
-    await db.drugs.bulkAdd(ORTHODONTIC_DEFAULTS(now) as Drug[]);
-  }
 
   const equipCount = await db.equipmentItems.count();
   if (equipCount === 0) {
@@ -875,6 +871,103 @@ export async function seedDatabase() {
         lowStockThreshold: 5,
         createdAt: now,
         updatedAt: now,
+      }))
+    );
+  }
+
+  await seedBuiltinTemplates();
+}
+
+// ─── Built-in consultation templates (A / B / C) ─────────────────────────────
+
+function f(id: string, type: TemplateFieldType, label: string, opts?: { options?: string[]; required?: boolean }): TemplateField {
+  return { id, type, label, ...(opts || {}) };
+}
+
+function BUILTIN_TEMPLATES(): Array<Omit<ConsultationTemplate, "id" | "clinicId">> {
+  const now = new Date().toISOString();
+  return [
+    {
+      name: "Médecine Générale & Spécialités",
+      specialty: "general",
+      builtin: true,
+      builtinCode: "general",
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+      // Template A is rendered by the existing hardcoded sections.
+      // We keep fieldsDefinition empty so no duplicate UI appears.
+      fieldsDefinition: [],
+    },
+    {
+      name: "Dentisterie",
+      specialty: "dental",
+      builtin: true,
+      builtinCode: "dental",
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+      fieldsDefinition: [
+        f("d_extraoral", "long_text", "Examen extra-oral"),
+        f("d_intraoral", "long_text", "Examen intra-oral"),
+        f("d_perio_bleeding", "checkbox", "Saignement gingival"),
+        f("d_perio_pocket", "short_text", "Profondeur de poche (mm)"),
+        f("d_perio_mobility", "select", "Mobilité dentaire", { options: ["0", "1", "2", "3"] }),
+        f("d_perio_plaque", "short_text", "Indice de plaque"),
+        f("d_radio", "long_text", "Résultats radiographiques"),
+        f("d_dx", "long_text", "Diagnostic dentaire"),
+        f("d_plan", "long_text", "Plan de traitement"),
+        f("d_done", "long_text", "Traitement effectué aujourd'hui"),
+        f("d_next", "short_text", "Prochain rendez-vous"),
+      ],
+    },
+    {
+      name: "Orthodontie",
+      specialty: "orthodontic",
+      builtin: true,
+      builtinCode: "orthodontic",
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+      fieldsDefinition: [
+        f("o_concern", "long_text", "Motif principal"),
+        f("o_history", "long_text", "Histoire"),
+        f("o_face_profile", "select", "Profil sagittal", { options: ["Classe I", "Classe II", "Classe III"] }),
+        f("o_face_symmetry", "short_text", "Symétrie faciale"),
+        f("o_face_height", "short_text", "Hauteur faciale"),
+        f("o_face_lips", "select", "Compétence labiale", { options: ["Compétente", "Incompétente"] }),
+        f("o_overjet", "short_text", "Overjet (mm)"),
+        f("o_overbite", "short_text", "Overbite (mm)"),
+        f("o_crowding", "checkbox", "Encombrement"),
+        f("o_spacing", "checkbox", "Diastèmes"),
+        f("o_crossbite", "checkbox", "Occlusion croisée"),
+        f("o_molar_l", "select", "Classe molaire gauche", { options: ["I", "II", "III"] }),
+        f("o_molar_r", "select", "Classe molaire droite", { options: ["I", "II", "III"] }),
+        f("o_appliances", "long_text", "Appareillages actuels"),
+        f("o_radio", "long_text", "Résultats radiographiques"),
+        f("o_dx", "long_text", "Synthèse diagnostique"),
+        f("o_objectives", "long_text", "Objectifs de traitement"),
+        f("o_plan", "long_text", "Plan de traitement"),
+        f("o_today", "long_text", "Traitement effectué aujourd'hui"),
+        f("o_next", "short_text", "Prochain rendez-vous"),
+      ],
+    },
+  ];
+}
+
+async function seedBuiltinTemplates() {
+  try {
+    const cid = (() => { try { return localStorage.getItem("divinelink.clinicId") || undefined; } catch { return undefined; } })();
+    const existing = await db.consultationTemplates.toArray();
+    for (const tpl of BUILTIN_TEMPLATES()) {
+      const match = existing.find(e => e.builtinCode === tpl.builtinCode);
+      if (!match) {
+        await db.consultationTemplates.add({ ...tpl, clinicId: cid });
+      }
+    }
+  } catch { /* ignore */ }
+}
+
       }))
     );
   }
