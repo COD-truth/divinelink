@@ -203,6 +203,10 @@ export interface ConsultationTemplate {
   specialty: TemplateSpecialty;
   fieldsDefinition: TemplateField[];
   active: boolean;
+  /** True for templates seeded by the app (Template A/B/C). Protected from deletion. */
+  builtin?: boolean;
+  /** Stable code for built-in templates: "general" | "dental" | "orthodontic" */
+  builtinCode?: "general" | "dental" | "orthodontic";
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
