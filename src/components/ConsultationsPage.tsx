@@ -297,7 +297,6 @@ function formToConsultFields(
     template: form.specialty,
   };
 }
-
 function consultToForm(c: Consultation): ConsultForm {
   const dc = c.dentalCheckboxes || {};
   const anthro = c.anthropometric || {};
@@ -305,6 +304,8 @@ function consultToForm(c: Consultation): ConsultForm {
     ...EMPTY_FORM,
     patientId: c.patientId.toString(),
     consultType: c.consultType || "general",
+    specialty: c.template || EMPTY_FORM.specialty,
+    chiefComplaint: c.chiefComplaint || c.symptoms || "",
     chiefComplaint: c.chiefComplaint || c.symptoms || "",
     historyOfPresentIllness: c.historyOfPresentIllness || "",
     medicalHistory: c.medicalHistory || "",
