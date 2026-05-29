@@ -306,7 +306,6 @@ function consultToForm(c: Consultation): ConsultForm {
     consultType: c.consultType || "general",
     specialty: c.template || EMPTY_FORM.specialty,
     chiefComplaint: c.chiefComplaint || c.symptoms || "",
-    chiefComplaint: c.chiefComplaint || c.symptoms || "",
     historyOfPresentIllness: c.historyOfPresentIllness || "",
     medicalHistory: c.medicalHistory || "",
     dentalHistory: c.dentalHistory || "",
