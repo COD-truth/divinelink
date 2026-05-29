@@ -65,12 +65,29 @@ type ConsultationWithMeta = Consultation & { patientName: string };
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const SPECIALTIES = [
-  "Médecine générale", "Pédiatrie", "Chirurgie", "Gynécologie", "Cardiologie",
-  "Neurologie", "Pneumologie", "Gastroentérologie", "Ophtalmologie", "ORL",
-  "Dermatologie", "Urologie", "Rhumatologie", "Endocrinologie", "Psychiatrie",
-  "Oncologie", "Infectiologie", "Traumatologie", "Dentisterie", "Autre",
+// Specialty → built-in template code mapping.
+// Template A (general) covers most specialties; B = dental; C = orthodontic.
+const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "orthodontic" }[] = [
+  { value: "Médecine générale", templateCode: "general" },
+  { value: "ORL", templateCode: "general" },
+  { value: "Pédiatrie", templateCode: "general" },
+  { value: "Chirurgie", templateCode: "general" },
+  { value: "Gynécologie", templateCode: "general" },
+  { value: "Ophtalmologie", templateCode: "general" },
+  { value: "Dermatologie", templateCode: "general" },
+  { value: "Cardiologie", templateCode: "general" },
+  { value: "Neurologie", templateCode: "general" },
+  { value: "Psychiatrie", templateCode: "general" },
+  { value: "Autre", templateCode: "general" },
+  { value: "Dentisterie", templateCode: "dental" },
+  { value: "Orthodontie", templateCode: "orthodontic" },
 ];
+const SPECIALTIES = SPECIALTY_OPTIONS.map(s => s.value);
+
+function specialtyToConsultType(specialty: string): ConsultationType {
+  const code = SPECIALTY_OPTIONS.find(s => s.value === specialty)?.templateCode || "general";
+  return code === "dental" ? "dental" : code === "orthodontic" ? "orthodontic" : "general";
+}
 
 const EMPTY_FORM: ConsultForm = {
   patientId: "",
