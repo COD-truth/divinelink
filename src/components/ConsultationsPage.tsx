@@ -252,7 +252,11 @@ function Section({ num, title, complete, children, defaultOpen = false }: Sectio
 
 // ─── Form ↔ DB conversion ─────────────────────────────────────────────────────
 
-function formToConsultFields(form: ConsultForm): Partial<Consultation> {
+function formToConsultFields(
+  form: ConsultForm,
+  templateId?: number,
+  customFields?: Record<string, any>
+): Partial<Consultation> {
   const bmiVal = form.bmi ? parseFloat(form.bmi) : undefined;
   return {
     symptoms: form.chiefComplaint,
@@ -288,6 +292,9 @@ function formToConsultFields(form: ConsultForm): Partial<Consultation> {
       prosthetics: form.prosthetics,
       orthodonticAppliances: form.orthodonticAppliances,
     },
+    templateId,
+    customFields,
+    template: form.specialty,
   };
 }
 
