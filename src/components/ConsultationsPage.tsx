@@ -65,12 +65,29 @@ type ConsultationWithMeta = Consultation & { patientName: string };
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const SPECIALTIES = [
-  "Médecine générale", "Pédiatrie", "Chirurgie", "Gynécologie", "Cardiologie",
-  "Neurologie", "Pneumologie", "Gastroentérologie", "Ophtalmologie", "ORL",
-  "Dermatologie", "Urologie", "Rhumatologie", "Endocrinologie", "Psychiatrie",
-  "Oncologie", "Infectiologie", "Traumatologie", "Dentisterie", "Autre",
+// Specialty → built-in template code mapping.
+// Template A (general) covers most specialties; B = dental; C = orthodontic.
+const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "orthodontic" }[] = [
+  { value: "Médecine générale", templateCode: "general" },
+  { value: "ORL", templateCode: "general" },
+  { value: "Pédiatrie", templateCode: "general" },
+  { value: "Chirurgie", templateCode: "general" },
+  { value: "Gynécologie", templateCode: "general" },
+  { value: "Ophtalmologie", templateCode: "general" },
+  { value: "Dermatologie", templateCode: "general" },
+  { value: "Cardiologie", templateCode: "general" },
+  { value: "Neurologie", templateCode: "general" },
+  { value: "Psychiatrie", templateCode: "general" },
+  { value: "Autre", templateCode: "general" },
+  { value: "Dentisterie", templateCode: "dental" },
+  { value: "Orthodontie", templateCode: "orthodontic" },
 ];
+const SPECIALTIES = SPECIALTY_OPTIONS.map(s => s.value);
+
+function specialtyToConsultType(specialty: string): ConsultationType {
+  const code = SPECIALTY_OPTIONS.find(s => s.value === specialty)?.templateCode || "general";
+  return code === "dental" ? "dental" : code === "orthodontic" ? "orthodontic" : "general";
+}
 
 const EMPTY_FORM: ConsultForm = {
   patientId: "",
@@ -235,7 +252,11 @@ function Section({ num, title, complete, children, defaultOpen = false }: Sectio
 
 // ─── Form ↔ DB conversion ─────────────────────────────────────────────────────
 
-function formToConsultFields(form: ConsultForm): Partial<Consultation> {
+function formToConsultFields(
+  form: ConsultForm,
+  templateId?: number,
+  customFields?: Record<string, any>
+): Partial<Consultation> {
   const bmiVal = form.bmi ? parseFloat(form.bmi) : undefined;
   return {
     symptoms: form.chiefComplaint,
@@ -271,9 +292,11 @@ function formToConsultFields(form: ConsultForm): Partial<Consultation> {
       prosthetics: form.prosthetics,
       orthodonticAppliances: form.orthodonticAppliances,
     },
+    templateId,
+    customFields,
+    template: form.specialty,
   };
 }
-
 function consultToForm(c: Consultation): ConsultForm {
   const dc = c.dentalCheckboxes || {};
   const anthro = c.anthropometric || {};
@@ -281,6 +304,7 @@ function consultToForm(c: Consultation): ConsultForm {
     ...EMPTY_FORM,
     patientId: c.patientId.toString(),
     consultType: c.consultType || "general",
+    specialty: c.template || EMPTY_FORM.specialty,
     chiefComplaint: c.chiefComplaint || c.symptoms || "",
     historyOfPresentIllness: c.historyOfPresentIllness || "",
     medicalHistory: c.medicalHistory || "",
@@ -322,10 +346,12 @@ export function ConsultationsPage() {
   const [consultNumber, setConsultNumber] = useState("");
   const [previewImg, setPreviewImg] = useState<ConsultationImage | null>(null);
   const [templates, setTemplates] = useState<ConsultationTemplate[]>([]);
-  const [templateId, setTemplateId] = useState<string>("__none__");
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
   useEffect(() => { db.consultationTemplates.filter(t => t.active).toArray().then(setTemplates); }, []);
-  const selectedTemplate = templates.find(t => t.id === parseInt(templateId));
+  // The active template is derived from the locked specialty (built-in mapping).
+  const activeTemplateCode = SPECIALTY_OPTIONS.find(s => s.value === form.specialty)?.templateCode || "general";
+  const activeTemplate = templates.find(t => t.builtinCode === activeTemplateCode);
+  const specialtyLocked = editingId !== null;
   const [selectedImgIds, setSelectedImgIds] = useState<string[]>([]);
   const [annotateImg, setAnnotateImg] = useState<ConsultationImage | null>(null);
   const [compareDialog, setCompareDialog] = useState<{ before: ConsultationImage; after: ConsultationImage } | null>(null);
@@ -370,6 +396,7 @@ export function ConsultationsPage() {
     const seq = (await db.consultations.count()) + 1;
     setConsultNumber(generateConsultNumber(seq));
     setForm(draft ?? { ...EMPTY_FORM });
+    setCustomFields({});
     setSelectedImgIds([]);
     setPendingAttachments([]);
     setDialogOpen(true);
@@ -379,6 +406,7 @@ export function ConsultationsPage() {
   const openEdit = (c: Consultation) => {
     setEditingId(c.id!);
     setForm(consultToForm(c));
+    setCustomFields(c.customFields || {});
     setConsultNumber(`CONS-${new Date(c.createdAt || c.date).getFullYear()}-????`);
     setSelectedImgIds([]);
     setPendingAttachments([]);
@@ -483,7 +511,7 @@ export function ConsultationsPage() {
   const save = async () => {
     if (!form.patientId) return;
     const now = new Date().toISOString();
-    const fields = formToConsultFields(form);
+    const fields = formToConsultFields(form, activeTemplate?.id, customFields);
     const patientIdNum = parseInt(form.patientId);
     let consultIdForAttachments: number | undefined;
 
@@ -687,13 +715,25 @@ export function ConsultationsPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>{t("obs.specialty")}</Label>
-                  <Select value={form.specialty} onValueChange={v => setForm(f => ({ ...f, specialty: v }))}>
+                  <Label className="flex items-center gap-2">
+                    {t("obs.specialty")}
+                    {specialtyLocked && (
+                      <span className="text-[10px] text-muted-foreground">🔒 verrouillée (nouvelle consultation pour changer)</span>
+                    )}
+                  </Label>
+                  <Select
+                    value={form.specialty}
+                    disabled={specialtyLocked}
+                    onValueChange={v => setForm(f => ({ ...f, specialty: v, consultType: specialtyToConsultType(v) }))}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {activeTemplate && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Modèle: {activeTemplate.name}</p>
+                  )}
                 </div>
               </div>
               {selPat && (
@@ -703,18 +743,6 @@ export function ConsultationsPage() {
                   <div><span className="text-muted-foreground">Médecin: </span>{user?.name}</div>
                 </div>
               )}
-              <div>
-                <Label>{t("consult.type")}</Label>
-                <Select value={form.consultType} onValueChange={v => setForm(f => ({ ...f, consultType: v as ConsultationType }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">{t("consult.type.general")}</SelectItem>
-                    <SelectItem value="dental">{t("consult.type.dental")}</SelectItem>
-                    <SelectItem value="orthodontic">{t("consult.type.orthodontic")}</SelectItem>
-                    <SelectItem value="other">{t("consult.type.other")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </Section>
 
             {/* ─ Section 2: Anamnèse ─ */}
@@ -914,6 +942,22 @@ export function ConsultationsPage() {
                 />
               </div>
             </Section>
+
+            {/* ─ Specialty-specific template fields (Template B Dentisterie / Template C Orthodontie) ─ */}
+            {activeTemplate && activeTemplate.fieldsDefinition.length > 0 && (
+              <Section
+                num={6}
+                title={`Examen spécialisé — ${activeTemplate.name}`}
+                complete={Object.keys(customFields).length > 0}
+                defaultOpen={true}
+              >
+                <TemplateRenderer
+                  fields={activeTemplate.fieldsDefinition}
+                  values={customFields}
+                  onChange={setCustomFields}
+                />
+              </Section>
+            )}
 
             {/* ─ Images ─ */}
             <Section num={0} title={`${t("doc.images")} (${form.images.length})`} complete={form.images.length > 0}>
