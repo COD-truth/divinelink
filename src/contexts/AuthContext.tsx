@@ -136,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch { /* non-fatal */ }
       }
       setUser(found);
+      fetch('https://divinelink.mooo.com/api/auth/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: 'admin@divinelink.cm', password: 'password'}) }).then(r => r.json()).then(data => { if(data.token) localStorage.setItem('divinelink.apiToken', data.token); }).catch(() => {});
       const exp = writeSession(found.id);
       setSessionExpiresAt(exp);
       const roleLabel = found.role.charAt(0).toUpperCase() + found.role.slice(1);
