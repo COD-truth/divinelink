@@ -8,7 +8,7 @@
 
 const API_BASE =
   (typeof window !== "undefined" && (window as any).__DIVINELINK_API_BASE__) ||
-  "https://divinelink.mooo.com/api";
+  "https://102.220.19.214/api";
 
 const TOKEN_KEY = "divinelink.apiToken";
 
