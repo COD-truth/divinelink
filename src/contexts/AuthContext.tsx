@@ -136,7 +136,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch { /* non-fatal */ }
       }
       setUser(found);
-      fetch('https://divinelink.mooo.com/api/auth/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: 'admin@divinelink.cm', password: 'password'}) }).then(r => r.json()).then(data => { if(data.token) localStorage.setItem('divinelink.apiToken', data.token); }).catch(() => {});
+      // Background: check if API server is reachable (non-blocking).
+      // Does NOT auto-issue a token — JWT must be provisioned out-of-band
+      // and placed in localStorage("divinelink.apiToken") by the clinic admin.
+      import("@/lib/api")
+        .then(({ api }) => api.health())
+        .then(() => { console.log("[sync] API server reachable"); })
+        .catch(() => { console.log("[sync] API server unreachable — offline mode"); });
       const exp = writeSession(found.id);
       setSessionExpiresAt(exp);
       const roleLabel = found.role.charAt(0).toUpperCase() + found.role.slice(1);
