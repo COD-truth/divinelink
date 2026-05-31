@@ -57,6 +57,16 @@ export interface ConsultationPayload {
   vital_signs?: Record<string, any>;
 }
 
+export interface DocumentPayload {
+  patient_id: string | number;
+  name: string;
+  mime_type?: string;
+  data?: string; // base64
+  size?: number;
+  tag?: string;
+  consult_id?: string | number | null;
+}
+
 export const api = {
   health: () => request("/health"),
 
@@ -71,4 +81,7 @@ export const api = {
 
   saveConsultation: (c: ConsultationPayload) =>
     request("/consultations", { method: "POST", body: JSON.stringify(c) }),
+
+  saveDocument: (d: DocumentPayload) =>
+    request("/documents", { method: "POST", body: JSON.stringify(d) }),
 };
