@@ -1,13 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { db } from "@/lib/db";
 import { api } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
 
-export function useServerSync(intervalMinutes = 5) {
-  const { user } = useAuth();
-  const syncRef = useRef<NodeJS.Timeout | null>(null);
+export function useServerSync(intervalMinutes = 5, enabled = true) {
+  const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function syncNow() {
+  const syncNow = useCallback(async () => {
     if (!navigator.onLine) return;
     if (!localStorage.getItem("divinelink.apiToken")) return;
 
@@ -51,16 +49,16 @@ export function useServerSync(intervalMinutes = 5) {
     } catch (err) {
       console.error("Server sync failed:", err);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!enabled) return;
     syncNow();
     syncRef.current = setInterval(syncNow, intervalMinutes * 60 * 1000);
     return () => {
       if (syncRef.current) clearInterval(syncRef.current);
     };
-  }, [user]);
+  }, [enabled, intervalMinutes, syncNow]);
 
   return { syncNow };
 }
