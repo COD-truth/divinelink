@@ -45,6 +45,22 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
         } catch {}
       }
 
+      // Sync documents
+      const documents = await db.documents.toArray();
+      for (const d of documents) {
+        try {
+          await api.saveDocument({
+            patient_id: d.patientId,
+            name: d.name,
+            mime_type: d.type,
+            data: d.data,
+            size: d.size,
+            tag: d.tag,
+            consult_id: d.consultId ?? null,
+          });
+        } catch {}
+      }
+
       console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {
       console.error("Server sync failed:", err);
