@@ -49,7 +49,7 @@ function PageLoader() {
 
 function AppContent() {
   const { user } = useAuth();
-  useServerSync();
+  useServerSync(5, !!user);
   const [page, setPage] = useState<Page>(() => {
     const saved = sessionStorage.getItem("divinelink.currentPage") as Page | null;
     return saved || "dashboard";
