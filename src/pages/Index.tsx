@@ -5,6 +5,7 @@ import { migrateEncryption } from "@/lib/patientCrypto";
 import { autoRestoreIfNeeded, installAutoSnapshotHooks, scheduleSnapshot } from "@/lib/emergencyBackup";
 import { requestNotificationPermission, initSmartNotifications, stopSmartNotifications } from "@/lib/smartNotifications";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useServerSync } from "@/hooks/useServerSync";
 import { LangProvider } from "@/contexts/LangContext";
 import { LoginScreen } from "@/components/LoginScreen";
 import { DashboardPage } from "@/components/DashboardPage";
