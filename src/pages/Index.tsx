@@ -110,7 +110,7 @@ function AppContent() {
     research: <Suspense fallback={<PageLoader />}><ResearchPage /></Suspense>,
     clinic: <Suspense fallback={<PageLoader />}><ClinicSettingsPage /></Suspense>,
     pharmacy: <Suspense fallback={<PageLoader />}><PharmacyPage /></Suspense>,
-    dental: <Suspense fallback={<PageLoader />}><DentalExamPage /></Suspense>,
+    
     workspace: <Suspense fallback={<PageLoader />}><WorkspacePage /></Suspense>,
     payments: <Suspense fallback={<PageLoader />}><PaymentsPage /></Suspense>,
     equipment: <Suspense fallback={<PageLoader />}><EquipmentPage /></Suspense>,
