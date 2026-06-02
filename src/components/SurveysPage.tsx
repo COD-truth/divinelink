@@ -198,7 +198,7 @@ function SurveyEditor({ survey, onBack, canEdit }: { survey: Survey; onBack: () 
       updatedAt: new Date().toISOString(),
       synced: false,
     };
-    await db.surveys.update(draft.id!, payload);
+    await db.surveys.put(payload);
     setDraft(payload);
     toast.success(status === "active" ? "Enquête publiée" : "Enregistré");
     try { await logAudit("backup_import" as any, draft.title, { message: `Survey ${status}: ${draft.title}` }); } catch {}
@@ -474,7 +474,7 @@ function SurveyDashboard({ survey, onBack, onEdit, canEdit }: {
 
   const exportCsv = () => {
     const csv = responsesToCsv(survey, completed);
-    saveFile(new Blob([csv], { type: "text/csv;charset=utf-8" }), withDateStamp(`survey-${survey.inviteCode}`, "csv"));
+    saveFile(withDateStamp(`survey-${survey.inviteCode}.csv`), csv, "csv");
   };
 
   const exportPdf = async () => {
