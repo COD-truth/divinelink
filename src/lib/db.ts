@@ -831,6 +831,28 @@ class DentaDB extends Dexie {
       importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
       syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
     });
+    // v15: Survey module
+    this.version(15).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, externalId, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, templateId, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+      consultationTemplates: "++id, specialty, active, clinicId, createdAt",
+      importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
+      syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
+      surveys: "++id, inviteCode, status, clinicId, createdAt, createdBy",
+      surveyResponses: "++id, surveyId, synced, clinicId, completedAt",
+      surveyInvites: "++id, surveyId, status, clinicId, sentAt",
+      voiceRecordings: "++id, responseId, questionId, synced, createdAt",
+    });
   }
 }
 
