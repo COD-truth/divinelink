@@ -505,7 +505,7 @@ function SurveyDashboard({ survey, onBack, onEdit, canEdit }: {
         }
         y += 3;
       });
-      doc.save(withDateStamp(`survey-${survey.inviteCode}`, "pdf"));
+      doc.save(withDateStamp(`survey-${survey.inviteCode}.pdf`));
     } catch (e: any) {
       toast.error("Export PDF: " + (e?.message || e));
     }
