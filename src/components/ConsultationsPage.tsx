@@ -69,6 +69,8 @@ type ConsultationWithMeta = Consultation & { patientName: string };
 // Template A (general) covers most specialties; B = dental; C = orthodontic.
 const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "orthodontic" }[] = [
   { value: "Médecine générale", templateCode: "general" },
+  { value: "Dentisterie", templateCode: "dental" },
+  { value: "Orthodontie", templateCode: "orthodontic" },
   { value: "ORL", templateCode: "general" },
   { value: "Pédiatrie", templateCode: "general" },
   { value: "Chirurgie", templateCode: "general" },
@@ -76,11 +78,7 @@ const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "
   { value: "Ophtalmologie", templateCode: "general" },
   { value: "Dermatologie", templateCode: "general" },
   { value: "Cardiologie", templateCode: "general" },
-  { value: "Neurologie", templateCode: "general" },
-  { value: "Psychiatrie", templateCode: "general" },
   { value: "Autre", templateCode: "general" },
-  { value: "Dentisterie", templateCode: "dental" },
-  { value: "Orthodontie", templateCode: "orthodontic" },
 ];
 const SPECIALTIES = SPECIALTY_OPTIONS.map(s => s.value);
 

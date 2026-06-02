@@ -21,7 +21,7 @@ import { toast } from "sonner";
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
-  | "security" | "research" | "clinic" | "pharmacy" | "dental" | "payments" | "workspace" | "equipment"
+  | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
   | "templates" | "importPatients" | "sync" | "conflicts";
 
 interface Props {
@@ -145,7 +145,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
     { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
     { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
-    { page: "dental", icon: <Smile className="w-5 h-5" />, label: t("dental.title"), roles: ["admin", "doctor"] },
+    
   ];
 
   // Collapsible admin section (collapsed by default, muted style)
@@ -197,7 +197,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "documents" as Page, icon: <FileImage className="w-6 h-6" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
     { page: "research" as Page, icon: <BarChart3 className="w-6 h-6" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
     { page: "pharmacy" as Page, icon: <Pill className="w-6 h-6" />, label: t("nav.pharmacy"), roles: ["admin"] },
-    { page: "dental" as Page, icon: <Smile className="w-6 h-6" />, label: t("dental.title"), roles: ["admin", "doctor"] },
+    
     { page: "users" as Page, icon: <UserCog className="w-6 h-6" />, label: t("nav.users"), roles: ["admin"] },
     { page: "backup" as Page, icon: <Database className="w-6 h-6" />, label: t("nav.backup"), roles: ["admin"] },
     { page: "security" as Page, icon: <ShieldCheck className="w-6 h-6" />, label: t("nav.security"), roles: ["admin"] },
