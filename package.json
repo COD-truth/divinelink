@@ -53,6 +53,7 @@
     "dexie": "^4.4.2",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
     "mammoth": "^1.12.0",

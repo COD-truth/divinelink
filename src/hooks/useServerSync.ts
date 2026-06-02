@@ -61,6 +61,49 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
         } catch {}
       }
 
+      // Sync survey responses (best-effort, marks synced=true on success)
+      try {
+        const unsynced = await db.surveyResponses.filter(r => !r.synced).toArray();
+        for (const r of unsynced) {
+          try {
+            const survey = await db.surveys.get(r.surveyId);
+            if (!survey) continue;
+            const res = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://102.220.19.214/api"}/surveys/${survey.serverId || survey.inviteCode}/responses`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(localStorage.getItem("divinelink.apiToken") ? { Authorization: `Bearer ${localStorage.getItem("divinelink.apiToken")}` } : {}),
+              },
+              body: JSON.stringify({
+                respondent_name: r.respondentName,
+                respondent_phone: r.respondentPhone,
+                answers: r.answers,
+                started_at: r.startedAt,
+                completed_at: r.completedAt,
+              }),
+            });
+            if (res.ok) {
+              await db.surveyResponses.update(r.id!, { synced: true, syncedAt: new Date().toISOString() });
+              // Upload voice blobs for this response
+              const voices = await db.voiceRecordings.where("responseId").equals(r.id!).toArray();
+              for (const v of voices.filter(vv => !vv.synced)) {
+                try {
+                  const fd = new FormData();
+                  fd.append("audio", v.blob, `${v.questionId}.webm`);
+                  fd.append("transcript", v.transcript || "");
+                  const vres = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://102.220.19.214/api"}/surveys/${survey.serverId || survey.inviteCode}/responses/${r.id}/voices/${v.questionId}`, {
+                    method: "POST",
+                    headers: localStorage.getItem("divinelink.apiToken") ? { Authorization: `Bearer ${localStorage.getItem("divinelink.apiToken")}` } : {},
+                    body: fd,
+                  });
+                  if (vres.ok) await db.voiceRecordings.update(v.id!, { synced: true });
+                } catch {}
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+
       console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {
       console.error("Server sync failed:", err);

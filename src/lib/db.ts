@@ -417,6 +417,94 @@ export interface SyncConflict {
   clinicId?: string;
 }
 
+/* ── Survey module ── */
+export type SurveyQuestionType =
+  | "short_text" | "long_text" | "single_choice" | "multi_choice"
+  | "rating" | "date" | "file" | "voice";
+
+export interface SurveyQuestion {
+  id: string;
+  type: SurveyQuestionType;
+  text: string;
+  helpText?: string;
+  required?: boolean;
+  options?: string[];
+  /** For rating: max value (e.g. 5 or 10) */
+  ratingMax?: number;
+  /** Allow voice note attachment on this question */
+  allowVoice?: boolean;
+  randomize?: boolean;
+}
+
+export type SurveyStatus = "draft" | "active" | "closed";
+
+export interface Survey {
+  id?: number;
+  clinicId?: string;
+  title: string;
+  description?: string;
+  surveyType?: string;
+  /** Public short code used in QR / share URL */
+  inviteCode: string;
+  questions: SurveyQuestion[];
+  status: SurveyStatus;
+  anonymous?: boolean;
+  createdBy?: number;
+  createdAt: string;
+  updatedAt: string;
+  distributedAt?: string;
+  closedAt?: string;
+  /** Server-side ID after sync */
+  serverId?: string;
+  synced?: boolean;
+}
+
+export interface SurveyResponse {
+  id?: number;
+  surveyId: number;
+  /** Optional respondent metadata */
+  respondentName?: string;
+  respondentPhone?: string;
+  respondentId?: number;
+  clinicId?: string;
+  /** questionId -> value (string | string[] | number | dataUrl) */
+  answers: Record<string, any>;
+  startedAt: string;
+  completedAt?: string;
+  synced?: boolean;
+  syncedAt?: string;
+}
+
+export interface SurveyInvite {
+  id?: number;
+  surveyId: number;
+  email?: string;
+  phone?: string;
+  name?: string;
+  status: "pending" | "opened" | "completed";
+  sentAt: string;
+  openedAt?: string;
+  completedAt?: string;
+  clinicId?: string;
+}
+
+export interface VoiceRecording {
+  id?: number;
+  responseId: number;
+  questionId: string;
+  /** webm blob */
+  blob: Blob;
+  /** local Web Speech transcript */
+  transcript?: string;
+  /** server (Deepgram) transcript, replaces local when available */
+  serverTranscript?: string;
+  /** admin-edited override */
+  manualTranscript?: string;
+  durationSeconds?: number;
+  createdAt: string;
+  synced?: boolean;
+}
+
 function ORTHODONTIC_DEFAULTS(now: string): Omit<Drug, "id">[] {
   const item = (name: string, category: string, stock: number, unit: string, minStock: number): Omit<Drug, "id"> => ({
     name, category, stock, initialStock: stock, unit,
@@ -504,6 +592,10 @@ class DentaDB extends Dexie {
   consultationTemplates!: Table<ConsultationTemplate>;
   importedDocuments!: Table<ImportedDocument>;
   syncConflicts!: Table<SyncConflict>;
+  surveys!: Table<Survey>;
+  surveyResponses!: Table<SurveyResponse>;
+  surveyInvites!: Table<SurveyInvite>;
+  voiceRecordings!: Table<VoiceRecording>;
 
   constructor() {
     super("DivineLinkDB");
@@ -738,6 +830,28 @@ class DentaDB extends Dexie {
       consultationTemplates: "++id, specialty, active, clinicId, createdAt",
       importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
       syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
+    });
+    // v15: Survey module
+    this.version(15).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, externalId, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, templateId, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+      consultationTemplates: "++id, specialty, active, clinicId, createdAt",
+      importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
+      syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
+      surveys: "++id, inviteCode, status, clinicId, createdAt, createdBy",
+      surveyResponses: "++id, surveyId, synced, clinicId, completedAt",
+      surveyInvites: "++id, surveyId, status, clinicId, sentAt",
+      voiceRecordings: "++id, responseId, questionId, synced, createdAt",
     });
   }
 }
