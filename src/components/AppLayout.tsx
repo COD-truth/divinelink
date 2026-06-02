@@ -22,7 +22,7 @@ export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
-  | "templates" | "importPatients" | "sync" | "conflicts";
+  | "templates" | "importPatients" | "sync" | "conflicts" | "surveys";
 
 interface Props {
   currentPage: Page;
@@ -145,6 +145,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
     { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
     { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
+    { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: "Enquêtes", roles: ["admin", "doctor"] },
     
   ];
 
