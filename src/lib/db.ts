@@ -417,6 +417,94 @@ export interface SyncConflict {
   clinicId?: string;
 }
 
+/* ── Survey module ── */
+export type SurveyQuestionType =
+  | "short_text" | "long_text" | "single_choice" | "multi_choice"
+  | "rating" | "date" | "file" | "voice";
+
+export interface SurveyQuestion {
+  id: string;
+  type: SurveyQuestionType;
+  text: string;
+  helpText?: string;
+  required?: boolean;
+  options?: string[];
+  /** For rating: max value (e.g. 5 or 10) */
+  ratingMax?: number;
+  /** Allow voice note attachment on this question */
+  allowVoice?: boolean;
+  randomize?: boolean;
+}
+
+export type SurveyStatus = "draft" | "active" | "closed";
+
+export interface Survey {
+  id?: number;
+  clinicId?: string;
+  title: string;
+  description?: string;
+  surveyType?: string;
+  /** Public short code used in QR / share URL */
+  inviteCode: string;
+  questions: SurveyQuestion[];
+  status: SurveyStatus;
+  anonymous?: boolean;
+  createdBy?: number;
+  createdAt: string;
+  updatedAt: string;
+  distributedAt?: string;
+  closedAt?: string;
+  /** Server-side ID after sync */
+  serverId?: string;
+  synced?: boolean;
+}
+
+export interface SurveyResponse {
+  id?: number;
+  surveyId: number;
+  /** Optional respondent metadata */
+  respondentName?: string;
+  respondentPhone?: string;
+  respondentId?: number;
+  clinicId?: string;
+  /** questionId -> value (string | string[] | number | dataUrl) */
+  answers: Record<string, any>;
+  startedAt: string;
+  completedAt?: string;
+  synced?: boolean;
+  syncedAt?: string;
+}
+
+export interface SurveyInvite {
+  id?: number;
+  surveyId: number;
+  email?: string;
+  phone?: string;
+  name?: string;
+  status: "pending" | "opened" | "completed";
+  sentAt: string;
+  openedAt?: string;
+  completedAt?: string;
+  clinicId?: string;
+}
+
+export interface VoiceRecording {
+  id?: number;
+  responseId: number;
+  questionId: string;
+  /** webm blob */
+  blob: Blob;
+  /** local Web Speech transcript */
+  transcript?: string;
+  /** server (Deepgram) transcript, replaces local when available */
+  serverTranscript?: string;
+  /** admin-edited override */
+  manualTranscript?: string;
+  durationSeconds?: number;
+  createdAt: string;
+  synced?: boolean;
+}
+
 function ORTHODONTIC_DEFAULTS(now: string): Omit<Drug, "id">[] {
   const item = (name: string, category: string, stock: number, unit: string, minStock: number): Omit<Drug, "id"> => ({
     name, category, stock, initialStock: stock, unit,
