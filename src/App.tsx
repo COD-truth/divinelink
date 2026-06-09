@@ -5,10 +5,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
-
+import { useServerSync } from "@/hooks/useServerSync";
 const SurveyTake = lazy(() => import("./pages/SurveyTake.tsx"));
 
-const App = () => (
+const App = () => {
+  useServerSync();
+  return (
   <TooltipProvider>
     <Toaster />
     <Sonner />
@@ -23,7 +25,7 @@ const App = () => (
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
-  </TooltipProvider>
-);
-
+ </TooltipProvider>
+  );
+};
 export default App;
