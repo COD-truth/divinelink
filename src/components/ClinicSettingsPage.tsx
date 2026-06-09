@@ -111,6 +111,19 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
         )}
 
         <div>
+          <Label>
+            {fr
+              ? "Code de la clinique (pour synchroniser plusieurs appareils)"
+              : "Clinic code (to sync multiple devices)"}
+          </Label>
+          <Input
+            value={clinicCode}
+            onChange={e => setClinicCode(e.target.value)}
+            placeholder="DIVINE001"
+          />
+        </div>
+
+        <div>
           <Label>{fr ? "Nom de la clinique *" : "Clinic name *"}</Label>
           <Input value={s.name} onChange={e => set("name", e.target.value)} placeholder="DivineLink Clinic" />
         </div>
