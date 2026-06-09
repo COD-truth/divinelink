@@ -103,7 +103,33 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
           } catch {}
         }
       } catch {}
-
+// PULL: download patients from server that this device doesn't have
+      try {
+        const token = localStorage.getItem("divinelink.apiToken");
+        const res = await fetch("https://divinelink.mooo.com/api/patients", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const serverPatients = await res.json();
+          for (const sp of serverPatients) {
+            const existing = await db.patients.where("patientId").equals(sp.patient_code).first();
+            if (!existing) {
+              await db.patients.add({
+                patientId: sp.patient_code,
+                firstName: sp.first_name,
+                lastName: sp.last_name || "",
+                phone: sp.phone || "",
+                dob: sp.date_of_birth || "",
+                address: sp.address || "",
+                medicalAlerts: "",
+                createdAt: sp.created_at || new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          }
+          console.log("Pulled", serverPatients.length, "patients from server");
+        }
+      } catch (e) { console.warn("Pull failed", e); }
       console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {
       console.error("Server sync failed:", err);
