@@ -25,6 +25,7 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
       createdAt: new Date().toISOString(),
     }
   );
+  const [clinicCode, setClinicCode] = useState("");
 
   useEffect(() => {
     const cur = getClinicSettings();
@@ -40,11 +41,36 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
     set("logo", data);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!s.name.trim()) {
       toast.error(fr ? "Nom de la clinique requis" : "Clinic name required");
       return;
     }
+
+    const code = clinicCode.trim();
+    if (code) {
+      try {
+        const res = await fetch("https://divinelink.mooo.com/api/clinic/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.token) {
+          toast.error(fr ? "Code clinique invalide" : "Invalid clinic code");
+          return;
+        }
+        localStorage.setItem("divinelink.apiToken", data.token);
+        localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
+        toast.success(
+          (fr ? "Clinique liée: " : "Linked: ") + (data.clinic_name ?? "")
+        );
+      } catch {
+        toast.error(fr ? "Serveur injoignable" : "Server unreachable");
+        return;
+      }
+    }
+
     const next: ClinicSettings = {
       ...s,
       clinicId: s.clinicId || generateClinicId(s.city),
@@ -83,6 +109,19 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
             </Button>
           </div>
         )}
+
+        <div>
+          <Label>
+            {fr
+              ? "Code de la clinique (pour synchroniser plusieurs appareils)"
+              : "Clinic code (to sync multiple devices)"}
+          </Label>
+          <Input
+            value={clinicCode}
+            onChange={e => setClinicCode(e.target.value)}
+            placeholder="DIVINE001"
+          />
+        </div>
 
         <div>
           <Label>{fr ? "Nom de la clinique *" : "Clinic name *"}</Label>
