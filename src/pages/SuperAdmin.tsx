@@ -72,7 +72,8 @@ export default function SuperAdmin() {
             <th style={{ padding: 8 }}>Code</th>
             <th style={{ padding: 8 }}>Patients</th>
             <th style={{ padding: 8 }}>Consultations</th>
-            <th style={{ padding: 8 }}>Utilisateurs</th>
+           <th style={{ padding: 8 }}>Utilisateurs</th>
+            <th style={{ padding: 8 }}>Créé le</th>
           </tr>
         </thead>
         <tbody>
@@ -83,6 +84,7 @@ export default function SuperAdmin() {
               <td style={{ padding: 8 }}>{c.patient_count}</td>
               <td style={{ padding: 8 }}>{c.consultation_count}</td>
               <td style={{ padding: 8 }}>{c.user_count}</td>
+              <td style={{ padding: 8 }}>{new Date(c.created_at).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
