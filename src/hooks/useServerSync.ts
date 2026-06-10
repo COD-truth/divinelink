@@ -68,7 +68,7 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
           try {
             const survey = await db.surveys.get(r.surveyId);
             if (!survey) continue;
-            const res = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://102.220.19.214/api"}/surveys/${survey.serverId || survey.inviteCode}/responses`, {
+            const res = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://divinelink.mooo.com/api"}/surveys/${survey.serverId || survey.inviteCode}/responses`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -91,7 +91,7 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
                   const fd = new FormData();
                   fd.append("audio", v.blob, `${v.questionId}.webm`);
                   fd.append("transcript", v.transcript || "");
-                  const vres = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://102.220.19.214/api"}/surveys/${survey.serverId || survey.inviteCode}/responses/${r.id}/voices/${v.questionId}`, {
+                  const vres = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://divinelink.mooo.com/api"}/surveys/${survey.serverId || survey.inviteCode}/responses/${r.id}/voices/${v.questionId}`, {
                     method: "POST",
                     headers: localStorage.getItem("divinelink.apiToken") ? { Authorization: `Bearer ${localStorage.getItem("divinelink.apiToken")}` } : {},
                     body: fd,
