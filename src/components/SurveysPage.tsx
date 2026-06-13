@@ -482,7 +482,38 @@ function SurveyDashboard({ survey, onBack, onEdit, canEdit }: {
   survey: Survey; onBack: () => void; onEdit: () => void; canEdit: boolean;
 }) {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
-  const reload = async () => {
+ const reload = async () => {
+    // Pull responses from server (from phones/field devices) and merge into local
+    try {
+      const token = localStorage.getItem("divinelink.apiToken");
+      if (token && navigator.onLine) {
+        const res = await fetch(`https://divinelink.mooo.com/api/surveys/${survey.inviteCode}/responses`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const serverResponses = await res.json();
+          for (const sr of serverResponses) {
+            const existing = await db.surveyResponses
+              .where("surveyId").equals(survey.id!)
+              .filter(r => (r as any).serverId === sr.id).first();
+            if (!existing) {
+              await db.surveyResponses.add({
+                surveyId: survey.id!,
+                respondentName: sr.respondent_name || "",
+                respondentPhone: sr.respondent_phone || "",
+                answers: sr.answers || {},
+                startedAt: sr.started_at || sr.created_at,
+                completedAt: sr.completed_at || sr.created_at,
+                synced: true,
+                syncedAt: sr.created_at,
+                ...({ serverId: sr.id } as any),
+              } as any);
+            }
+          }
+        }
+      }
+    } catch (e) { console.warn("Survey response pull failed", e); }
+
     const all = await db.surveyResponses.where("surveyId").equals(survey.id!).toArray();
     setResponses(all.sort((a, b) => (b.completedAt || b.startedAt).localeCompare(a.completedAt || a.startedAt)));
   };
