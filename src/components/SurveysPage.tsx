@@ -200,6 +200,29 @@ function SurveyEditor({ survey, onBack, canEdit }: { survey: Survey; onBack: () 
     };
     await db.surveys.put(payload);
     setDraft(payload);
+
+    // Push survey to server when published, so other devices can find it
+    if (status === "active") {
+      try {
+        const token = localStorage.getItem("divinelink.apiToken");
+        if (token) {
+          await fetch("https://divinelink.mooo.com/api/surveys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              invite_code: payload.inviteCode,
+              title: payload.title,
+              description: payload.description,
+              survey_type: payload.surveyType,
+              questions: payload.questions,
+              status: payload.status,
+              anonymous: payload.anonymous,
+            }),
+          });
+        }
+      } catch (e) { console.warn("Survey server push failed", e); }
+    }
+
     toast.success(status === "active" ? "Enquête publiée" : "Enregistré");
     try { await logAudit("backup_import" as any, draft.title, { message: `Survey ${status}: ${draft.title}` }); } catch {}
   };
