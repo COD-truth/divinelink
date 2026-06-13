@@ -27,7 +27,34 @@ export default function SurveyTakePage() {
 
   useEffect(() => {
     if (!code) return;
-    getSurveyByCode(code).then(s => setSurvey(s || null));
+    getSurveyByCode(code).then(async (s) => {
+      if (s) { setSurvey(s); return; }
+      // Not found locally — fetch from server
+      try {
+        const res = await fetch(`https://divinelink.mooo.com/api/surveys/${code}`);
+        if (res.ok) {
+          const sv = await res.json();
+          const mapped: Survey = {
+            clinicId: undefined,
+            title: sv.title,
+            description: sv.description,
+            surveyType: sv.survey_type,
+            inviteCode: sv.invite_code,
+            questions: sv.questions || [],
+            status: sv.status,
+            anonymous: sv.anonymous,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await db.surveys.put(mapped);
+          setSurvey(mapped);
+        } else {
+          setSurvey(null);
+        }
+      } catch {
+        setSurvey(null);
+      }
+    });
     const on = () => setOnline(true), off = () => setOnline(false);
     window.addEventListener("online", on); window.addEventListener("offline", off);
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
