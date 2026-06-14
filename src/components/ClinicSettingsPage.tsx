@@ -25,7 +25,6 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
       createdAt: new Date().toISOString(),
     }
   );
-  const [clinicCode, setClinicCode] = useState("");
 
   useEffect(() => {
     const cur = getClinicSettings();
@@ -41,36 +40,58 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
     set("logo", data);
   };
 
+const [clinicCode, setClinicCode] = useState("");
+const createWorkspace = async () => {
+    if (!s.name.trim()) {
+      toast.error(fr ? "Entrez d'abord le nom" : "Enter a name first");
+      return;
+    }
+    try {
+      const res = await fetch("https://divinelink.mooo.com/api/clinic/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: s.name.trim() }),
+      });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem("divinelink.apiToken", data.token);
+        localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
+        toast.success(fr ? `Espace créé ! Code: ${data.code}` : `Workspace created! Code: ${data.code}`);
+      } else {
+        toast.error(fr ? "Échec de création" : "Creation failed");
+      }
+    } catch {
+      toast.error(fr ? "Serveur injoignable" : "Server unreachable");
+    }
+  };
+
   const save = async () => {
     if (!s.name.trim()) {
       toast.error(fr ? "Nom de la clinique requis" : "Clinic name required");
       return;
     }
-
-    const code = clinicCode.trim();
-    if (code) {
+    // If a clinic code is entered, verify against the server and link this device
+    if (clinicCode.trim()) {
       try {
         const res = await fetch("https://divinelink.mooo.com/api/clinic/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code: clinicCode.trim() }),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.token) {
+        const data = await res.json();
+        if (data.token) {
+          localStorage.setItem("divinelink.apiToken", data.token);
+          localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
+          toast.success(fr ? `Clinique liée: ${data.clinic_name}` : `Linked: ${data.clinic_name}`);
+        } else {
           toast.error(fr ? "Code clinique invalide" : "Invalid clinic code");
           return;
         }
-        localStorage.setItem("divinelink.apiToken", data.token);
-        localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
-        toast.success(
-          (fr ? "Clinique liée: " : "Linked: ") + (data.clinic_name ?? "")
-        );
       } catch {
         toast.error(fr ? "Serveur injoignable" : "Server unreachable");
         return;
       }
     }
-
     const next: ClinicSettings = {
       ...s,
       clinicId: s.clinicId || generateClinicId(s.city),
@@ -109,20 +130,18 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
             </Button>
           </div>
         )}
-
-        <div>
-          <Label>
-            {fr
-              ? "Code de la clinique (pour synchroniser plusieurs appareils)"
-              : "Clinic code (to sync multiple devices)"}
-          </Label>
-          <Input
-            value={clinicCode}
-            onChange={e => setClinicCode(e.target.value)}
-            placeholder="DIVINE001"
-          />
+<div>
+          <Label>{fr ? "Code de la clinique (pour synchroniser plusieurs appareils)" : "Clinic code (to sync multiple devices)"}</Label>
+          <Input value={clinicCode} onChange={e => setClinicCode(e.target.value)} placeholder="DIVINE001" />
         </div>
-
+        <div className="pt-1">
+          <Button variant="outline" className="w-full" onClick={createWorkspace}>
+            {fr ? "🆕 Créer mon propre espace (gratuit)" : "🆕 Create my own workspace (free)"}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-1">
+            {fr ? "Pour les étudiants : créez votre espace et partagez le code avec votre équipe." : "For students: create your workspace and share the code with your team."}
+          </p>
+        </div>
         <div>
           <Label>{fr ? "Nom de la clinique *" : "Clinic name *"}</Label>
           <Input value={s.name} onChange={e => set("name", e.target.value)} placeholder="DivineLink Clinic" />
