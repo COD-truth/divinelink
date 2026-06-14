@@ -30,7 +30,7 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
 
       // Sync consultations
       const consultations = await db.consultations
-        .filter(c => c.isLatest === true)
+        .filter(c => c.isLatest !== false)
         .toArray();
       for (const c of consultations) {
         try {
