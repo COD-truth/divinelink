@@ -130,6 +130,43 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
           console.log("Pulled", serverPatients.length, "patients from server");
         }
       } catch (e) { console.warn("Pull failed", e); }
+      // PULL: download consultations from server that this device doesn't have
+      try {
+        const token = localStorage.getItem("divinelink.apiToken");
+        const res = await fetch("https://divinelink.mooo.com/api/consultations", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const serverConsults = await res.json();
+          for (const sc of serverConsults) {
+            // map server patient code -> local patient numeric id
+            const patient = await db.patients.where("patientId").equals(sc.patient_id).first();
+            const localPatientId = patient?.id ?? null;
+            // avoid duplicates: skip if a consultation with same diagnosis+patient already exists
+            const dup = await db.consultations
+              .where("patientId").equals(localPatientId ?? -1)
+              .filter(c => c.diagnosis === (sc.diagnosis || "") && c.symptoms === (sc.chief_complaint || ""))
+              .first();
+            if (!dup && localPatientId !== null) {
+              await db.consultations.add({
+                patientId: localPatientId,
+                doctorId: 0,
+                date: sc.created_at || new Date().toISOString(),
+                symptoms: sc.chief_complaint || "",
+                diagnosis: sc.diagnosis || "",
+                treatmentPlan: sc.treatment || "",
+                prescription: "",
+                notes: "",
+                consultType: sc.specialty || "general",
+                clinicId: String(sc.clinic_id || ""),
+                createdAt: sc.created_at || new Date().toISOString(),
+                isLatest: true,
+              });
+            }
+          }
+          console.log("Pulled", serverConsults.length, "consultations from server");
+        }
+      } catch (e) { console.warn("Consultation pull failed", e); }
       console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {
       console.error("Server sync failed:", err);
