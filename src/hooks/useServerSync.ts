@@ -34,8 +34,12 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
         .toArray();
       for (const c of consultations) {
         try {
+          // look up the patient's CODE from their numeric id so it matches on the server
+          const cPatient = await db.patients.get(c.patientId);
+          const patientCode = cPatient?.patientId || String(c.patientId);
           await api.saveConsultation({
-            patient_id: c.patientId,
+            patient_id: patientCode,
+            local_id: c.id,
             specialty: c.consultType || "general",
             chief_complaint: c.chiefComplaint || c.symptoms,
             diagnosis: c.diagnosis,
