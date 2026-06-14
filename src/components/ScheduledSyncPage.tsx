@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+sudo -u postgres psql -d divinelink -c "SELECT patient_id, specialty, chief_complaint, diagnosis FROM consultations;"import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
