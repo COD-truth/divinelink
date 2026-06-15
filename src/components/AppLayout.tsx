@@ -163,7 +163,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
     { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
     { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: "Enquêtes", roles: ["admin", "doctor"] },
-    { page: "myspace", icon: <Lock className="w-5 h-5" />, label: t("nav.myspace") || (t.toString().length ? "Mon espace" : "Mon espace"), roles: ["admin", "doctor", "receptionist"] },
+    { page: "myspace", icon: <Lock className="w-5 h-5" />, label: "Mon espace", roles: ["admin", "doctor", "receptionist"] },
 
   ];
 
