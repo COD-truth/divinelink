@@ -257,6 +257,15 @@ export function DocumentsPage() {
             <SelectItem value="other">{t("doc.tag.other")}</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={catFilter} onValueChange={setCatFilter}>
+          <SelectTrigger className="sm:w-44"><SelectValue placeholder={lang === "en" ? "All categories" : "Toutes catégories"} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{lang === "en" ? "All categories" : "Toutes catégories"}</SelectItem>
+            {TREATMENT_CATEGORIES.map(c => (
+              <SelectItem key={c.value} value={c.value}>{lang === "en" ? c.en : c.fr}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Filter row 2: dates, sort, view */}
@@ -336,6 +345,9 @@ export function DocumentsPage() {
                   {d.tag && <Badge variant="secondary" className="text-[10px] px-1 py-0">{t(`doc.tag.${d.tag}`)}</Badge>}
                   <span className="text-[10px] text-muted-foreground">{formatBytes(d.size)}</span>
                 </div>
+                {d.treatmentCategory && (
+                  <Badge variant="outline" className="text-[10px] px-1 py-0 mt-1">{treatmentLabel(d.treatmentCategory, lang)}</Badge>
+                )}
                 <p className="text-[10px] text-muted-foreground truncate" title={formatDateTime(d.createdAt)}>
                   <Clock className="w-2.5 h-2.5 inline mr-0.5" />{formatDateTime(d.createdAt)}
                 </p>
@@ -452,6 +464,17 @@ export function DocumentsPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {TAG_KEYS.map(tg => <SelectItem key={tg} value={tg}>{t(`doc.tag.${tg}`)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{lang === "en" ? "Treatment category" : "Catégorie de traitement"}</Label>
+              <Select value={pendingCategory} onValueChange={setPendingCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TREATMENT_CATEGORIES.map(c => (
+                    <SelectItem key={c.value} value={c.value}>{lang === "en" ? c.en : c.fr}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
