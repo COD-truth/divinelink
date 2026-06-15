@@ -24,12 +24,11 @@ export function ClinicOnboarding({ open, onDone }: Props) {
   const persistLocal = (clinicName: string) => {
     const cur = getClinicSettings();
     const next = {
+      ...(cur || {}),
       clinicId: cur?.clinicId || generateClinicId(),
       name: clinicName,
       currency: cur?.currency || "FCFA",
       createdAt: cur?.createdAt || new Date().toISOString(),
-      ...cur,
-      name: clinicName,
     };
     saveClinicSettings(next);
   };
