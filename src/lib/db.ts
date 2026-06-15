@@ -394,6 +394,66 @@ export interface EquipmentBox {
   updatedAt: string;
 }
 
+/* ── Staff / Identity ── */
+export interface StaffMember {
+  id?: number;
+  clinicId?: string;
+  fullName: string;
+  role: string;
+  linkedUserId?: number;
+  photo?: string;
+  dob?: string;
+  phone?: string;
+  specialty?: string;
+  license?: string;
+  staffCode: string;
+  active?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── Doctor's private space ── */
+export interface PrivateNote {
+  id?: number;
+  clinicId?: string;
+  ownerUserId: number;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrivateDoc {
+  id?: number;
+  clinicId?: string;
+  ownerUserId: number;
+  name: string;
+  mime: string;
+  data: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface QuickTemplate {
+  id?: number;
+  clinicId?: string;
+  ownerUserId: number;
+  label: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── Custom document categories (admin-managed) ── */
+export interface CustomCategory {
+  id?: number;
+  clinicId?: string;
+  value: string;
+  fr: string;
+  en: string;
+  createdAt: string;
+}
+
 export interface EquipmentMovement {
   id?: number;
   itemId: number;
@@ -635,6 +695,13 @@ class DentaDB extends Dexie {
   voiceRecordings!: Table<VoiceRecording>;
   equipmentBoxes!: Table<EquipmentBox>;
   uiPreferences!: Table<UiPreference, string>;
+  staff!: Table<StaffMember>;
+  privateNotes!: Table<PrivateNote>;
+  privateDocs!: Table<PrivateDoc>;
+  quickTemplates!: Table<QuickTemplate>;
+  customCategories!: Table<CustomCategory>;
+
+
 
   constructor() {
     super("DivineLinkDB");
