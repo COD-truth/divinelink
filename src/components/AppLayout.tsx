@@ -315,7 +315,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
                 </button>
               )}
               {(isCollapsed || adminOpen) && visibleAdmin.map(item => (
-                <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} muted />
+                <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} muted badgeCount={item.page === "equipment" ? lowStockCount : undefined} />
               ))}
             </div>
           )}
@@ -623,15 +623,15 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   );
 }
 
-function NavBtn({ item, currentPage, collapsed, onClick, muted }: {
-  item: NavItem; currentPage: Page; collapsed: boolean; onClick: (p: Page) => void; muted?: boolean;
+function NavBtn({ item, currentPage, collapsed, onClick, muted, badgeCount }: {
+  item: NavItem; currentPage: Page; collapsed: boolean; onClick: (p: Page) => void; muted?: boolean; badgeCount?: number;
 }) {
   const active = currentPage === item.page;
   return (
     <button
       onClick={() => onClick(item.page)}
       title={collapsed ? item.label : undefined}
-      className={`w-full flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-lg text-sm transition-colors ${
+      className={`w-full flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-lg text-sm transition-colors relative ${
         active
           ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
           : muted
@@ -639,9 +639,18 @@ function NavBtn({ item, currentPage, collapsed, onClick, muted }: {
             : "hover:bg-sidebar-accent/50"
       }`}
     >
-      {item.icon}
+      <span className="relative">
+        {item.icon}
+        {badgeCount && badgeCount > 0 && collapsed ? (
+          <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] px-1 flex items-center justify-center">{badgeCount > 99 ? "99+" : badgeCount}</span>
+        ) : null}
+      </span>
       {!collapsed && <span className="truncate">{item.label}</span>}
-      {!collapsed && active && <ChevronRight className="w-4 h-4 ml-auto" />}
+      {!collapsed && badgeCount && badgeCount > 0 ? (
+        <span className="ml-auto bg-red-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">{badgeCount > 99 ? "99+" : badgeCount}</span>
+      ) : null}
+      {!collapsed && active && !badgeCount && <ChevronRight className="w-4 h-4 ml-auto" />}
     </button>
+
   );
 }
