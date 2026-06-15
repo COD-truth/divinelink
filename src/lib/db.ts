@@ -351,6 +351,8 @@ export interface Document {
   size: number;
   /** Optional category tag */
   tag?: DocumentTag;
+  /** Optional treatment category (e.g. "dental", "ortho", "cardio", "lab"...) */
+  treatmentCategory?: string;
   /** Optional provenance / how this doc entered the system */
   source?: DocumentSource;
   /** Optional link to a consultation record */
@@ -359,6 +361,13 @@ export interface Document {
   createdAt: string;
   updatedAt?: string;
   updatedBy?: string;
+}
+
+/** Generic per-device UI preference store (specialty order/visibility, etc.) */
+export interface UiPreference {
+  key: string;
+  value: any;
+  updatedAt: string;
 }
 
 export interface EquipmentItem {
@@ -625,6 +634,7 @@ class DentaDB extends Dexie {
   surveyInvites!: Table<SurveyInvite>;
   voiceRecordings!: Table<VoiceRecording>;
   equipmentBoxes!: Table<EquipmentBox>;
+  uiPreferences!: Table<UiPreference, string>;
 
   constructor() {
     super("DivineLinkDB");
@@ -904,6 +914,30 @@ class DentaDB extends Dexie {
       surveyInvites: "++id, surveyId, status, clinicId, sentAt",
       voiceRecordings: "++id, responseId, questionId, synced, createdAt",
       equipmentBoxes: "++id, label, order, clinicId, createdAt",
+    });
+    // v17: document treatmentCategory index + uiPreferences (per-device key/value)
+    this.version(17).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, externalId, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, templateId, clinicId",
+      documents: "++id, patientId, name, tag, treatmentCategory, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, boxId, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+      consultationTemplates: "++id, specialty, active, clinicId, createdAt",
+      importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
+      syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
+      surveys: "++id, inviteCode, status, clinicId, createdAt, createdBy",
+      surveyResponses: "++id, surveyId, synced, clinicId, completedAt",
+      surveyInvites: "++id, surveyId, status, clinicId, sentAt",
+      voiceRecordings: "++id, responseId, questionId, synced, createdAt",
+      equipmentBoxes: "++id, label, order, clinicId, createdAt",
+      uiPreferences: "key, updatedAt",
     });
   }
 }

@@ -18,6 +18,7 @@ import { Plus, Printer, Pencil as Edit, Trash2, History, TriangleAlert as AlertT
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { fileToDataUrl } from "@/lib/imageUtils";
+import { getUiPref, SPECIALTY_ORDER_KEY, SPECIALTY_HIDDEN_KEY } from "@/lib/uiPreferences";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { AnnotateImageModal } from "@/components/AnnotateImageModal";
 import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
@@ -83,6 +84,15 @@ const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "
   { value: "Autre", templateCode: "general" },
 ];
 const SPECIALTIES = SPECIALTY_OPTIONS.map(s => s.value);
+
+/** Reorders + filters SPECIALTIES according to user UI prefs. */
+function applySpecialtyPrefs(order: string[], hidden: string[]): string[] {
+  const set = new Set(SPECIALTIES);
+  const ordered = order.length
+    ? [...order.filter(s => set.has(s)), ...SPECIALTIES.filter(s => !order.includes(s))]
+    : SPECIALTIES;
+  return ordered.filter(s => !hidden.includes(s));
+}
 
 function specialtyToConsultType(specialty: string): ConsultationType {
   const opt = SPECIALTY_OPTIONS.find(s => s.value === specialty);
@@ -351,6 +361,14 @@ export function ConsultationsPage() {
   const [templates, setTemplates] = useState<ConsultationTemplate[]>([]);
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
   useEffect(() => { db.consultationTemplates.filter(t => t.active).toArray().then(setTemplates); }, []);
+  const [specialtyList, setSpecialtyList] = useState<string[]>(SPECIALTIES);
+  useEffect(() => {
+    (async () => {
+      const order = await getUiPref<string[]>(SPECIALTY_ORDER_KEY, []);
+      const hidden = await getUiPref<string[]>(SPECIALTY_HIDDEN_KEY, []);
+      setSpecialtyList(applySpecialtyPrefs(order, hidden));
+    })();
+  }, [dialogOpen]);
   // The active template is derived from the locked specialty (built-in mapping).
   const activeTemplateCode = SPECIALTY_OPTIONS.find(s => s.value === form.specialty)?.templateCode || "general";
   const activeTemplate = templates.find(t => t.builtinCode === activeTemplateCode);
@@ -731,7 +749,7 @@ export function ConsultationsPage() {
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {specialtyList.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   {activeTemplate && (

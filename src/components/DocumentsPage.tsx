@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { compressImage, fileToDataUrl, formatBytes } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { formatDateTime } from "@/lib/dateFormat";
+import { TREATMENT_CATEGORIES, treatmentLabel } from "@/lib/uiPreferences";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
@@ -25,7 +26,7 @@ const TAG_KEYS: DocumentTag[] = ["lab", "referral", "xray", "other"];
 type SortKey = "dateDesc" | "dateAsc" | "patient" | "type" | "tag" | "size";
 
 export function DocumentsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState("");
@@ -34,6 +35,7 @@ export function DocumentsPage() {
   const [preview, setPreview] = useState<Doc | null>(null);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<"all" | DocumentTag>("all");
+  const [catFilter, setCatFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "image" | "pdf" | "other">("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "carnet">("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -43,6 +45,7 @@ export function DocumentsPage() {
   const [uploadDialog, setUploadDialog] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingTag, setPendingTag] = useState<DocumentTag>("other");
+  const [pendingCategory, setPendingCategory] = useState<string>("other");
   const [clinicalNotes, setClinicalNotes] = useState("");
   const [lightbox, setLightbox] = useState<Doc | null>(null);
 
@@ -85,6 +88,7 @@ export function DocumentsPage() {
     let out = docs.filter(d => {
       if (sourceFilter === "carnet" && d.source !== "carnet_capture") return false;
       if (tagFilter !== "all" && d.tag !== tagFilter) return false;
+      if (catFilter !== "all" && d.treatmentCategory !== catFilter) return false;
       if (typeFilter === "image" && !d.type.startsWith("image/")) return false;
       if (typeFilter === "pdf" && d.type !== "application/pdf") return false;
       if (typeFilter === "other" && (d.type.startsWith("image/") || d.type === "application/pdf")) return false;
@@ -93,7 +97,8 @@ export function DocumentsPage() {
       if (!q) return true;
       const pn = patientName(d.patientId).toLowerCase();
       return d.name.toLowerCase().includes(q) || pn.includes(q) ||
-        (d.tag && t(`doc.tag.${d.tag}`).toLowerCase().includes(q));
+        (d.tag && t(`doc.tag.${d.tag}`).toLowerCase().includes(q)) ||
+        (d.treatmentCategory && treatmentLabel(d.treatmentCategory, lang).toLowerCase().includes(q));
     });
     out.sort((a, b) => {
       switch (sortKey) {
@@ -106,7 +111,7 @@ export function DocumentsPage() {
       }
     });
     return out;
-  }, [docs, search, tagFilter, typeFilter, sourceFilter, dateFrom, dateTo, sortKey, patients, t]);
+  }, [docs, search, tagFilter, catFilter, typeFilter, sourceFilter, dateFrom, dateTo, sortKey, patients, t, lang]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Doc[]>();
@@ -124,6 +129,7 @@ export function DocumentsPage() {
     if (file.size > MAX_SIZE) { toast.error(t("doc.maxSize")); e.target.value = ""; return; }
     setPendingFile(file);
     setPendingTag("other");
+    setPendingCategory("other");
     setUploadDialog(true);
     e.target.value = "";
   };
@@ -142,6 +148,7 @@ export function DocumentsPage() {
         data,
         size: pendingFile.size,
         tag: pendingTag,
+        treatmentCategory: pendingCategory,
         createdAt: now,
         updatedAt: now,
         updatedBy: user?.name,
@@ -250,6 +257,15 @@ export function DocumentsPage() {
             <SelectItem value="other">{t("doc.tag.other")}</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={catFilter} onValueChange={setCatFilter}>
+          <SelectTrigger className="sm:w-44"><SelectValue placeholder={lang === "en" ? "All categories" : "Toutes catégories"} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{lang === "en" ? "All categories" : "Toutes catégories"}</SelectItem>
+            {TREATMENT_CATEGORIES.map(c => (
+              <SelectItem key={c.value} value={c.value}>{lang === "en" ? c.en : c.fr}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Filter row 2: dates, sort, view */}
@@ -329,6 +345,9 @@ export function DocumentsPage() {
                   {d.tag && <Badge variant="secondary" className="text-[10px] px-1 py-0">{t(`doc.tag.${d.tag}`)}</Badge>}
                   <span className="text-[10px] text-muted-foreground">{formatBytes(d.size)}</span>
                 </div>
+                {d.treatmentCategory && (
+                  <Badge variant="outline" className="text-[10px] px-1 py-0 mt-1">{treatmentLabel(d.treatmentCategory, lang)}</Badge>
+                )}
                 <p className="text-[10px] text-muted-foreground truncate" title={formatDateTime(d.createdAt)}>
                   <Clock className="w-2.5 h-2.5 inline mr-0.5" />{formatDateTime(d.createdAt)}
                 </p>
@@ -445,6 +464,17 @@ export function DocumentsPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {TAG_KEYS.map(tg => <SelectItem key={tg} value={tg}>{t(`doc.tag.${tg}`)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{lang === "en" ? "Treatment category" : "Catégorie de traitement"}</Label>
+              <Select value={pendingCategory} onValueChange={setPendingCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TREATMENT_CATEGORIES.map(c => (
+                    <SelectItem key={c.value} value={c.value}>{lang === "en" ? c.en : c.fr}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
