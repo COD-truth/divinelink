@@ -45,3 +45,16 @@ export function treatmentLabel(value: string | undefined, lang: string): string 
   if (!c) return value;
   return lang === "en" ? c.en : c.fr;
 }
+
+/** Load merged category list (built-in + admin custom). */
+export async function loadAllCategories(): Promise<{ value: string; fr: string; en: string; custom?: boolean }[]> {
+  try {
+    const custom = await db.customCategories.toArray();
+    return [
+      ...TREATMENT_CATEGORIES,
+      ...custom.map(c => ({ value: c.value, fr: c.fr, en: c.en, custom: true })),
+    ];
+  } catch {
+    return [...TREATMENT_CATEGORIES];
+  }
+}
