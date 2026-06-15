@@ -37,6 +37,9 @@ const ScheduledSyncPage = lazy(() => import("@/components/ScheduledSyncPage").th
 const SyncConflictsPage = lazy(() => import("@/components/SyncConflictsPage").then(m => ({ default: m.SyncConflictsPage })));
 const SurveysPage = lazy(() => import("@/components/SurveysPage").then(m => ({ default: m.SurveysPage })));
 const SpecialtySettingsPage = lazy(() => import("@/components/SpecialtySettingsPage").then(m => ({ default: m.SpecialtySettingsPage })));
+const StaffPage = lazy(() => import("@/components/StaffPage").then(m => ({ default: m.StaffPage })));
+const MySpacePage = lazy(() => import("@/components/MySpacePage").then(m => ({ default: m.MySpacePage })));
+const DocumentCategoriesPage = lazy(() => import("@/components/DocumentCategoriesPage").then(m => ({ default: m.DocumentCategoriesPage })));
 
 function PageLoader() {
   return (
@@ -122,6 +125,9 @@ function AppContent() {
     conflicts: adminOnly(<Suspense fallback={<PageLoader />}><SyncConflictsPage /></Suspense>),
     surveys: <Suspense fallback={<PageLoader />}><SurveysPage /></Suspense>,
     specialties: adminOnly(<Suspense fallback={<PageLoader />}><SpecialtySettingsPage /></Suspense>),
+    staff: <Suspense fallback={<PageLoader />}><StaffPage /></Suspense>,
+    myspace: <Suspense fallback={<PageLoader />}><MySpacePage /></Suspense>,
+    docCategories: adminOnly(<Suspense fallback={<PageLoader />}><DocumentCategoriesPage /></Suspense>),
   };
 
   return (

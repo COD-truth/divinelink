@@ -22,7 +22,8 @@ export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
-  | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties";
+  | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties"
+  | "staff" | "myspace" | "docCategories";
 
 interface Props {
   currentPage: Page;
@@ -162,7 +163,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
     { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
     { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: "Enquêtes", roles: ["admin", "doctor"] },
-    
+    { page: "myspace", icon: <Lock className="w-5 h-5" />, label: "Mon espace", roles: ["admin", "doctor", "receptionist"] },
+
   ];
 
   // Collapsible admin section (collapsed by default, muted style)
@@ -180,6 +182,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
     { page: "conflicts", icon: <AlertTriangle className="w-5 h-5" />, label: t("nav.conflicts"), roles: ["admin"] },
     { page: "specialties", icon: <Stethoscope className="w-5 h-5" />, label: "Spécialités", roles: ["admin"] },
+    { page: "staff", icon: <UserCog className="w-5 h-5" />, label: "Personnel / Badges", roles: ["admin", "doctor", "receptionist"] },
+    { page: "docCategories", icon: <FileImage className="w-5 h-5" />, label: "Catégories docs", roles: ["admin"] },
   ];
 
   const visibleMain = applyOrder(mainNav.filter(i => hasRole(i.roles as any)), navOrder);

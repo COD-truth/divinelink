@@ -394,6 +394,66 @@ export interface EquipmentBox {
   updatedAt: string;
 }
 
+/* ── Staff / Identity ── */
+export interface StaffMember {
+  id?: number;
+  clinicId?: string;
+  fullName: string;
+  role: string;
+  linkedUserId?: number;
+  photo?: string;
+  dob?: string;
+  phone?: string;
+  specialty?: string;
+  license?: string;
+  staffCode: string;
+  active?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── Doctor's private space ── */
+export interface PrivateNote {
+  id?: number;
+  clinicId?: string;
+  ownerUserId: number;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrivateDoc {
+  id?: number;
+  clinicId?: string;
+  ownerUserId: number;
+  name: string;
+  mime: string;
+  data: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface QuickTemplate {
+  id?: number;
+  clinicId?: string;
+  ownerUserId: number;
+  label: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ── Custom document categories (admin-managed) ── */
+export interface CustomCategory {
+  id?: number;
+  clinicId?: string;
+  value: string;
+  fr: string;
+  en: string;
+  createdAt: string;
+}
+
 export interface EquipmentMovement {
   id?: number;
   itemId: number;
@@ -635,6 +695,13 @@ class DentaDB extends Dexie {
   voiceRecordings!: Table<VoiceRecording>;
   equipmentBoxes!: Table<EquipmentBox>;
   uiPreferences!: Table<UiPreference, string>;
+  staff!: Table<StaffMember>;
+  privateNotes!: Table<PrivateNote>;
+  privateDocs!: Table<PrivateDoc>;
+  quickTemplates!: Table<QuickTemplate>;
+  customCategories!: Table<CustomCategory>;
+
+
 
   constructor() {
     super("DivineLinkDB");
@@ -938,6 +1005,35 @@ class DentaDB extends Dexie {
       voiceRecordings: "++id, responseId, questionId, synced, createdAt",
       equipmentBoxes: "++id, label, order, clinicId, createdAt",
       uiPreferences: "key, updatedAt",
+    });
+    // v18: staff identity, private space, custom document categories
+    this.version(18).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, externalId, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, templateId, clinicId",
+      documents: "++id, patientId, name, tag, treatmentCategory, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, boxId, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+      consultationTemplates: "++id, specialty, active, clinicId, createdAt",
+      importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
+      syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
+      surveys: "++id, inviteCode, status, clinicId, createdAt, createdBy",
+      surveyResponses: "++id, surveyId, synced, clinicId, completedAt",
+      surveyInvites: "++id, surveyId, status, clinicId, sentAt",
+      voiceRecordings: "++id, responseId, questionId, synced, createdAt",
+      equipmentBoxes: "++id, label, order, clinicId, createdAt",
+      uiPreferences: "key, updatedAt",
+      staff: "++id, staffCode, fullName, role, linkedUserId, clinicId, createdAt",
+      privateNotes: "++id, ownerUserId, updatedAt, clinicId",
+      privateDocs: "++id, ownerUserId, createdAt, clinicId",
+      quickTemplates: "++id, ownerUserId, label, clinicId",
+      customCategories: "++id, value, clinicId, createdAt",
     });
   }
 }
