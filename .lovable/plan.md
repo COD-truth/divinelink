@@ -1,75 +1,65 @@
-# DivineLink — Survey Module + Upgrade Pack v5
+# DivineLink Dental & Identity Features — Implementation Plan
 
-This is a large scope (≈18–22h of work). I'll split it into two phases. Phase A = the 7 gap-fill changes on the existing EMR (lower risk, audit-first). Phase B = the new Survey Module. Confirm scope/order before I start.
+This is a large multi-feature build (~6 features + 4 smart additions). Proposing a phased approach so each phase ships working, testable code.
 
-## Phase A — Gap-fill (zero regression)
+## Constraints (locked)
+- No edits to `useServerSync.ts` or `api.ts`.
+- No edits to auth/PIN/clinic-code logic.
+- Dexie changes only via new `.version(N+1)` upgrade — never modify prior versions.
+- Bilingual FR/EN via existing `useLang()`.
+- Tailwind + shadcn/ui, match existing style.
+- All new records tagged with `clinicId`.
 
-1. **Carnet de santé scanner on patient profile**
-   - `MedicalBookletScanner.tsx` already exists — verify it's mounted at the bottom of `PatientProfile`/`PatientsPage` detail view. Add if missing.
-   - Add `Carnet` filter tab in `DocumentsPage.tsx`; render `source: 'carnet_capture'` as full-width image card + lightbox.
+## Schema changes (single new Dexie version bump)
 
-2. **Remove `consultType` dropdown** in `ConsultationsPage.tsx` (field, state, label, persistence reads). Keep DB column for back-compat, just stop writing/reading in UI.
+Add to `src/lib/db.ts` as `.version(16)` (current is 15):
 
-3. **Specialty selector reorder + drives observation form**
-   - Reorder options exactly as specified (FR/EN via i18n keys).
-   - On change, render matching observation form inline.
+```text
+equipmentBoxes:   ++id, clinicId, label, order, createdAt
+equipmentItems:   add optional boxId, minThreshold        (existing table — add fields only)
+documents:        add optional treatmentCategory          (existing table — field only)
+consultations:    add optional prosthesis: {...}          (extend ConsultationType union)
+staff:            ++id, clinicId, fullName, role, photo, dob, phone, specialty, license, staffCode
+privateNotes:     ++id, clinicId, ownerStaffId, title, body, updatedAt, private=true
+privateDocs:      ++id, clinicId, ownerStaffId, name, dataUrl, mime, createdAt
+quickTemplates:   ++id, clinicId, ownerStaffId, label, body
+uiPreferences:    key (string PK) — stores specialty order/visibility per device
+```
 
-4. **Embed dental exam inside Dentistry consultation**
-   - Extract tooth chart into `src/components/ToothChartEmbed.tsx` (props: `teeth`, `onChange`, `pediatric?`).
-   - Render in `ConsultationsPage` when `specialty==='dentistry'`.
-   - Remove "Examen Dentaire" from `AppLayout.tsx` nav + `Index.tsx` route. Keep `DentalExamPage.tsx` file on disk, unlinked.
+## Phase A — Dental + Stock (features 1, 2, smart #1, #2)
+1. Extend `ConsultationType` with `"prosthesis"` and add prosthesis form section in `ConsultationsPage.tsx`.
+2. New `ToothChartFDI.tsx` reusable component (adult chart, tap-to-toggle, FDI numbers). Used in prosthesis form + extractions.
+3. `EquipmentPage.tsx`: add boxes (collapsible groups), per-box item list, min-threshold + low-stock badge.
+4. Sidebar low-stock red badge (count of items below threshold) in `AppLayout.tsx`.
 
-5. **Full observation form** for all non-dental/non-ortho specialties: 12 fields as specified, fields 7–12 inside a collapsible "Suite de l'examen".
+## Phase B — Documents + Specialty Settings (features 3, 4)
+5. `DocumentsPage.tsx`: add `treatmentCategory` on upload, tab/dropdown filter with counts.
+6. New `SpecialtySettingsPage.tsx`: dnd-kit list to reorder + toggle-hide consultation specialties. Persist to `uiPreferences` (Dexie + localStorage mirror). Reset button. Consumed by consultation type picker + nav.
 
-6. **Word document batch import → match by patient code**
-   - New tab in `ImportPatientsPage.tsx`: "Dossiers Word".
-   - Add `mammoth` dep. Extract text, regex for `Code(?:\s*patient)?\s*[:#]?\s*(P-\d+)` etc., fallback to filename, fallback to manual.
-   - Preview table with status badges + manual override.
-   - On import: save as `documents` row with `source:'word_import'`, `type:'historique'`, link to patient `id`, `logAudit`.
+## Phase C — Identity, ID cards, QR (feature 5, smart #4)
+7. New `staff` table + `StaffPage.tsx` (list/CRUD with photo via existing image compression).
+8. `IDCardView.tsx` — printable card layout (clinic logo+name, photo, name, ID, role, QR via `qrcode.react`). Used for both patients (reuse `patientId`) and staff.
+9. `IDCardScanner.tsx` — scanner using `html5-qrcode` (already-light lib) → resolves to patient or staff and navigates to profile.
 
-7. **Customizable nav order**
-   - New "Navigation" tab in settings; drag list of user-visible nav items (use existing dnd-kit or add `@dnd-kit/sortable`).
-   - Persist `navOrder_<userId>` in localStorage; `AppLayout.tsx` reads on mount.
+## Phase D — Doctor's private space (feature 6)
+10. New `MySpacePage.tsx` with tabs: Notes, Mes patients, Mes stats (recharts), Documents privés, Modèles rapides.
+11. All queries scoped by `ownerStaffId = currentUser.staffId` and `private: true`. Hidden from shared views.
+12. Add "Mon espace / My space" nav entry.
 
-**Cross-cutting:** every new string added to `src/lib/i18n.ts` (fr+en). Dexie schema: add only optional fields, bump version by 1.
+## Phase E — Onboarding clarity (smart #3)
+13. Redesign `ClinicOnboarding.tsx`: two distinct visually-separated cards — "J'ai un code" (primary, top) vs "Créer un nouvel espace" (secondary, below, with explanatory note). No accidental misclicks.
 
-## Phase B — Survey Module (new)
+## Dependencies to add
+- `@dnd-kit/core` + `@dnd-kit/sortable` (already added in survey phase — reuse)
+- `qrcode.react` (QR rendering)
+- `html5-qrcode` (camera QR scan)
 
-### Dexie tables (new, indexed)
-- `surveys` (id++, clinicId, status, createdBy, createdAt) — questions inline JSON
-- `surveyResponses` (id++, surveyId, respondentId, syncedAt, clinicId) — answers JSON
-- `surveyInvites` (id++, surveyId, status)
-- `voiceRecordings` (id++, responseId, questionId) — webm Blob + transcript
+## Files NOT touched
+`useServerSync.ts`, `api.ts`, `AuthContext.tsx`, `crypto.ts`, `audit.ts`, `sw.js`, `manifest.json`.
 
-### Routes / pages
-- `/surveys` — list + Create button (admin only)
-- `/surveys/new` and `/surveys/:id/edit` — builder with dnd-kit question reorder, 8 question types incl. voice
-- `/surveys/:id` — admin dashboard: metrics cards, per-question charts (recharts), response table, CSV + PDF (jsPDF+html2canvas), voice playback + editable transcript
-- `/s/:code` — public/field-worker survey-taking flow (one Q per screen, progress bar, voice recorder with MediaRecorder + Web Speech fallback transcript, review screen, offline submit)
-- QR code generation via `qrcode` lib
+## Question before I start
+This is roughly 15–20 files of new code + edits. Do you want me to:
+- **(a)** ship all 5 phases in one go (long single turn, no intermediate testing), or
+- **(b)** ship Phase A+E first (dental form, tooth chart, stock boxes, onboarding fix — the highest-impact daily-use items), then B/C/D in follow-up turns so you can test as we go?
 
-### Sync
-- Extend `useServerSync.ts`: push unsynced `surveyResponses` → `POST /api/surveys/:id/responses`; upload voice blobs separately as multipart; mark `synced:true` on 2xx. All non-blocking, behind `navigator.onLine` + token check.
-- Server endpoints + Deepgram are out-of-scope here (separate Node session per the brief).
-
-### Voice
-- `MediaRecorder` → webm blob in Dexie
-- Live Web Speech API transcript (editable)
-- Server transcript replaces on sync (when implemented server-side)
-
-### Charts/export
-- Recharts (already in deps) for pie/bar/histogram
-- papaparse for CSV
-- jsPDF + html2canvas for PDF report
-
-### i18n
-- All survey strings in `src/lib/i18n.ts` (fr+en)
-
-## Open questions
-
-1. **Order**: do Phase A first (1 message), then Phase B (multiple messages)? Or Survey Module first?
-2. **Survey scope trim for first pass**: OK to ship v1 without skip-logic, geolocation, multi-language surveys, SMS reminders, webhooks (all listed as nice-to-have)?
-3. **Admin role gate**: use existing `user.role === 'admin'` check to gate survey creation?
-4. **DnD lib**: OK to standardize on `@dnd-kit` (modern, maintained) instead of the deprecated `react-beautiful-dnd`?
-
-Reply with answers (or just "go") and I'll start with Phase A.
+I recommend **(b)**.

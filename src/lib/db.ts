@@ -130,7 +130,20 @@ export interface Appointment {
   updatedAt: string;
 }
 
-export type ConsultationType = "general" | "dental" | "orthodontic" | "other";
+export type ConsultationType = "general" | "dental" | "orthodontic" | "prosthesis" | "other";
+
+export interface ProsthesisRecord {
+  type?: string;
+  teeth?: string;
+  material?: string;
+  shade?: string;
+  impressionDate?: string;
+  impressionMethod?: string;
+  steps?: { empreinte?: boolean; essayage?: boolean; pose?: boolean; controle?: boolean };
+  lab?: string;
+  estimatedCost?: number;
+  notes?: string;
+}
 
 export interface Consultation {
   id?: number;
@@ -182,6 +195,8 @@ export interface Consultation {
   templateId?: number;
   /** Custom fields filled in from the template (id -> value) */
   customFields?: Record<string, any>;
+  /** Prosthesis details (when consultType = prosthesis) */
+  prosthesis?: ProsthesisRecord;
 }
 
 /* ── Observation templates ── */
@@ -352,6 +367,19 @@ export interface EquipmentItem {
   stock: number;
   lowStockThreshold: number;
   priority?: number;
+  /** Optional unit (e.g. "boîte", "kit", "unité") */
+  unit?: string;
+  /** Optional box/category this item belongs to */
+  boxId?: number;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EquipmentBox {
+  id?: number;
+  label: string;
+  order?: number;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
@@ -596,6 +624,7 @@ class DentaDB extends Dexie {
   surveyResponses!: Table<SurveyResponse>;
   surveyInvites!: Table<SurveyInvite>;
   voiceRecordings!: Table<VoiceRecording>;
+  equipmentBoxes!: Table<EquipmentBox>;
 
   constructor() {
     super("DivineLinkDB");
@@ -852,6 +881,29 @@ class DentaDB extends Dexie {
       surveyResponses: "++id, surveyId, synced, clinicId, completedAt",
       surveyInvites: "++id, surveyId, status, clinicId, sentAt",
       voiceRecordings: "++id, responseId, questionId, synced, createdAt",
+    });
+    // v16: equipment boxes (categories) + boxId index on equipmentItems
+    this.version(16).stores({
+      users: "++id, name, role, pinHash, clinicId",
+      patients: "++id, patientId, anonCode, externalId, firstName, lastName, phone, clinicId",
+      appointments: "++id, patientId, doctorId, date, status, clinicId",
+      consultations: "++id, patientId, doctorId, date, parentId, originalId, isLatest, templateId, clinicId",
+      documents: "++id, patientId, name, tag, createdAt, updatedAt, clinicId",
+      auditLogs: "++id, timestamp, userName, type, resource",
+      payments: "++id, patientId, consultationId, status, createdAt, clinicId",
+      drugs: "++id, name, category, status, clinicId",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId",
+      generatedDocs: "++id, type, patientId, createdAt, clinicId",
+      equipmentItems: "++id, name, boxId, clinicId",
+      equipmentMovements: "++id, itemId, createdAt, clinicId",
+      consultationTemplates: "++id, specialty, active, clinicId, createdAt",
+      importedDocuments: "++id, patientId, filename, source, uploadedAt, clinicId",
+      syncConflicts: "++id, resource, status, matchKey, detectedAt, clinicId",
+      surveys: "++id, inviteCode, status, clinicId, createdAt, createdBy",
+      surveyResponses: "++id, surveyId, synced, clinicId, completedAt",
+      surveyInvites: "++id, surveyId, status, clinicId, sentAt",
+      voiceRecordings: "++id, responseId, questionId, synced, createdAt",
+      equipmentBoxes: "++id, label, order, clinicId, createdAt",
     });
   }
 }

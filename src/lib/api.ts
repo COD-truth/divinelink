@@ -50,12 +50,14 @@ export interface PatientPayload {
 
 export interface ConsultationPayload {
   patient_id: string | number;
+  local_id?: number;
   specialty?: string;
   chief_complaint?: string;
   diagnosis?: string;
   treatment?: string;
   vital_signs?: Record<string, any>;
 }
+
 
 export interface DocumentPayload {
   patient_id: string | number;

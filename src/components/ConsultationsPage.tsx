@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db, type Consultation, type ConsultationImage, type ConsultationImageType, type Patient, type VitalSigns, type ConsultationType, type ConsultationTemplate } from "@/lib/db";
 import { TemplateRenderer } from "@/components/TemplateRenderer";
+import { ToothChartFDI } from "@/components/ToothChartFDI";
 import { computeBMI, hasFatalAllergy, joinFullName, ageFromDob } from "@/lib/patientHelpers";
 import { TriangleAlert as AlertTri, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,10 +68,11 @@ type ConsultationWithMeta = Consultation & { patientName: string };
 
 // Specialty → built-in template code mapping.
 // Template A (general) covers most specialties; B = dental; C = orthodontic.
-const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "orthodontic" }[] = [
+const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "orthodontic"; consultType?: ConsultationType }[] = [
   { value: "Médecine générale", templateCode: "general" },
   { value: "Dentisterie", templateCode: "dental" },
   { value: "Orthodontie", templateCode: "orthodontic" },
+  { value: "Prothèse dentaire", templateCode: "dental", consultType: "prosthesis" },
   { value: "ORL", templateCode: "general" },
   { value: "Pédiatrie", templateCode: "general" },
   { value: "Chirurgie", templateCode: "general" },
@@ -83,7 +85,9 @@ const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "
 const SPECIALTIES = SPECIALTY_OPTIONS.map(s => s.value);
 
 function specialtyToConsultType(specialty: string): ConsultationType {
-  const code = SPECIALTY_OPTIONS.find(s => s.value === specialty)?.templateCode || "general";
+  const opt = SPECIALTY_OPTIONS.find(s => s.value === specialty);
+  if (opt?.consultType) return opt.consultType;
+  const code = opt?.templateCode || "general";
   return code === "dental" ? "dental" : code === "orthodontic" ? "orthodontic" : "general";
 }
 
@@ -293,6 +297,7 @@ function formToConsultFields(
     templateId,
     customFields,
     template: form.specialty,
+    prosthesis: customFields?.__prosthesis as any,
   };
 }
 function consultToForm(c: Consultation): ConsultForm {
@@ -890,6 +895,87 @@ export function ConsultationsPage() {
                 </div>
               </div>
             </Section>
+
+            {/* ─ Prothèse dentaire (Dental prosthesis) ─ */}
+            {form.consultType === "prosthesis" && (() => {
+              const p = (customFields.__prosthesis as any) || {};
+              const setP = (patch: Record<string, any>) =>
+                setCustomFields(cf => ({ ...cf, __prosthesis: { ...(cf.__prosthesis || {}), ...patch } }));
+              const steps = p.steps || {};
+              const setStep = (k: string, v: boolean) => setP({ steps: { ...steps, [k]: v } });
+              return (
+                <Section num={4} title="Prothèse dentaire / Dental Prosthesis" complete={!!p.type} defaultOpen>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Type de prothèse / Type *</Label>
+                      <select className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                        value={p.type || ""} onChange={e => setP({ type: e.target.value })}>
+                        <option value="">—</option>
+                        {["Couronne (Crown)","Bridge","Prothèse amovible partielle","Prothèse complète","Implant","Inlay/Onlay","Facette (Veneer)"].map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Matériau / Material</Label>
+                      <select className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                        value={p.material || ""} onChange={e => setP({ material: e.target.value })}>
+                        <option value="">—</option>
+                        {["Céramique","Zircone","Métal-céramique","Résine","Or","Composite"].map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Teinte VITA / Shade</Label>
+                      <Input value={p.shade || ""} onChange={e => setP({ shade: e.target.value })} placeholder="A1, A2, B1…" />
+                    </div>
+                    <div>
+                      <Label>Laboratoire / Lab</Label>
+                      <Input value={p.lab || ""} onChange={e => setP({ lab: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Empreinte prise le / Impression date</Label>
+                      <Input type="date" value={p.impressionDate || ""} onChange={e => setP({ impressionDate: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Méthode / Method</Label>
+                      <select className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                        value={p.impressionMethod || ""} onChange={e => setP({ impressionMethod: e.target.value })}>
+                        <option value="">—</option>
+                        <option value="Numérique">Numérique / Digital</option>
+                        <option value="Conventionnelle">Conventionnelle / Conventional</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>Coût estimé / Estimated cost (FCFA)</Label>
+                      <Input type="number" value={p.estimatedCost ?? ""} onChange={e => setP({ estimatedCost: e.target.value ? parseInt(e.target.value) : undefined })} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="mb-1 block">Dents concernées / Teeth (FDI)</Label>
+                    <Input value={p.teeth || ""} onChange={e => setP({ teeth: e.target.value })} placeholder="11, 24, 36" className="mb-2" />
+                    <ToothChartFDI value={p.teeth} onChange={csv => setP({ teeth: csv })} size="sm" />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">Étapes / Steps</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { key: "empreinte", label: "Empreinte" },
+                        { key: "essayage", label: "Essayage (Try-in)" },
+                        { key: "pose", label: "Pose (Fitting)" },
+                        { key: "controle", label: "Contrôle" },
+                      ].map(s => (
+                        <label key={s.key} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={!!steps[s.key]} onCheckedChange={v => setStep(s.key, !!v)} />
+                          <span className="text-sm">{s.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Notes prothèse</Label>
+                    <Textarea rows={2} value={p.notes || ""} onChange={e => setP({ notes: e.target.value })} />
+                  </div>
+                </Section>
+              );
+            })()}
 
             {/* ─ Section 5: Assessment & Plan ─ */}
             <Section num={5} title="Assessment & Plan" complete={!!form.diagnosis}>
