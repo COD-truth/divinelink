@@ -297,6 +297,7 @@ function formToConsultFields(
     templateId,
     customFields,
     template: form.specialty,
+    prosthesis: customFields?.__prosthesis as any,
   };
 }
 function consultToForm(c: Consultation): ConsultForm {
