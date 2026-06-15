@@ -474,7 +474,7 @@ export function DocumentsPage() {
               <Select value={pendingCategory} onValueChange={setPendingCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {TREATMENT_CATEGORIES.map(c => (
+                  {allCats.map(c => (
                     <SelectItem key={c.value} value={c.value}>{lang === "en" ? c.en : c.fr}</SelectItem>
                   ))}
                 </SelectContent>
