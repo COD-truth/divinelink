@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { compressImage, fileToDataUrl, formatBytes } from "@/lib/imageUtils";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { formatDateTime } from "@/lib/dateFormat";
-import { TREATMENT_CATEGORIES, treatmentLabel } from "@/lib/uiPreferences";
+import { TREATMENT_CATEGORIES, treatmentLabel, loadAllCategories } from "@/lib/uiPreferences";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
@@ -48,6 +48,8 @@ export function DocumentsPage() {
   const [pendingCategory, setPendingCategory] = useState<string>("other");
   const [clinicalNotes, setClinicalNotes] = useState("");
   const [lightbox, setLightbox] = useState<Doc | null>(null);
+  const [allCats, setAllCats] = useState<{ value: string; fr: string; en: string }[]>(TREATMENT_CATEGORIES);
+  useEffect(() => { loadAllCategories().then(setAllCats); }, []);
 
   // Load per-patient clinical notes from localStorage
   useEffect(() => {
@@ -261,7 +263,7 @@ export function DocumentsPage() {
           <SelectTrigger className="sm:w-44"><SelectValue placeholder={lang === "en" ? "All categories" : "Toutes catégories"} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{lang === "en" ? "All categories" : "Toutes catégories"}</SelectItem>
-            {TREATMENT_CATEGORIES.map(c => (
+            {allCats.map(c => (
               <SelectItem key={c.value} value={c.value}>{lang === "en" ? c.en : c.fr}</SelectItem>
             ))}
           </SelectContent>
