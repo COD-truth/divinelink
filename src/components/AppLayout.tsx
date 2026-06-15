@@ -54,10 +54,26 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const [switchPin, setSwitchPin] = useState("");
   const [switchErr, setSwitchErr] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [lowStockCount, setLowStockCount] = useState(0);
   const [reorderMode, setReorderMode] = useState(false);
   const [navOrder, setNavOrder] = useState<Page[]>([]);
   const [draftOrder, setDraftOrder] = useState<Page[]>([]);
   const dragFromRef = React.useRef<number | null>(null);
+
+  // Poll low-stock count for nav badge
+  useEffect(() => {
+    let stop = false;
+    const refresh = async () => {
+      try {
+        const all = await db.equipmentItems.toArray();
+        if (!stop) setLowStockCount(all.filter(i => i.stock <= i.lowStockThreshold).length);
+      } catch { /* */ }
+    };
+    refresh();
+    const id = setInterval(refresh, 60000);
+    return () => { stop = true; clearInterval(id); };
+  }, [currentPage]);
+
 
   const orderKey = `navOrder_${user?.id ?? "anon"}`;
   useEffect(() => {
