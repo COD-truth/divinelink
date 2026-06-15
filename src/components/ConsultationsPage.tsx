@@ -361,6 +361,14 @@ export function ConsultationsPage() {
   const [templates, setTemplates] = useState<ConsultationTemplate[]>([]);
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
   useEffect(() => { db.consultationTemplates.filter(t => t.active).toArray().then(setTemplates); }, []);
+  const [specialtyList, setSpecialtyList] = useState<string[]>(SPECIALTIES);
+  useEffect(() => {
+    (async () => {
+      const order = await getUiPref<string[]>(SPECIALTY_ORDER_KEY, []);
+      const hidden = await getUiPref<string[]>(SPECIALTY_HIDDEN_KEY, []);
+      setSpecialtyList(applySpecialtyPrefs(order, hidden));
+    })();
+  }, [dialogOpen]);
   // The active template is derived from the locked specialty (built-in mapping).
   const activeTemplateCode = SPECIALTY_OPTIONS.find(s => s.value === form.specialty)?.templateCode || "general";
   const activeTemplate = templates.find(t => t.builtinCode === activeTemplateCode);
@@ -741,7 +749,7 @@ export function ConsultationsPage() {
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {SPECIALTIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {specialtyList.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   {activeTemplate && (
