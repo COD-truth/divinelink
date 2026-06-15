@@ -18,6 +18,7 @@ import { Plus, Printer, Pencil as Edit, Trash2, History, TriangleAlert as AlertT
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { fileToDataUrl } from "@/lib/imageUtils";
+import { getUiPref, SPECIALTY_ORDER_KEY, SPECIALTY_HIDDEN_KEY } from "@/lib/uiPreferences";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { AnnotateImageModal } from "@/components/AnnotateImageModal";
 import { BeforeAfterCompare } from "@/components/BeforeAfterCompare";
