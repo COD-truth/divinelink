@@ -84,6 +84,15 @@ const SPECIALTY_OPTIONS: { value: string; templateCode: "general" | "dental" | "
 ];
 const SPECIALTIES = SPECIALTY_OPTIONS.map(s => s.value);
 
+/** Reorders + filters SPECIALTIES according to user UI prefs. */
+function applySpecialtyPrefs(order: string[], hidden: string[]): string[] {
+  const set = new Set(SPECIALTIES);
+  const ordered = order.length
+    ? [...order.filter(s => set.has(s)), ...SPECIALTIES.filter(s => !order.includes(s))]
+    : SPECIALTIES;
+  return ordered.filter(s => !hidden.includes(s));
+}
+
 function specialtyToConsultType(specialty: string): ConsultationType {
   const opt = SPECIALTY_OPTIONS.find(s => s.value === specialty);
   if (opt?.consultType) return opt.consultType;
