@@ -36,6 +36,7 @@ const ImportPatientsPage = lazy(() => import("@/components/ImportPatientsPage").
 const ScheduledSyncPage = lazy(() => import("@/components/ScheduledSyncPage").then(m => ({ default: m.ScheduledSyncPage })));
 const SyncConflictsPage = lazy(() => import("@/components/SyncConflictsPage").then(m => ({ default: m.SyncConflictsPage })));
 const SurveysPage = lazy(() => import("@/components/SurveysPage").then(m => ({ default: m.SurveysPage })));
+const SpecialtySettingsPage = lazy(() => import("@/components/SpecialtySettingsPage").then(m => ({ default: m.SpecialtySettingsPage })));
 
 function PageLoader() {
   return (
@@ -120,6 +121,7 @@ function AppContent() {
     sync: adminOnly(<Suspense fallback={<PageLoader />}><ScheduledSyncPage /></Suspense>),
     conflicts: adminOnly(<Suspense fallback={<PageLoader />}><SyncConflictsPage /></Suspense>),
     surveys: <Suspense fallback={<PageLoader />}><SurveysPage /></Suspense>,
+    specialties: adminOnly(<Suspense fallback={<PageLoader />}><SpecialtySettingsPage /></Suspense>),
   };
 
   return (

@@ -22,7 +22,7 @@ export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
-  | "templates" | "importPatients" | "sync" | "conflicts" | "surveys";
+  | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties";
 
 interface Props {
   currentPage: Page;
@@ -179,6 +179,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "importPatients", icon: <Upload className="w-5 h-5" />, label: t("nav.importPatients"), roles: ["admin"] },
     { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
     { page: "conflicts", icon: <AlertTriangle className="w-5 h-5" />, label: t("nav.conflicts"), roles: ["admin"] },
+    { page: "specialties", icon: <Stethoscope className="w-5 h-5" />, label: "Spécialités", roles: ["admin"] },
   ];
 
   const visibleMain = applyOrder(mainNav.filter(i => hasRole(i.roles as any)), navOrder);
