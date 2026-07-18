@@ -129,6 +129,7 @@ function AppContent() {
     staff: <Suspense fallback={<PageLoader />}><StaffPage /></Suspense>,
     myspace: <Suspense fallback={<PageLoader />}><MySpacePage /></Suspense>,
     docCategories: adminOnly(<Suspense fallback={<PageLoader />}><DocumentCategoriesPage /></Suspense>),
+    admissions: <Suspense fallback={<PageLoader />}><AdmissionsPage /></Suspense>,
   };
 
   return (
