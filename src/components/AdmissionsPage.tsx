@@ -26,10 +26,10 @@ import { toast } from "sonner";
 
 export function AdmissionsPage() {
   const { user } = useAuth();
-  const wards = useLiveQuery(() => db.wards.toArray(), []) || [];
-  const beds = useLiveQuery(() => db.beds.toArray(), []) || [];
-  const admissions = useLiveQuery(() => db.admissions.toArray(), []) || [];
-  const patients = useLiveQuery(() => db.patients.toArray(), []) || [];
+  const wards = useLive(() => db.wards.toArray(), []) || [];
+  const beds = useLive(() => db.beds.toArray(), []) || [];
+  const admissions = useLive(() => db.admissions.toArray(), []) || [];
+  const patients = useLive(() => db.patients.toArray(), []) || [];
 
   const activeAdmissions = admissions.filter(a => a.status === "active");
   const activeByBed = useMemo(() => {
@@ -112,7 +112,7 @@ export function AdmissionsPage() {
       clinicId: getClinicId(),
     });
     await db.beds.update(admitBed.id, { status: "occupied" });
-    await logAudit(AuditEventType.CREATE, "admission", String(id), user, `Admission bed ${admitBed.label}`);
+    await logAudit("appointment_create", user?.name || "?", { resource: "admission", resourceId: id as any, message: `Admission bed ${admitBed.label}` });
     setAdmitBed(null); setAdmitPatientId(null); setAdmitReason(""); setAdmitDiagnosis("");
     toast.success("Patient admis");
   };
@@ -125,7 +125,7 @@ export function AdmissionsPage() {
       dischargeSummary: summary,
     });
     await db.beds.update(a.bedId, { status: "available" });
-    await logAudit(AuditEventType.UPDATE, "admission", String(a.id), user, "Discharge");
+    await logAudit("appointment_update", user?.name || "?", { resource: "admission", resourceId: a.id, message: "Discharge" });
     toast.success("Sortie enregistrée");
     setDetail(null);
   };
@@ -335,7 +335,7 @@ function AdmissionDetailDialog({
   onDischarge: (a: Admission, summary: string) => void;
 }) {
   const { user } = useAuth();
-  const notes = useLiveQuery(
+  const notes = useLive(
     () => db.careNotes.where("admissionId").equals(admission.id!).toArray(),
     [admission.id]
   ) || [];
