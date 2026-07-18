@@ -700,6 +700,10 @@ class DentaDB extends Dexie {
   privateDocs!: Table<PrivateDoc>;
   quickTemplates!: Table<QuickTemplate>;
   customCategories!: Table<CustomCategory>;
+  wards!: Table<Ward>;
+  beds!: Table<Bed>;
+  admissions!: Table<Admission>;
+  careNotes!: Table<CareNote>;
 
 
 
