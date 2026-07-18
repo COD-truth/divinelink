@@ -1,5 +1,51 @@
 import Dexie, { type Table } from "dexie";
 
+export interface Ward {
+  id?: number;
+  name: string;
+  description?: string;
+  clinicId?: string;
+  createdAt: string;
+}
+
+export interface Bed {
+  id?: number;
+  wardId: number;
+  label: string;
+  status: "available" | "occupied" | "maintenance";
+  clinicId?: string;
+  createdAt: string;
+}
+
+export type AdmissionStatus = "active" | "discharged";
+export interface Admission {
+  id?: number;
+  patientId: number;
+  wardId: number;
+  bedId: number;
+  admittedAt: string;
+  admittedBy?: string;
+  reason: string;
+  diagnosis?: string;
+  status: AdmissionStatus;
+  dischargedAt?: string;
+  dischargeSummary?: string;
+  clinicId?: string;
+}
+
+export interface CareNote {
+  id?: number;
+  admissionId: number;
+  patientId: number;
+  authorName: string;
+  authorRole?: string;
+  note: string;
+  vitals?: { bp?: string; pulse?: string; temp?: string; spo2?: string };
+  createdAt: string;
+  clinicId?: string;
+}
+
+
 export type UserRole = "admin" | "doctor" | "receptionist";
 export type AppointmentStatus = "scheduled" | "confirmed" | "arrived" | "in_consultation" | "completed" | "cancelled" | "noshow";
 
