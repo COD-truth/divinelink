@@ -23,7 +23,7 @@ export type Page =
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
   | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties"
-  | "staff" | "myspace" | "docCategories";
+  | "staff" | "myspace" | "docCategories" | "admissions";
 
 interface Props {
   currentPage: Page;
