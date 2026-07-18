@@ -164,6 +164,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
     { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: "Enquêtes", roles: ["admin", "doctor"] },
     { page: "myspace", icon: <Lock className="w-5 h-5" />, label: "Mon espace", roles: ["admin", "doctor", "receptionist"] },
+    { page: "admissions", icon: <BedDouble className="w-5 h-5" />, label: "Hospitalisation", roles: ["admin", "doctor", "receptionist"] },
 
   ];
 
