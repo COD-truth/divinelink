@@ -40,6 +40,7 @@ const SpecialtySettingsPage = lazy(() => import("@/components/SpecialtySettingsP
 const StaffPage = lazy(() => import("@/components/StaffPage").then(m => ({ default: m.StaffPage })));
 const MySpacePage = lazy(() => import("@/components/MySpacePage").then(m => ({ default: m.MySpacePage })));
 const DocumentCategoriesPage = lazy(() => import("@/components/DocumentCategoriesPage").then(m => ({ default: m.DocumentCategoriesPage })));
+const AdmissionsPage = lazy(() => import("@/components/AdmissionsPage").then(m => ({ default: m.AdmissionsPage })));
 
 function PageLoader() {
   return (
@@ -73,9 +74,11 @@ function AppContent() {
   useEffect(() => {
     if (user) {
       initSmartNotifications(user.name);
+      import("@/lib/appointmentAlarms").then(m => m.startAppointmentAlarms());
     }
     return () => {
       stopSmartNotifications();
+      import("@/lib/appointmentAlarms").then(m => m.stopAppointmentAlarms());
     };
   }, [user]);
 
@@ -128,6 +131,7 @@ function AppContent() {
     staff: <Suspense fallback={<PageLoader />}><StaffPage /></Suspense>,
     myspace: <Suspense fallback={<PageLoader />}><MySpacePage /></Suspense>,
     docCategories: adminOnly(<Suspense fallback={<PageLoader />}><DocumentCategoriesPage /></Suspense>),
+    admissions: <Suspense fallback={<PageLoader />}><AdmissionsPage /></Suspense>,
   };
 
   return (
