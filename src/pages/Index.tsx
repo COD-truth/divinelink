@@ -74,9 +74,11 @@ function AppContent() {
   useEffect(() => {
     if (user) {
       initSmartNotifications(user.name);
+      import("@/lib/appointmentAlarms").then(m => m.startAppointmentAlarms());
     }
     return () => {
       stopSmartNotifications();
+      import("@/lib/appointmentAlarms").then(m => m.stopAppointmentAlarms());
     };
   }, [user]);
 
