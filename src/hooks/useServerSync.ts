@@ -171,6 +171,7 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
           console.log("Pulled", serverConsults.length, "consultations from server");
         }
       } catch (e) { console.warn("Consultation pull failed", e); }
+      try { localStorage.setItem("dl.lastSyncAt", String(Date.now())); } catch {}
       console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {
       console.error("Server sync failed:", err);
