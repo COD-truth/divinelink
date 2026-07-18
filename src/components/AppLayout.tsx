@@ -445,7 +445,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             {t(`role.${user?.role}`)}
           </Badge>
 
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end items-center gap-2">
+            <SyncStatus />
             <GlobalSearch onNavigate={onNavigate} />
           </div>
 
