@@ -1,9 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { db, type Ward, type Bed, type Admission, type CareNote, type Patient } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { getClinicId } from "@/lib/clinicSettings";
-import { logAudit, AuditEventType } from "@/lib/audit";
+import { logAudit } from "@/lib/audit";
+
+/** Poll-based live query (works without dexie-react-hooks). */
+function useLive<T>(fn: () => Promise<T>, deps: React.DependencyList, intervalMs = 3000): T | undefined {
+  const [val, setVal] = useState<T | undefined>(undefined);
+  const run = useCallback(async () => { try { setVal(await fn()); } catch {} }, deps); // eslint-disable-line
+  useEffect(() => { run(); const id = setInterval(run, intervalMs); return () => clearInterval(id); }, [run, intervalMs]);
+  return val;
+}
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
