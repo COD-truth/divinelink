@@ -40,6 +40,7 @@ const SpecialtySettingsPage = lazy(() => import("@/components/SpecialtySettingsP
 const StaffPage = lazy(() => import("@/components/StaffPage").then(m => ({ default: m.StaffPage })));
 const MySpacePage = lazy(() => import("@/components/MySpacePage").then(m => ({ default: m.MySpacePage })));
 const DocumentCategoriesPage = lazy(() => import("@/components/DocumentCategoriesPage").then(m => ({ default: m.DocumentCategoriesPage })));
+const AdmissionsPage = lazy(() => import("@/components/AdmissionsPage").then(m => ({ default: m.AdmissionsPage })));
 
 function PageLoader() {
   return (
