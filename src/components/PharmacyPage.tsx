@@ -173,6 +173,11 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
   const { user } = useAuth();
   const actor = user?.name || "unknown";
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   const [sortKey, setSortKey] = useState<SortKey>("az");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -191,7 +196,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
 
   const sorted = useMemo(() => {
     let list = drugs.filter(d =>
-      (d.name.toLowerCase().includes(search.toLowerCase()) || d.category.toLowerCase().includes(search.toLowerCase())) &&
+      (d.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || d.category.toLowerCase().includes(debouncedSearch.toLowerCase())) &&
       (filterCategory === "all" || d.category === filterCategory) &&
       (filterStatus === "all" || d.status === filterStatus)
     );

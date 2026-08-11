@@ -7,11 +7,13 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { useServerSync } from "@/hooks/useServerSync";
+import { startDrugAlarms, stopDrugAlarms } from "@/lib/drugAlarms";
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin.tsx"));
 const SurveyTake = lazy(() => import("./pages/SurveyTake.tsx"));
 
 const App = () => {
   useServerSync();
+  useEffect(() => { startDrugAlarms(); return () => stopDrugAlarms(); }, []);
   return (
   <TooltipProvider>
     <Toaster />
