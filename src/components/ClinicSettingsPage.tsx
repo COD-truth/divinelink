@@ -220,6 +220,7 @@ const createWorkspace = async () => {
           {fr ? "Enregistrer" : "Save"}
         </Button>
       </Card>
+      <div className="mt-4"><NotificationSettings /></div>
     </div>
   );
 }
