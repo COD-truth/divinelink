@@ -5,11 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Building2, Upload, Copy } from "lucide-react";
+import { Building2, Upload, Copy, Bell } from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
 import {
   getClinicSettings, saveClinicSettings, generateClinicId, type ClinicSettings,
 } from "@/lib/clinicSettings";
+import { NotificationSettings } from "@/components/NotificationSettings";
 import { compressImage } from "@/lib/imageUtils";
 
 interface Props { onSaved?: () => void; embedded?: boolean; }

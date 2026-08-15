@@ -441,8 +441,8 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
       )}
 
       {/* Add drug dialog */}
-      <Dialog open={addOpen} onOpenChange={v => { setAddOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <Dialog open={addOpen} onOpenChange={v => { setAddOpen(v); if (!v) resetForm(); }} key="add-drug-dialog">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" onInteractOutside={e => e.preventDefault()}>
           <DialogHeader><DialogTitle>{t("pharm.addDrug")}</DialogTitle></DialogHeader>
           <DrugForm />
           <DialogFooter>
@@ -453,7 +453,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
       </Dialog>
 
       {/* Edit drug dialog */}
-      <Dialog open={!!editDrug} onOpenChange={v => { if (!v) { setEditDrug(null); resetForm(); } }}>
+      <Dialog open={!!editDrug} onOpenChange={v => { if (!v) { setEditDrug(null); resetForm(); } }} key={editDrug?.id || "edit-drug-dialog"}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("common.edit")}: {editDrug?.name}</DialogTitle></DialogHeader>
           <DrugForm />

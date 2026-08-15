@@ -17,6 +17,7 @@ import { useLang } from "@/contexts/LangContext";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { LabResultsPage } from "@/components/LabResultsPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -357,6 +358,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
             <TabsTrigger value="info">{t("tab.info")}</TabsTrigger>
             <TabsTrigger value="ant">{t("tab.antecedents")}</TabsTrigger>
             <TabsTrigger value="cons">{t("tab.consultations")}</TabsTrigger>
+            <TabsTrigger value="lab">🧪 Analyses</TabsTrigger>
             <TabsTrigger value="courbes">📈</TabsTrigger>
             <TabsTrigger value="docs">{t("tab.documents")}</TabsTrigger>
             <TabsTrigger value="imported">📄 Word</TabsTrigger>
@@ -375,6 +377,9 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
           </TabsContent>
           <TabsContent value="courbes">
             <VitalSignsTrends patientId={p.id!} />
+          </TabsContent>
+          <TabsContent value="lab">
+            <div className="p-4"><LabResultsPage patientId={p.id!} /></div>
           </TabsContent>
           <TabsContent value="docs">
             <DocumentsTab patientId={p.id!} />

@@ -1025,7 +1025,7 @@ export function ConsultationsPage() {
                   placeholder="Actes à réaliser, orientation, suivi..."
                 />
               </div>
-              <div>
+<div>
                 <Label>{t("consult.prescription")}</Label>
                 <Textarea
                   rows={3}
