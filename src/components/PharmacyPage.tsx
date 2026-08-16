@@ -283,10 +283,11 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
     if (ok) toast.success(t("download.done"));
   };
 
-  const DrugForm = () => (
+  // DrugForm as inline JSX to avoid remount on rerender
+  const drugFormJSX = (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2"><Label>{t("pharm.name")} *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+        <div className="col-span-2"><Label>{t("pharm.name")} *</Label><Input id="df-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
         <div>
           <Label>{t("pharm.category")}</Label>
           <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
@@ -296,16 +297,16 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
         </div>
         <div>
           <Label>{t("pharm.unit")}</Label>
-          <Input value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} />
+          <Input id="df-unit" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} />
         </div>
-        <div><Label>{t("pharm.stock")}</Label><Input type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} /></div>
-        <div><Label>{t("pharm.minStock")}</Label><Input type="number" value={form.minStock} onChange={e => setForm(f => ({ ...f, minStock: e.target.value }))} /></div>
-        <div><Label>{t("pharm.buyPrice")}</Label><Input type="number" value={form.buyPrice} onChange={e => setForm(f => ({ ...f, buyPrice: e.target.value }))} /></div>
-        <div><Label>{t("pharm.sellPrice")}</Label><Input type="number" value={form.sellPrice} onChange={e => setForm(f => ({ ...f, sellPrice: e.target.value }))} /></div>
-        <div><Label>{t("pharm.expiration")}</Label><Input type="date" value={form.expiration} onChange={e => setForm(f => ({ ...f, expiration: e.target.value }))} /></div>
-        <div><Label>{t("pharm.supplier")}</Label><Input value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} /></div>
-        <div><Label>{t("pharm.batchNumber")}</Label><Input value={form.batchNumber} onChange={e => setForm(f => ({ ...f, batchNumber: e.target.value }))} /></div>
-        <div><Label>{t("pharm.location")}</Label><Input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
+        <div><Label>{t("pharm.stock")}</Label><Input id="df-stock" type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} /></div>
+        <div><Label>{t("pharm.minStock")}</Label><Input id="df-min" type="number" value={form.minStock} onChange={e => setForm(f => ({ ...f, minStock: e.target.value }))} /></div>
+        <div><Label>{t("pharm.buyPrice")}</Label><Input id="df-buy" type="number" value={form.buyPrice} onChange={e => setForm(f => ({ ...f, buyPrice: e.target.value }))} /></div>
+        <div><Label>{t("pharm.sellPrice")}</Label><Input id="df-sell" type="number" value={form.sellPrice} onChange={e => setForm(f => ({ ...f, sellPrice: e.target.value }))} /></div>
+        <div><Label>{t("pharm.expiration")}</Label><Input id="df-exp" type="date" value={form.expiration} onChange={e => setForm(f => ({ ...f, expiration: e.target.value }))} /></div>
+        <div><Label>{t("pharm.supplier")}</Label><Input id="df-sup" value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} /></div>
+        <div><Label>{t("pharm.batchNumber")}</Label><Input id="df-batch" value={form.batchNumber} onChange={e => setForm(f => ({ ...f, batchNumber: e.target.value }))} /></div>
+        <div><Label>{t("pharm.location")}</Label><Input id="df-loc" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
       </div>
     </div>
   );
@@ -444,7 +445,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
       <Dialog open={addOpen} onOpenChange={v => { setAddOpen(v); if (!v) resetForm(); }} key="add-drug-dialog">
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" onInteractOutside={e => e.preventDefault()}>
           <DialogHeader><DialogTitle>{t("pharm.addDrug")}</DialogTitle></DialogHeader>
-          <DrugForm key="drug-form-add" />
+          {drugFormJSX}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setAddOpen(false); resetForm(); }}>{t("common.cancel")}</Button>
             <Button onClick={saveDrug}>{t("common.save")}</Button>
@@ -456,7 +457,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
       <Dialog open={!!editDrug} onOpenChange={v => { if (!v) { setEditDrug(null); resetForm(); } }} key={editDrug?.id || "edit-drug-dialog"}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("common.edit")}: {editDrug?.name}</DialogTitle></DialogHeader>
-          <DrugForm key="drug-form-edit" />
+          {drugFormJSX}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditDrug(null); resetForm(); }}>{t("common.cancel")}</Button>
             <Button onClick={saveDrug}>{t("common.save")}</Button>
