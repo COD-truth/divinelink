@@ -124,6 +124,8 @@ const EMPTY_FORM: ConsultForm = {
   orthodonticAppliances: false,
   diagnosis: "",
   treatmentPlan: "",
+    referredBy: "",
+    referralNote: "",
   prescription: "",
   notes: "",
   images: [],
@@ -1033,6 +1035,11 @@ export function ConsultationsPage() {
                   onChange={e => setForm(f => ({ ...f, prescription: e.target.value }))}
                   placeholder="Médicament — dose — fréquence — durée"
                 />
+              </div>
+              <div>
+                <Label>Referral / Référence</Label>
+                <Input placeholder="Referred by (doctor/hospital)..." value={form.referredBy||""} onChange={e=>setForm(f=>({...f,referredBy:e.target.value}))}/>
+                <Input className="mt-1" placeholder="Referral notes..." value={form.referralNote||""} onChange={e=>setForm(f=>({...f,referralNote:e.target.value}))}/>
               </div>
               <div>
                 <Label>{t("consult.notes")}</Label>

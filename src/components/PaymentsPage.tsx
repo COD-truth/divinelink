@@ -434,6 +434,7 @@ export function PaymentsPage() {
                             <PlusCircle className="w-4 h-4"/>
                           </Button>
                         )}
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-teal-600" title="Recu" onClick={() => { const pat = patients.find(x => x.id === p.patientId); generateReceipt({ receiptNumber: `REC-${String(p.id).padStart(4,"0")}`, date: new Date(p.createdAt).toLocaleDateString("fr-FR"), patientName: pat?.name || "Patient", items: [{ description: p.label || "Consultation", quantity: 1, unitPrice: p.amountDue || 0 }], paymentMethod: p.method || "cash", status: p.status === "paid" ? "paid" : p.status === "partial" ? "partial" : "unpaid" }); }}><Printer className="w-3.5 h-3.5"/></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={async () => {
                           if (p.id) {
                             await db.payments.delete(p.id);
