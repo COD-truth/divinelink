@@ -444,7 +444,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
       <Dialog open={addOpen} onOpenChange={v => { setAddOpen(v); if (!v) resetForm(); }} key="add-drug-dialog">
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" onInteractOutside={e => e.preventDefault()}>
           <DialogHeader><DialogTitle>{t("pharm.addDrug")}</DialogTitle></DialogHeader>
-          <DrugForm />
+          <DrugForm key="drug-form-add" />
           <DialogFooter>
             <Button variant="outline" onClick={() => { setAddOpen(false); resetForm(); }}>{t("common.cancel")}</Button>
             <Button onClick={saveDrug}>{t("common.save")}</Button>
@@ -456,7 +456,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
       <Dialog open={!!editDrug} onOpenChange={v => { if (!v) { setEditDrug(null); resetForm(); } }} key={editDrug?.id || "edit-drug-dialog"}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("common.edit")}: {editDrug?.name}</DialogTitle></DialogHeader>
-          <DrugForm />
+          <DrugForm key="drug-form-edit" />
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditDrug(null); resetForm(); }}>{t("common.cancel")}</Button>
             <Button onClick={saveDrug}>{t("common.save")}</Button>
