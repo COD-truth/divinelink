@@ -6,6 +6,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { InstallPWAButton } from "@/components/InstallPWAButton";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check, AlertTriangle, BedDouble } from "lucide-react";
+import { AppGuide } from "@/components/AppGuide";
 import { SyncStatus } from "@/components/SyncStatus";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
