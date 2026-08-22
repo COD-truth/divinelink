@@ -628,6 +628,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           )}
         </DialogContent>
       </Dialog>
+      <AppGuide />
     </div>
   );
 }
