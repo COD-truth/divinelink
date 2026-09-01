@@ -39,7 +39,7 @@ export function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
-  const [form, setForm] = useState({ name: "", role: "receptionist" as UserRole, pin: "", phone: "", permissions: [] as string[] });
+  const [form, setForm] = useState<{ name: string; role: UserRole; pin: string; phone: string; permissions: string[] }>({ name: "", role: "receptionist", pin: "", phone: "", permissions: [] });
 
   const load = async () => setUsers(await db.users.toArray());
   useEffect(() => { load(); }, []);
@@ -140,10 +140,10 @@ export function UsersPage() {
                 {ALL_PAGES.map(p => (
                   <label key={p.page} className="flex items-center gap-2 text-sm cursor-pointer">
                     <input type="checkbox"
-                      checked={form.permissions.length === 0 || form.permissions.includes(p.page)}
+                      checked={(form.permissions || []).length === 0 || (form.permissions || []).includes(p.page)}
                       onChange={e => {
                         const all = ALL_PAGES.map(x => x.page);
-                        const current = form.permissions.length === 0 ? all : [...form.permissions];
+                        const current = (form.permissions || []).length === 0 ? all : [...(form.permissions || [])];
                         setForm(f => ({...f, permissions: e.target.checked
                           ? [...new Set([...current, p.page])]
                           : current.filter(x => x !== p.page)
