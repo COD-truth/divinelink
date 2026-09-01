@@ -25,7 +25,8 @@ export type Page =
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
   | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties"
-  | "staff" | "myspace" | "docCategories" | "admissions";
+  | "staff" | "myspace" | "docCategories" | "admissions"
+  | "minsante";
 
 interface Props {
   currentPage: Page;
@@ -167,6 +168,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: "Enquêtes", roles: ["admin", "doctor"] },
     { page: "myspace", icon: <Lock className="w-5 h-5" />, label: "Mon espace", roles: ["admin", "doctor", "receptionist"] },
     { page: "admissions", icon: <BedDouble className="w-5 h-5" />, label: "Hospitalisation", roles: ["admin", "doctor", "receptionist"] },
+    { page: "minsante", icon: <BarChart3 className="w-5 h-5" />, label: "Rapport MINSANTE", roles: ["admin"] },
 
   ];
 

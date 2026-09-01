@@ -538,6 +538,63 @@ export function ResearchPage() {
                       )}
                     </div>
 
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Prosthodontie — Actes prothétiques</p>
+                      {(() => {
+                        const PROSTH = ["couronne","bridge","prothese","implant","inlay","onlay","facette","gouttiere","stellite","pivots","provisoire"];
+                        const prosthCounts = new Map<string,number>();
+                        dentalCons.forEach(c => {
+                          (c.dental?.teeth||[]).filter((t:any)=>t.treatmentDone).forEach((t:any)=>{
+                            const tx = (t.treatmentDone||"").toLowerCase();
+                            PROSTH.forEach(p => { if(tx.includes(p)) prosthCounts.set(p, (prosthCounts.get(p)||0)+1); });
+                          });
+                          const tp = (c.treatmentPlan||"").toLowerCase();
+                          PROSTH.forEach(p => { if(tp.includes(p)) prosthCounts.set(p+"*", (prosthCounts.get(p+"*")||0)+1); });
+                        });
+                        const prosthList = Array.from(prosthCounts.entries()).sort((a,b)=>b[1]-a[1]);
+                        const totalProsth = Array.from(prosthCounts.values()).reduce((s,v)=>s+v,0);
+                        return prosthList.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Aucun acte prothétique enregistré. Les données apparaîtront au fur et à mesure des consultations dentaires.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-2xl font-bold text-teal-600">{totalProsth}</span>
+                              <span className="text-sm text-muted-foreground">actes prothétiques au total</span>
+                            </div>
+                            <ul className="space-y-1">{prosthList.map(([name,count])=>(
+                              <li key={name} className="flex justify-between text-sm">
+                                <span className="capitalize">{name.replace("*"," (planifié)")}</span>
+                                <Badge variant="secondary">{count}</Badge>
+                              </li>
+                            ))}</ul>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Suivi par dent (FDI)</p>
+                      {(() => {
+                        const toothMap = new Map<string,number>();
+                        dentalCons.forEach(c => {
+                          (c.dental?.teeth||[]).filter((t:any)=>t.condition&&t.condition!=="healthy").forEach((t:any)=>{
+                            const key = `${t.number||"?"} — ${t.condition||""}`;
+                            toothMap.set(key,(toothMap.get(key)||0)+1);
+                          });
+                        });
+                        const toothList = Array.from(toothMap.entries()).sort((a,b)=>b[1]-a[1]).slice(0,8);
+                        return toothList.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Aucune donnée par dent disponible.</p>
+                        ) : (
+                          <ul className="space-y-1">{toothList.map(([name,count])=>(
+                            <li key={name} className="flex justify-between text-sm">
+                              <span>{name}</span><Badge variant="outline">{count}</Badge>
+                            </li>
+                          ))}</ul>
+                        );
+                      })()}
+                    </div>
+
                     <Button variant="outline" onClick={async () => {
                       const rows = dentalCons.map(c => ({
                         patientId: c.patientId,
