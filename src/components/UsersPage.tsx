@@ -17,12 +17,29 @@ const roleBadge: Record<UserRole, string> = {
   receptionist: "bg-green-600 text-white hover:bg-green-600/90",
 };
 
+const ALL_PAGES = [
+  { page: "dashboard", label: "Tableau de bord" },
+  { page: "patients", label: "Patients" },
+  { page: "appointments", label: "Rendez-vous" },
+  { page: "consultations", label: "Consultations" },
+  { page: "diagnosis", label: "Diagnostics" },
+  { page: "documents", label: "Documents" },
+  { page: "research", label: "Statistiques" },
+  { page: "surveys", label: "Enquetes" },
+  { page: "admissions", label: "Hospitalisation" },
+  { page: "payments", label: "Paiements" },
+  { page: "pharmacy", label: "Pharmacie" },
+  { page: "equipment", label: "Equipements" },
+  { page: "myspace", label: "Mon Espace" },
+  { page: "staff", label: "Personnel" },
+];
+
 export function UsersPage() {
   const { t } = useLang();
   const [users, setUsers] = useState<User[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
-  const [form, setForm] = useState({ name: "", role: "receptionist" as UserRole, pin: "", phone: "" });
+  const [form, setForm] = useState({ name: "", role: "receptionist" as UserRole, pin: "", phone: "", permissions: [] as string[] });
 
   const load = async () => setUsers(await db.users.toArray());
   useEffect(() => { load(); }, []);
@@ -35,19 +52,19 @@ export function UsersPage() {
 
   const openEdit = (u: User) => {
     setEditing(u);
-    setForm({ name: u.name, role: u.role, pin: "", phone: u.phone || "" });
+    setForm({ name: u.name, role: u.role, pin: "", phone: u.phone || "", permissions: u.permissions || [] });
     setDialogOpen(true);
   };
 
   const save = async () => {
     if (!form.name) return;
     if (editing?.id) {
-      const update: Partial<User> = { name: form.name, role: form.role, phone: form.phone };
+      const update: Partial<User> = { name: form.name, role: form.role, phone: form.phone, permissions: form.permissions };
       if (form.pin.length >= 4) update.pinHash = await hashPin(form.pin);
       await db.users.update(editing.id, update);
     } else {
       if (form.pin.length < 4) return toast.error(t("user.pin"));
-      await db.users.add({
+      await db.users.add({ permissions: form.permissions,
         name: form.name,
         role: form.role,
         phone: form.phone,
@@ -116,7 +133,28 @@ export function UsersPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={save}>{t("common.save")}</Button>
-          </DialogFooter>
+          <div className="space-y-2 border-t pt-3">
+              <p className="text-sm font-semibold">Acces aux pages (laisser vide = acces par defaut du role)</p>
+              <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
+                {ALL_PAGES.map(p => (
+                  <label key={p.page} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox"
+                      checked={form.permissions.length === 0 || form.permissions.includes(p.page)}
+                      onChange={e => {
+                        const all = ALL_PAGES.map(x => x.page);
+                        const current = form.permissions.length === 0 ? all : [...form.permissions];
+                        setForm(f => ({...f, permissions: e.target.checked
+                          ? [...new Set([...current, p.page])]
+                          : current.filter(x => x !== p.page)
+                        }));
+                      }}
+                    />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

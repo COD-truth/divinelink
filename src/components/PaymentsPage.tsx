@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { db, type Payment, type PaymentStatus, type PaymentMethod, type PaymentInstallment } from "@/lib/db";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCallback } from "react";
 import { logAudit } from "@/lib/audit";
 import { decryptPatients } from "@/lib/patientCrypto";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +52,8 @@ const SERVICES = [
 
 export function PaymentsPage() {
   const clinicId = localStorage.getItem("divinelink.clinicId") || "";
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isAdmin = hasRole(["admin"]);
   const actor = user?.name || "unknown";
   const [payments, setPayments] = useState<Payment[]>([]);
   const [patients, setPatients] = useState<{ id:number; name:string; anonCode:string }[]>([]);

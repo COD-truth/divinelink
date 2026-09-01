@@ -6,6 +6,7 @@ export interface Ward {
   description?: string;
   clinicId?: string;
   createdAt: string;
+  permissions?: string[]; // list of allowed pages, null = use role defaults
 }
 
 export interface Bed {
@@ -1086,6 +1087,9 @@ class DentaDB extends Dexie {
       customCategories: "++id, value, clinicId, createdAt",
     });
     // v19: hospital admissions - wards, beds, admissions, care notes
+    this.version(20).stores({
+      users: "++id, name, role, pinHash, clinicId",
+    });
     this.version(19).stores({
       wards: "++id, name, clinicId, createdAt",
       beds: "++id, wardId, label, status, clinicId, createdAt",

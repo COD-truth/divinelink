@@ -189,8 +189,14 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "docCategories", icon: <FileImage className="w-5 h-5" />, label: "Catégories docs", roles: ["admin"] },
   ];
 
-  const visibleMain = applyOrder(mainNav.filter(i => hasRole(i.roles as any)), navOrder);
-  const visibleAdmin = applyOrder(adminNav.filter(i => hasRole(i.roles as any)), navOrder);
+  const userPerms = user?.permissions;
+  const canAccess = (item: NavItem) => {
+    if (!hasRole(item.roles as any)) return false;
+    if (!userPerms || userPerms.length === 0) return true; // no restrictions = use role defaults
+    return userPerms.includes(item.page);
+  };
+  const visibleMain = applyOrder(mainNav.filter(i => canAccess(i)), navOrder);
+  const visibleAdmin = applyOrder(adminNav.filter(i => canAccess(i)), navOrder);
   const allItems = [...visibleMain, ...visibleAdmin];
   const currentLabel = allItems.find(i => i.page === currentPage)?.label || "";
 
