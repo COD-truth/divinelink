@@ -64,13 +64,14 @@ export function UsersPage() {
       await db.users.update(editing.id, update);
     } else {
       if (form.pin.length < 4) return toast.error(t("user.pin"));
-      await db.users.add({ permissions: form.permissions,
+      await db.users.add({
         name: form.name,
         role: form.role,
         phone: form.phone,
         pinHash: await hashPin(form.pin),
         active: true,
         createdAt: new Date().toISOString(),
+        permissions: form.permissions.length > 0 ? form.permissions : undefined,
       });
     }
     toast.success(t("common.save"));
