@@ -13,8 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import {
   Plus, Trash2, GripVertical, ArrowLeft, Share2, Copy, Download, BarChart3,
-  ChevronUp, ChevronDown, FileText, Mic, Eye, Play, Edit3,
-} from "lucide-react";
+  ChevronUp, ChevronDown, FileText, Mic, Eye, Play, Edit3, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { SURVEY_TEMPLATES } from "@/lib/surveyTemplates";
 import { generateInviteCode, newQuestion, computeStats, responsesToCsv } from "@/lib/surveyHelpers";
