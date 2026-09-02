@@ -92,6 +92,32 @@ export function SurveysPage() {
     );
   }
 
+  const applyTemplate = (templateId: string) => {
+    const tpl = SURVEY_TEMPLATES.find((t: any) => t.id === templateId);
+    if (!tpl) return;
+    const built = tpl.build();
+    const now = new Date().toISOString();
+    const draft: Survey = {
+      clinicId: localStorage.getItem("divinelink.clinicId") || "",
+      title: built.title || tpl.title,
+      description: built.description || "",
+      surveyType: built.surveyType || "general",
+      inviteCode: generateInviteCode(),
+      questions: built.questions || [],
+      status: "draft" as const,
+      anonymous: true,
+      createdBy: user?.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.surveys.add(draft).then((id: any) => {
+      load();
+      setActiveSurvey({ ...draft, id });
+      setTemplateOpen(false);
+      toast.success("Enquete creee: " + tpl.title);
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">

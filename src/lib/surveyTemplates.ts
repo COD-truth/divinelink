@@ -6,7 +6,7 @@ import { generateInviteCode } from "@/lib/surveyHelpers";
 
 function q(type: SurveyQuestion["type"], text: string, options?: string[], required = true): SurveyQuestion {
   return {
-    id: \`q_\${Date.now()}_\${Math.random().toString(36).slice(2,7)}\`,
+    id: `q_\${Date.now()}_\${Math.random().toString(36).slice(2,7)}`,
     type, text, required,
     options: options || (type==="single_choice"||type==="multi_choice" ? ["Oui","Non"] : undefined),
     ratingMax: type==="rating" ? 5 : undefined,
