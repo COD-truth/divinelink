@@ -16,6 +16,7 @@ import {
   ChevronUp, ChevronDown, FileText, Mic, Eye, Play, Edit3,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SURVEY_TEMPLATES } from "@/lib/surveyTemplates";
 import { generateInviteCode, newQuestion, computeStats, responsesToCsv } from "@/lib/surveyHelpers";
 import { saveFile, withDateStamp } from "@/lib/download";
 import { formatDateTime } from "@/lib/dateFormat";
@@ -43,6 +44,7 @@ export function SurveysPage() {
   const [view, setView] = useState<View>("list");
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [activeSurvey, setActiveSurvey] = useState<Survey | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = async () => {
     const all = await db.surveys.orderBy("createdAt").reverse().toArray();
@@ -96,9 +98,14 @@ export function SurveysPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Enquêtes / Surveys</h2>
         {isAdmin && (
-          <Button onClick={createNew} className="gap-2">
-            <Plus className="w-4 h-4" /> Nouvelle enquête / New survey
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setTemplateOpen(true)} className="gap-2">
+              <ClipboardList className="w-4 h-4"/>Modèles
+            </Button>
+            <Button onClick={createNew} className="gap-2">
+              <Plus className="w-4 h-4" /> Nouvelle enquête / New survey
+            </Button>
+          </div>
         )}
       </div>
       {!isAdmin && (
