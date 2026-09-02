@@ -5,7 +5,7 @@ import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { InstallPWAButton } from "@/components/InstallPWAButton";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check, AlertTriangle, BedDouble } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check, AlertTriangle, BedDouble, MapPin } from "lucide-react";
 import { AppGuide } from "@/components/AppGuide";
 import { SyncStatus } from "@/components/SyncStatus";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,8 @@ export type Page =
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
   | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties"
   | "staff" | "myspace" | "docCategories" | "admissions"
-  | "minsante";
+  | "minsante"
+  | "expeditions";
 
 interface Props {
   currentPage: Page;
@@ -169,6 +170,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { page: "myspace", icon: <Lock className="w-5 h-5" />, label: "Mon espace", roles: ["admin", "doctor", "receptionist"] },
     { page: "admissions", icon: <BedDouble className="w-5 h-5" />, label: "Hospitalisation", roles: ["admin", "doctor", "receptionist"] },
     { page: "minsante", icon: <BarChart3 className="w-5 h-5" />, label: "Rapport MINSANTE", roles: ["admin"] },
+    { page: "expeditions", icon: <MapPin className="w-5 h-5" />, label: "Expeditions Terrain", roles: ["admin", "doctor"] },
 
   ];
 
