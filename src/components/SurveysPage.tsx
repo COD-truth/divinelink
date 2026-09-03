@@ -157,6 +157,54 @@ export function SurveysPage() {
               canEdit={isAdmin}
             />
           ))}
+      {templateOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={()=>setTemplateOpen(false)}>
+          <div className="bg-background rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 space-y-4" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-lg">Modeles d enquetes</h3>
+              <button onClick={()=>setTemplateOpen(false)} className="text-xl w-8 h-8 rounded-full hover:bg-muted">x</button>
+            </div>
+            <div className="space-y-2">
+              {SURVEY_TEMPLATES.map((t:any) => (
+                <button key={t.id} onClick={()=>applyTemplate(t.id)}
+                  className="w-full text-left p-4 rounded-xl border border-muted hover:border-primary/50 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{t.emoji}</span>
+                    <div>
+                      <p className="font-medium text-sm">{t.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+        </div>
+      )}
+      {templateOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={()=>setTemplateOpen(false)}>
+          <div className="bg-background rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 space-y-4" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-lg">Modeles</h3>
+              <button onClick={()=>setTemplateOpen(false)} className="text-xl w-8 h-8 rounded-full hover:bg-muted">x</button>
+            </div>
+            <div className="space-y-2">
+              {SURVEY_TEMPLATES.map((t:any) => (
+                <button key={t.id} onClick={()=>applyTemplate(t.id)}
+                  className="w-full text-left p-4 rounded-xl border border-muted hover:border-primary/50 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{t.emoji}</span>
+                    <div>
+                      <p className="font-medium text-sm">{t.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
