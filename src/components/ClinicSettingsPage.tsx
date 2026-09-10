@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Building2, Upload, Copy, Bell } from "lucide-react";
 import { useLang } from "@/contexts/LangContext";
 import {
-  getClinicSettings, saveClinicSettings, generateClinicId, type ClinicSettings,
+  getClinicSettings, saveClinicSettings, generateClinicId, CLINIC_TYPES, type ClinicSettings,
 } from "@/lib/clinicSettings";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { compressImage } from "@/lib/imageUtils";
