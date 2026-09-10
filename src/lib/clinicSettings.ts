@@ -16,7 +16,28 @@ export interface ClinicSettings {
   licenseNumber?: string;
   openingHours?: string;
   currency?: string;    // default "FCFA"
+  clinicType?: "dental" | "general" | "maternity" | "expedition" | "specialty";
   createdAt: string;
+}
+
+export const CLINIC_TYPES = [
+  { value: "general", label: "Clinique Generale / General Clinic", emoji: "🏥",
+    pages: ["dashboard","patients","appointments","consultations","diagnosis","documents","payments","pharmacy","admissions","research","surveys","myspace"] },
+  { value: "dental", label: "Cabinet Dentaire / Dental Practice", emoji: "🦷",
+    pages: ["dashboard","patients","appointments","consultations","documents","payments","pharmacy","research","myspace"] },
+  { value: "maternity", label: "Maternite / Maternity", emoji: "🤱",
+    pages: ["dashboard","patients","appointments","consultations","documents","payments","pharmacy","admissions","research","surveys","myspace"] },
+  { value: "specialty", label: "Cabinet de Specialite", emoji: "🔬",
+    pages: ["dashboard","patients","appointments","consultations","documents","payments","research","myspace"] },
+  { value: "expedition", label: "Mission Terrain / Field Mission", emoji: "🌍",
+    pages: ["dashboard","patients","expeditions","surveys","myspace"] },
+];
+
+export function getClinicPages(): string[] | null {
+  const settings = getClinicSettings();
+  if (!settings?.clinicType) return null;
+  const type = CLINIC_TYPES.find(t => t.value === settings.clinicType);
+  return type?.pages || null;
 }
 
 const KEY = "divinelink.clinic";

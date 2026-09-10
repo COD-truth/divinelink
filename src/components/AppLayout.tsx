@@ -194,9 +194,11 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   ];
 
   const userPerms = user?.permissions;
+  const clinicPages = getClinicPages();
   const canAccess = (item: NavItem) => {
     if (!hasRole(item.roles as any)) return false;
-    if (!userPerms || userPerms.length === 0) return true; // no restrictions = use role defaults
+    if (clinicPages && !clinicPages.includes(item.page as string)) return false;
+    if (!userPerms || userPerms.length === 0) return true;
     return userPerms.includes(item.page);
   };
   const visibleMain = applyOrder(mainNav.filter(i => canAccess(i)), navOrder);

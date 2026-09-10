@@ -216,6 +216,20 @@ const createWorkspace = async () => {
           </div>
         </div>
 
+        <div>
+          <Label className="text-sm font-semibold">Type de clinique / Clinic type</Label>
+          <p className="text-xs text-muted-foreground mb-2">Adapte le menu et les fonctionnalites a votre activite</p>
+          <div className="grid grid-cols-1 gap-2">
+            {CLINIC_TYPES.map(t => (
+              <button key={t.value} type="button"
+                onClick={() => set("clinicType" as any, t.value)}
+                className={"w-full text-left p-3 rounded-xl border transition-colors " + (s.clinicType === t.value ? "border-primary bg-primary/10" : "border-muted hover:border-primary/50")}>
+                <span className="text-lg mr-2">{t.emoji}</span>
+                <span className="text-sm font-medium">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <Button className="w-full" onClick={save}>
           {fr ? "Enregistrer" : "Save"}
         </Button>
