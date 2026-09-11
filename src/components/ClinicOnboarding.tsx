@@ -20,6 +20,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("receptionist");
 
   const persistLocal = (clinicName: string) => {
     const cur = getClinicSettings();
@@ -41,7 +42,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
       const res = await fetch("https://divinelink.mooo.com/api/clinic/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: c }),
+        body: JSON.stringify({ code: c, role: selectedRole }),
       });
       const data = await res.json();
       if (data.token) {
