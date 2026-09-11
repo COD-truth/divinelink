@@ -1,322 +1,286 @@
-import { useState, useEffect } from "react";
-import { db } from "@/lib/db";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Plus, FlaskConical, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { Plus, Download, Edit, FlaskConical } from "lucide-react";
-import { getClinicSettings } from "@/lib/clinicSettings";
+import { type Patient } from "@/lib/db";
 
-interface LabField { name: string; value: string; unit: string; normalRange: string; isAbnormal?: boolean; }
-interface LabResult { id?: number; patientId: number; template: string; title: string; date: string; fields: LabField[]; conclusion: string; clinicId: string; createdAt: string; }
+const LAB_CATALOGUE = [
+  { category: "Hematologie", exams: [
+    { id: "nfs", name: "NFS - Numeration Formule Sanguine", short: "NFS", fields: [
+      { key: "gb", label: "Globules Blancs", unit: "G/L", min: 4, max: 10 },
+      { key: "gr", label: "Globules Rouges", unit: "T/L", min: 4.2, max: 5.4 },
+      { key: "hb", label: "Hemoglobine", unit: "g/dL", min: 12, max: 17 },
+      { key: "ht", label: "Hematocrite", unit: "%", min: 37, max: 50 },
+      { key: "plaquettes", label: "Plaquettes", unit: "G/L", min: 150, max: 400 },
+    ]},
+    { id: "vs", name: "VS - Vitesse de Sedimentation", short: "VS", fields: [
+      { key: "vs1h", label: "VS 1ere heure", unit: "mm", min: 0, max: 15 },
+      { key: "vs2h", label: "VS 2eme heure", unit: "mm", min: 0, max: 30 },
+    ]},
+    { id: "crp", name: "CRP - Proteine C Reactive", short: "CRP", fields: [
+      { key: "crp", label: "CRP", unit: "mg/L", min: 0, max: 6 },
+    ]},
+  ]},
+  { category: "Biochimie", exams: [
+    { id: "glycemie", name: "Glycemie", short: "GLY", fields: [
+      { key: "glycemie", label: "Glycemie a jeun", unit: "g/L", min: 0.7, max: 1.1 },
+      { key: "hba1c", label: "HbA1c", unit: "%", min: 0, max: 6.5 },
+    ]},
+    { id: "bilan_hepatique", name: "Bilan Hepatique", short: "BH", fields: [
+      { key: "asat", label: "ASAT (TGO)", unit: "UI/L", min: 0, max: 40 },
+      { key: "alat", label: "ALAT (TGP)", unit: "UI/L", min: 0, max: 40 },
+      { key: "ggt", label: "GGT", unit: "UI/L", min: 0, max: 50 },
+      { key: "bilirubine_t", label: "Bilirubine Totale", unit: "umol/L", min: 0, max: 17 },
+      { key: "phosphatases", label: "Phosphatases Alcalines", unit: "UI/L", min: 40, max: 130 },
+    ]},
+    { id: "bilan_renal", name: "Bilan Renal", short: "BR", fields: [
+      { key: "creatinine", label: "Creatinine", unit: "umol/L", min: 60, max: 110 },
+      { key: "uree", label: "Uree", unit: "mmol/L", min: 2.5, max: 7.5 },
+      { key: "acide_urique", label: "Acide Urique", unit: "umol/L", min: 150, max: 420 },
+    ]},
+    { id: "bilan_lipidique", name: "Bilan Lipidique", short: "BL", fields: [
+      { key: "cholesterol_t", label: "Cholesterol Total", unit: "g/L", min: 0, max: 2 },
+      { key: "hdl", label: "HDL", unit: "g/L", min: 0.4, max: 0.7 },
+      { key: "ldl", label: "LDL", unit: "g/L", min: 0, max: 1.6 },
+      { key: "triglycerides", label: "Triglycerides", unit: "g/L", min: 0, max: 1.5 },
+    ]},
+    { id: "ionogramme", name: "Ionogramme Sanguin", short: "IONO", fields: [
+      { key: "sodium", label: "Sodium (Na+)", unit: "mmol/L", min: 136, max: 145 },
+      { key: "potassium", label: "Potassium (K+)", unit: "mmol/L", min: 3.5, max: 5 },
+      { key: "chlore", label: "Chlore (Cl-)", unit: "mmol/L", min: 98, max: 107 },
+      { key: "calcium", label: "Calcium (Ca2+)", unit: "mmol/L", min: 2.2, max: 2.6 },
+    ]},
+  ]},
+  { category: "Infectiologie", exams: [
+    { id: "paludisme", name: "Test Paludisme (TDR/GE)", short: "PALU", fields: [
+      { key: "tdr_palu", label: "TDR Paludisme", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif (+)", "Positif (++)", "Positif (+++)"] },
+      { key: "parasitemie", label: "Parasitemie", unit: "parasites/uL", min: 0, max: 0 },
+      { key: "espece", label: "Espece parasitaire", unit: "", min: 0, max: 0, isText: true },
+    ]},
+    { id: "hiv", name: "Serologie VIH", short: "VIH", fields: [
+      { key: "hiv1", label: "VIH 1", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif", "Indetermine"] },
+      { key: "hiv2", label: "VIH 2", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif", "Indetermine"] },
+    ]},
+    { id: "hepatites", name: "Serologie Hepatites", short: "HEP", fields: [
+      { key: "hbs_ag", label: "AgHBs (Hepatite B)", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif"] },
+      { key: "hcv", label: "Anti-VHC (Hepatite C)", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif"] },
+    ]},
+    { id: "ecbu", name: "ECBU", short: "ECBU", fields: [
+      { key: "leucocytes_u", label: "Leucocytes urinaires", unit: "/mm3", min: 0, max: 10000 },
+      { key: "bacteriurie", label: "Bacteriurie", unit: "", min: 0, max: 0, isSelect: true, options: ["Absence", "< 10^3 UFC/mL", "10^3-10^5 UFC/mL", "> 10^5 UFC/mL"] },
+      { key: "germe", label: "Germe identifie", unit: "", min: 0, max: 0, isText: true },
+    ]},
+    { id: "widal", name: "Widal et Felix", short: "WIDAL", fields: [
+      { key: "to", label: "TO", unit: "", min: 0, max: 0, isText: true },
+      { key: "th", label: "TH", unit: "", min: 0, max: 0, isText: true },
+      { key: "ao", label: "AO", unit: "", min: 0, max: 0, isText: true },
+      { key: "ah", label: "AH", unit: "", min: 0, max: 0, isText: true },
+    ]},
+  ]},
+  { category: "Hormonologie", exams: [
+    { id: "thyroide", name: "Bilan Thyroidien", short: "TSH", fields: [
+      { key: "tsh", label: "TSH", unit: "mUI/L", min: 0.4, max: 4 },
+      { key: "t4", label: "T4 Libre", unit: "pmol/L", min: 11, max: 22 },
+    ]},
+    { id: "beta_hcg", name: "Test Grossesse (HCG)", short: "HCG", fields: [
+      { key: "resultat_hcg", label: "Resultat", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif"] },
+      { key: "beta_hcg_val", label: "Beta-HCG quantitatif", unit: "mUI/mL", min: 0, max: 5 },
+    ]},
+  ]},
+  { category: "Dentaire / Radiologie", exams: [
+    { id: "radio_dentaire", name: "Radiographie Dentaire", short: "RX", fields: [
+      { key: "type_radio", label: "Type de radio", unit: "", min: 0, max: 0, isSelect: true, options: ["Retroalveolaire", "Panoramique (OPG)", "Mordu", "Cone Beam (CBCT)"] },
+      { key: "dents_concernees", label: "Dents concernees (FDI)", unit: "", min: 0, max: 0, isText: true },
+      { key: "observations_rx", label: "Observations radiologiques", unit: "", min: 0, max: 0, isText: true },
+    ]},
+    { id: "test_vitalite", name: "Test de Vitalite Pulpaire", short: "TVP", fields: [
+      { key: "dent_testee", label: "Dent testee (FDI)", unit: "", min: 0, max: 0, isText: true },
+      { key: "resultat_vitalite", label: "Resultat", unit: "", min: 0, max: 0, isSelect: true, options: ["Vitale", "Non-vitale", "Douteux"] },
+      { key: "methode", label: "Methode", unit: "", min: 0, max: 0, isSelect: true, options: ["Test au froid", "Test electrique", "Test a la chaleur"] },
+    ]},
+  ]},
+];
 
-const TEMPLATES: Record<string, { title: string; fields: Omit<LabField,"value"|"isAbnormal">[] }> = {
-  nfs: { title: "NFS - Numeration Formule Sanguine", fields: [
-    { name: "Globules rouges", unit: "10^6/uL", normalRange: "4.5-5.5 H / 4.0-5.0 F" },
-    { name: "Hemoglobine", unit: "g/dL", normalRange: "13-17 H / 12-16 F" },
-    { name: "Hematocrite", unit: "%", normalRange: "40-54 H / 36-48 F" },
-    { name: "Globules blancs", unit: "10^3/uL", normalRange: "4.0-10.0" },
-    { name: "Neutrophiles", unit: "%", normalRange: "50-70" },
-    { name: "Lymphocytes", unit: "%", normalRange: "20-40" },
-    { name: "Plaquettes", unit: "10^3/uL", normalRange: "150-400" },
-  ]},
-  glycemie: { title: "Glycemie", fields: [
-    { name: "Glycemie a jeun", unit: "g/L", normalRange: "0.70-1.10" },
-    { name: "Glycemie post-prandiale", unit: "g/L", normalRange: "< 1.40" },
-    { name: "HbA1c", unit: "%", normalRange: "< 5.7 normal" },
-  ]},
-  renal: { title: "Bilan Renal", fields: [
-    { name: "Creatinine", unit: "mg/L", normalRange: "6-12 F / 7-13 H" },
-    { name: "Uree", unit: "g/L", normalRange: "0.15-0.45" },
-    { name: "Acide urique", unit: "mg/L", normalRange: "25-70 H / 20-60 F" },
-    { name: "Sodium Na+", unit: "mEq/L", normalRange: "136-145" },
-    { name: "Potassium K+", unit: "mEq/L", normalRange: "3.5-5.0" },
-  ]},
-  hepatique: { title: "Bilan Hepatique", fields: [
-    { name: "ASAT (TGO)", unit: "UI/L", normalRange: "< 40" },
-    { name: "ALAT (TGP)", unit: "UI/L", normalRange: "< 41 H / < 33 F" },
-    { name: "GGT", unit: "UI/L", normalRange: "< 55 H / < 38 F" },
-    { name: "Bilirubine totale", unit: "mg/L", normalRange: "2-10" },
-    { name: "Albumine", unit: "g/L", normalRange: "35-50" },
-  ]},
-  lipidique: { title: "Bilan Lipidique", fields: [
-    { name: "Cholesterol total", unit: "g/L", normalRange: "< 2.00" },
-    { name: "HDL-Cholesterol", unit: "g/L", normalRange: "> 0.40 H / > 0.50 F" },
-    { name: "LDL-Cholesterol", unit: "g/L", normalRange: "< 1.30" },
-    { name: "Triglycerides", unit: "g/L", normalRange: "< 1.50" },
-  ]},
-  paludisme: { title: "Goutte Epaisse / Paludisme", fields: [
-    { name: "Goutte epaisse", unit: "", normalRange: "Negative" },
-    { name: "Frottis sanguin", unit: "", normalRange: "Negatif" },
-    { name: "TDR Paludisme", unit: "", normalRange: "Negatif" },
-    { name: "Espece plasmodiale", unit: "", normalRange: "-" },
-    { name: "Densite parasitaire", unit: "parasites/uL", normalRange: "0" },
-  ]},
-  ecbu: { title: "Analyse Urine - ECBU", fields: [
-    { name: "Aspect", unit: "", normalRange: "Clair, jaune paille" },
-    { name: "Leucocytes", unit: "/mm3", normalRange: "< 10" },
-    { name: "Hematies", unit: "/mm3", normalRange: "< 5" },
-    { name: "Proteines", unit: "", normalRange: "Negatives" },
-    { name: "Nitrites", unit: "", normalRange: "Negatifs" },
-    { name: "Germe identifie", unit: "", normalRange: "Absence" },
-  ]},
-  radio_dentaire: { title: "Compte-Rendu Radiographique Dentaire", fields: [
-    { name: "Type de radiographie", unit: "", normalRange: "-" },
-    { name: "Dents examinees", unit: "", normalRange: "-" },
-    { name: "Tissu osseux alveolaire", unit: "", normalRange: "Normal" },
-    { name: "Espaces peri-apicaux", unit: "", normalRange: "Libres" },
-    { name: "Caries observees", unit: "", normalRange: "Aucune" },
-    { name: "Anomalies osseuses", unit: "", normalRange: "Aucune" },
-  ]},
-};
+export function LabResultsPage({ patient }: { patient: Patient }) {
+  const [search, setSearch] = useState("");
+  const [selectedExam, setSelectedExam] = useState(null);
+  const [values, setValues] = useState({});
+  const [notes, setNotes] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [saved, setSaved] = useState([]);
+  const [showCatalogue, setShowCatalogue] = useState(true);
+  const [expanded, setExpanded] = useState(new Set());
 
-function generateLabPDF(result: LabResult, patient: any) {
-  import("jspdf").then(({ jsPDF }) => {
-    const clinic = getClinicSettings();
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const W = 210; const margin = 15; const cW = W - margin * 2;
-    let y = 14;
-    const TEAL: [number,number,number] = [13,148,136];
-    const DARK: [number,number,number] = [15,23,42];
-    const GREY: [number,number,number] = [100,116,139];
-    const RED: [number,number,number] = [239,68,68];
+  const filtered = LAB_CATALOGUE.map(cat => ({
+    ...cat,
+    exams: cat.exams.filter(e =>
+      e.name.toLowerCase().includes(search.toLowerCase()) ||
+      e.short.toLowerCase().includes(search.toLowerCase()) ||
+      cat.category.toLowerCase().includes(search.toLowerCase())
+    )
+  })).filter(cat => cat.exams.length > 0);
 
-    doc.setFillColor(...TEAL); doc.rect(0,0,W,24,"F");
-    doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont("helvetica","bold");
-    doc.text(clinic?.name || "DivineLink Clinic", margin, 10);
-    doc.setFontSize(8); doc.setFont("helvetica","normal");
-    doc.text("RESULTATS D'ANALYSES", W-margin, 10, {align:"right"});
-    doc.text(result.date, W-margin, 16, {align:"right"});
-    y = 30;
+  const getStatus = (field, val) => {
+    if (field.isSelect || field.isText || !val || (field.min === 0 && field.max === 0)) return "normal";
+    const num = parseFloat(val);
+    if (isNaN(num)) return "normal";
+    return (num < field.min || num > field.max) ? "abnormal" : "normal";
+  };
 
-    doc.setTextColor(...DARK); doc.setFontSize(13); doc.setFont("helvetica","bold");
-    doc.text(result.title, W/2, y, {align:"center"}); y += 8;
-
-    doc.setFillColor(240,253,250); doc.rect(margin,y,cW,14,"F");
-    doc.setFontSize(9); doc.setFont("helvetica","bold");
-    doc.text(`Patient: ${patient?.firstName||""} ${patient?.lastName||""}`, margin+2, y+5);
-    doc.text(`Date: ${result.date}`, W-margin-2, y+5, {align:"right"});
-    y += 18;
-
-    doc.setFillColor(...TEAL); doc.rect(margin,y,cW,8,"F");
-    doc.setTextColor(255,255,255); doc.setFontSize(8.5); doc.setFont("helvetica","bold");
-    doc.text("Analyse", margin+2, y+5.5);
-    doc.text("Resultat", margin+90, y+5.5);
-    doc.text("Unite", margin+120, y+5.5);
-    doc.text("Valeurs normales", margin+145, y+5.5);
-    y += 8;
-
-    result.fields.forEach((field, i) => {
-      if (i%2===0) { doc.setFillColor(248,250,252); doc.rect(margin,y,cW,8,"F"); }
-      if (field.isAbnormal) { doc.setFillColor(254,242,242); doc.rect(margin,y,cW,8,"F"); }
-      doc.setTextColor(field.isAbnormal?220:30, field.isAbnormal?20:30, field.isAbnormal?20:46);
-      doc.setFont("helvetica", field.isAbnormal?"bold":"normal");
-      doc.setFontSize(8);
-      doc.text(field.name, margin+2, y+5.5);
-      doc.text(field.value||"-", margin+90, y+5.5);
-      doc.setTextColor(...GREY);
-      doc.text(field.unit, margin+120, y+5.5);
-      doc.text(field.normalRange, margin+145, y+5.5);
-      if (field.isAbnormal) { doc.setTextColor(...RED); doc.text("*", margin+108, y+5.5); }
-      y += 8;
+  const hasAbnormal = (entry) => {
+    const exam = LAB_CATALOGUE.flatMap(c => c.exams).find(e => e.id === entry.examId);
+    return Object.entries(entry.values).some(([k, v]) => {
+      const field = exam?.fields.find(f => f.key === k);
+      return field && getStatus(field, v) === "abnormal";
     });
+  };
 
-    y += 8;
-    if (result.conclusion) {
-      doc.setFillColor(240,253,250); doc.rect(margin,y,cW,6,"F");
-      doc.setTextColor(...TEAL); doc.setFont("helvetica","bold"); doc.setFontSize(9);
-      doc.text("CONCLUSION", margin+2, y+4.5); y += 8;
-      doc.setTextColor(...DARK); doc.setFont("helvetica","normal");
-      const lines = doc.splitTextToSize(result.conclusion, cW-4);
-      doc.text(lines, margin+2, y); y += lines.length*5+4;
-    }
+  const saveEntry = () => {
+    if (!selectedExam) return;
+    setSaved(prev => [{ examId: selectedExam.id, examName: selectedExam.name, date, values, notes }, ...prev]);
+    toast.success("Resultat enregistre!");
+    setSelectedExam(null);
+    setShowCatalogue(true);
+    setValues({});
+    setNotes("");
+  };
 
-    y = Math.max(y, 250);
-    doc.setDrawColor(...GREY); doc.line(W-margin-50,y,W-margin,y);
-    doc.setTextColor(...GREY); doc.setFontSize(8);
-    doc.text("Signature & Cachet", W-margin-25, y+5, {align:"center"});
-
-    doc.setFillColor(...TEAL); doc.rect(0,285,W,12,"F");
-    doc.setTextColor(255,255,255); doc.setFontSize(7);
-    doc.text(`Genere par DivineLink - ${clinic?.name||""} - ${new Date().toLocaleDateString("fr-FR")}`, W/2, 292, {align:"center"});
-
-    doc.save(`lab_${result.template}_${(patient?.lastName||"patient")}.pdf`);
-  });
-}
-
-interface Props { patientId: number; }
-
-export function LabResultsPage({ patientId }: Props) {
-  const { user } = useAuth();
-  const clinicId = localStorage.getItem("divinelink.clinicId") || "";
-  const [results, setResults] = useState<LabResult[]>([]);
-  const [patient, setPatient] = useState<any>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [current, setCurrent] = useState<LabResult | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState("");
-
-  useEffect(() => {
-    loadResults();
-    db.patients.get(patientId).then(p => setPatient(p));
-  }, [patientId]);
-
-  async function loadResults() {
-    try {
-      const docs = await db.documents.where("patientId").equals(patientId)
-        .filter((d: any) => d.tag === "lab").toArray();
-      const parsed = docs.map((d: any) => { try { return JSON.parse(d.name); } catch { return null; } }).filter(Boolean);
-      setResults(parsed);
-    } catch {}
-  }
-
-  function startNew(templateKey: string) {
-    const tpl = TEMPLATES[templateKey];
-    if (!tpl) return;
-    setCurrent({
-      patientId, template: templateKey, title: tpl.title,
-      date: new Date().toLocaleDateString("fr-FR"),
-      fields: tpl.fields.map(f => ({ ...f, value: "", isAbnormal: false })),
-      conclusion: "", clinicId, createdAt: new Date().toISOString(),
-    });
-    setEditOpen(true);
-  }
-
-  async function saveResult() {
-    if (!current) return;
-    try {
-      await (db.documents as any).add({
-        patientId, name: JSON.stringify(current), tag: "lab",
-        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), clinicId,
-      });
-      toast.success("Resultats sauvegardes!");
-      setEditOpen(false);
-      loadResults();
-    } catch { toast.error("Erreur lors de la sauvegarde."); }
-  }
+  const toggleExpand = (i) => {
+    setExpanded(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
+  };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FlaskConical className="w-5 h-5 text-primary" />
-            Nouveau resultat d'analyse
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Choisir un modele..." />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(TEMPLATES).map(([key, tpl]) => (
-                  <SelectItem key={key} value={key}>{tpl.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={() => selectedTemplate && startNew(selectedTemplate)}
-              disabled={!selectedTemplate} className="gap-2">
-              <Plus className="w-4 h-4" /> Creer
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-4 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <FlaskConical className="w-5 h-5 text-primary" />
+        <h2 className="text-lg font-bold">Analyses — {patient.firstName} {patient.lastName}</h2>
+      </div>
 
-      {results.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">
-          Aucun resultat d'analyse pour ce patient.
-        </p>
-      ) : (
+      {saved.length > 0 && (
         <div className="space-y-2">
-          {results.map((r, i) => (
-            <Card key={i}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">{r.title}</p>
-                  <p className="text-xs text-muted-foreground">{r.date}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Resultats enregistres</p>
+          {saved.map((entry, i) => (
+            <Card key={i} className="border-muted">
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(i)}>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">{entry.date}</Badge>
+                    <p className="text-sm font-medium">{entry.examName}</p>
+                    {hasAbnormal(entry) && <Badge className="bg-red-100 text-red-700 text-xs border-0">Anomalie</Badge>}
+                  </div>
+                  {expanded.has(i) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="gap-1 h-8"
-                    onClick={() => generateLabPDF(r, patient)}>
-                    <Download className="w-3.5 h-3.5" /> PDF
-                  </Button>
-                  <Button size="sm" variant="ghost" className="gap-1 h-8"
-                    onClick={() => { setCurrent(r); setEditOpen(true); }}>
-                    <Edit className="w-3.5 h-3.5" /> Modifier
-                  </Button>
-                </div>
+                {expanded.has(i) && (
+                  <div className="mt-3 space-y-1 border-t pt-2">
+                    {Object.entries(entry.values).map(([k, v]) => {
+                      const exam = LAB_CATALOGUE.flatMap(c => c.exams).find(e => e.id === entry.examId);
+                      const field = exam?.fields.find(f => f.key === k);
+                      if (!field || !v) return null;
+                      const abnormal = getStatus(field, v) === "abnormal";
+                      return (
+                        <div key={k} className="flex justify-between text-sm py-1 border-b border-muted/40">
+                          <span className="text-muted-foreground">{field.label}</span>
+                          <span className={abnormal ? "font-bold text-red-600" : "font-medium text-green-700"}>
+                            {v} {field.unit} {abnormal ? "!" : ""}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {entry.notes && <p className="text-xs text-muted-foreground italic mt-2">{entry.notes}</p>}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{current?.title}</DialogTitle>
-          </DialogHeader>
-          {current && (
-            <div className="space-y-4">
-              <div>
-                <Label>Date</Label>
-                <Input value={current.date}
-                  onChange={e => setCurrent(c => c ? {...c, date: e.target.value} : c)} />
-              </div>
-              <div className="space-y-3">
-                <Label>Resultats</Label>
-                {current.fields.map((field, i) => (
-                  <div key={i} className="space-y-1">
-                    <p className="text-xs text-muted-foreground">
-                      {field.name} ({field.unit}) — Normal: {field.normalRange}
-                    </p>
-                    <div className="flex gap-2">
-                      <Input placeholder="Valeur..."
-                        value={field.value}
-                        onChange={e => {
-                          const fields = [...current.fields];
-                          fields[i] = {...field, value: e.target.value};
-                          setCurrent(c => c ? {...c, fields} : c);
-                        }}
-                        className={field.isAbnormal ? "border-red-400 flex-1" : "flex-1"}
-                      />
-                      <Button type="button" size="sm"
-                        variant={field.isAbnormal ? "destructive" : "outline"}
-                        className="h-9 text-xs whitespace-nowrap"
-                        onClick={() => {
-                          const fields = [...current.fields];
-                          fields[i] = {...field, isAbnormal: !field.isAbnormal};
-                          setCurrent(c => c ? {...c, fields} : c);
-                        }}>
-                        {field.isAbnormal ? "Anormal" : "Normal"}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <Label>Conclusion</Label>
-                <Textarea value={current.conclusion}
-                  onChange={e => setCurrent(c => c ? {...c, conclusion: e.target.value} : c)}
-                  placeholder="Commentaire du medecin..." rows={3} />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button onClick={saveResult} className="flex-1">Sauvegarder</Button>
-                <Button variant="outline" className="gap-2"
-                  onClick={() => current && generateLabPDF(current, patient)}>
-                  <Download className="w-4 h-4" /> PDF
-                </Button>
-              </div>
+      {showCatalogue && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Nouvelle analyse
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Chercher: NFS, Glycemie, Paludisme, Radio..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {filtered.map(cat => (
+                <div key={cat.category}>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1">{cat.category}</p>
+                  <div className="space-y-1">
+                    {cat.exams.map(exam => (
+                      <button key={exam.id} onClick={() => { setSelectedExam(exam); setShowCatalogue(false); }}
+                        className="w-full text-left p-2.5 rounded-lg border border-muted hover:border-primary/50 hover:bg-muted/30 transition-colors flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs shrink-0 font-bold">{exam.short}</Badge>
+                        <span className="text-sm">{exam.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedExam && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{selectedExam.name}</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedExam(null); setShowCatalogue(true); }}>Retour</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Date de l examen</Label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44 mt-1" />
+            </div>
+            {selectedExam.fields.map((field) => {
+              const val = values[field.key] || "";
+              const abnormal = getStatus(field, val) === "abnormal";
+              return (
+                <div key={field.key}>
+                  <Label className="text-sm">{field.label} {field.unit && <span className="text-muted-foreground text-xs">({field.unit})</span>}</Label>
+                  {field.isSelect && field.options ? (
+                    <select value={val} onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
+                      className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">-- Choisir --</option>
+                      {field.options.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : field.isText ? (
+                    <Input value={val} onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))} placeholder="Saisir..." className="mt-1" />
+                  ) : (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input type="number" step="any" value={val} onChange={e => setValues(v => ({ ...v, [field.key]: e.target.value }))}
+                        placeholder={field.min && field.max ? ("Norme: " + field.min + "-" + field.max) : "Valeur"}
+                        className={abnormal ? "border-red-400 bg-red-50" : ""} />
+                      {val && <Badge className={abnormal ? "bg-red-100 text-red-700 border-0 shrink-0" : "bg-green-100 text-green-700 border-0 shrink-0"}>{abnormal ? "Anormal" : "Normal"}</Badge>}
+                    </div>
+                  )}
+                  {field.min > 0 && field.max > 0 && <p className="text-xs text-muted-foreground mt-0.5">Normes: {field.min} - {field.max} {field.unit}</p>}
+                </div>
+              );
+            })}
+            <div>
+              <Label>Notes / Interpretation</Label>
+              <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Interpretation, commentaires..." rows={3} className="mt-1" />
+            </div>
+            <Button onClick={saveEntry} className="w-full gap-2">
+              <FlaskConical className="w-4 h-4" /> Enregistrer le resultat
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
