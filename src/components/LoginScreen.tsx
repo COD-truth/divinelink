@@ -20,6 +20,12 @@ export function LoginScreen() {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [welcomeRole, setWelcomeRole] = useState<string | null>(null);
+  const [joinMode, setJoinMode] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinRole, setJoinRole] = useState("receptionist");
+  const [joinName, setJoinName] = useState("");
+  const [joinPin, setJoinPin] = useState("");
+  const [joinLoading, setJoinLoading] = useState(false);
   const [welcomeName, setWelcomeName] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,6 +55,105 @@ export function LoginScreen() {
       setWelcomeRole(null);
     }
   };
+
+  const handleJoin = async () => {
+    if (!joinCode.trim() || !joinName.trim() || joinPin.length < 4) {
+      return;
+    }
+    setJoinLoading(true);
+    try {
+      const res = await fetch("https://divinelink.mooo.com/api/clinic/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: joinCode.trim(), role: joinRole }),
+      });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem("divinelink.apiToken", data.token);
+        localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
+        // Create local user
+        const { hashPin, db } = await import("@/lib/db");
+        const pinHash = await hashPin(joinPin);
+        await db.users.add({
+          name: joinName,
+          role: joinRole as any,
+          pinHash,
+          active: true,
+          createdAt: new Date().toISOString(),
+        });
+        const { saveClinicSettings, generateClinicId, getClinicSettings } = await import("@/lib/clinicSettings");
+        const cur = getClinicSettings();
+        saveClinicSettings({
+          ...(cur || {}),
+          clinicId: cur?.clinicId || generateClinicId(),
+          name: data.clinic_name || "Clinique",
+          currency: "FCFA",
+          createdAt: cur?.createdAt || new Date().toISOString(),
+        });
+        setJoinMode(false);
+        alert("Compte cree! Connectez-vous avec: " + joinName + " / PIN: " + joinPin);
+      } else {
+        alert("Code clinique invalide");
+      }
+    } catch {
+      alert("Erreur reseau");
+    }
+    setJoinLoading(false);
+  };
+
+  if (joinMode) return (
+    <div className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: "linear-gradient(135deg, #0a2540 0%, #0c4a6e 40%, #0e7490 70%, #0891b2 100%)" }}>
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="h-1.5 w-full" style={{ background: "linear-gradient(90deg, #0891b2, #0e7490, #0c4a6e)" }} />
+        <div className="px-8 pt-6 pb-8 space-y-4">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setJoinMode(false)} className="text-gray-400 hover:text-gray-600">←</button>
+            <h2 className="text-xl font-bold text-gray-900">Rejoindre une clinique</h2>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Code clinique</label>
+            <input value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="Ex: DL-7829"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-50" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Votre nom complet</label>
+            <input value={joinName} onChange={e => setJoinName(e.target.value)}
+              placeholder="Ex: Dr. Kamga Jean"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-50" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Votre role</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "admin", label: "Admin", emoji: "👑" },
+                { value: "doctor", label: "Medecin", emoji: "🩺" },
+                { value: "receptionist", label: "Secretaire", emoji: "💼" },
+              ].map(r => (
+                <button key={r.value} type="button" onClick={() => setJoinRole(r.value)}
+                  className={"p-2 rounded-xl border text-center transition-colors " + (joinRole === r.value ? "border-cyan-500 bg-cyan-50 font-semibold" : "border-gray-200 hover:border-cyan-300")}>
+                  <div className="text-xl">{r.emoji}</div>
+                  <div className="text-xs mt-0.5 text-gray-700">{r.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Choisir votre PIN (4 chiffres)</label>
+            <input type="password" inputMode="numeric" maxLength={6} value={joinPin}
+              onChange={e => setJoinPin(e.target.value.replace(/\D/g, ""))}
+              placeholder="••••"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 text-center text-xl tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-50" />
+          </div>
+          <button onClick={handleJoin} disabled={joinLoading || !joinCode || !joinName || joinPin.length < 4}
+            className="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-sm disabled:opacity-50 transition">
+            {joinLoading ? "Connexion..." : "Rejoindre la clinique"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -173,6 +278,11 @@ export function LoginScreen() {
               )}
             </button>
           </form>
+          <div className="mt-4 text-center">
+            <button onClick={() => setJoinMode(true)} className="text-xs text-cyan-600 hover:text-cyan-800 font-medium underline">
+              Rejoindre une clinique existante
+            </button>
+          </div>
 
         </div>
       </div>

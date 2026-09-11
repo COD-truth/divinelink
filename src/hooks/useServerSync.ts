@@ -172,6 +172,25 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
         }
       } catch (e) { console.warn("Consultation pull failed", e); }
       try { localStorage.setItem("dl.lastSyncAt", String(Date.now())); } catch {}
+      // Sync audit logs to server
+      try {
+        const token = localStorage.getItem("divinelink.apiToken");
+        if (token) {
+          const unsynced = await db.auditLogs.toArray();
+          if (unsynced.length > 0) {
+            const res = await fetch("https://divinelink.mooo.com/api/audit", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ logs: unsynced.slice(0, 50) }),
+            });
+            if (res.ok) {
+              // Clear synced logs older than 7 days
+              const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+              await db.auditLogs.where("timestamp").below(cutoff).delete();
+            }
+          }
+        }
+      } catch {}
       console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {
       console.error("Server sync failed:", err);

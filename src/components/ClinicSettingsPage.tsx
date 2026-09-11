@@ -230,6 +230,32 @@ const createWorkspace = async () => {
             ))}
           </div>
         </div>
+        <div className="border-t pt-4 mt-2">
+          <p className="text-sm font-semibold mb-2">Rejoindre une autre clinique</p>
+          <p className="text-xs text-muted-foreground mb-3">Le personnel peut rejoindre cette clinique avec le code ci-dessous. Pour rejoindre une autre clinique, entrez son code.</p>
+          <Button variant="outline" className="w-full" onClick={() => {
+            const code = prompt("Entrez le code de la clinique / Enter clinic code:");
+            if (code) {
+              const role = prompt("Votre role? (admin/doctor/receptionist)") || "receptionist";
+              fetch("https://divinelink.mooo.com/api/clinic/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: code.trim(), role })
+              }).then(r => r.json()).then(data => {
+                if (data.token) {
+                  localStorage.setItem("divinelink.apiToken", data.token);
+                  localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
+                  alert("Clinique rejointe: " + (data.clinic_name || code));
+                  window.location.reload();
+                } else {
+                  alert("Code invalide / Invalid code");
+                }
+              }).catch(() => alert("Erreur reseau / Network error"));
+            }
+          }}>
+            Rejoindre une clinique avec un code
+          </Button>
+        </div>
         <Button className="w-full" onClick={save}>
           {fr ? "Enregistrer" : "Save"}
         </Button>
