@@ -106,7 +106,8 @@ const LAB_CATALOGUE = [
   ]},
 ];
 
-export function LabResultsPage({ patient }: { patient: Patient }) {
+export function LabResultsPage({ patient, patientId }: { patient?: Patient; patientId?: number }) {
+  const displayName = patient ? patient.firstName + " " + patient.lastName : "Patient #" + (patientId || "");
   const [search, setSearch] = useState("");
   const [selectedExam, setSelectedExam] = useState(null);
   const [values, setValues] = useState({});
@@ -158,7 +159,7 @@ export function LabResultsPage({ patient }: { patient: Patient }) {
     <div className="space-y-4 p-4">
       <div className="flex items-center gap-2 mb-2">
         <FlaskConical className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-bold">Analyses — {patient.firstName} {patient.lastName}</h2>
+        <h2 className="text-lg font-bold">Analyses — {displayName}</h2>
       </div>
 
       {saved.length > 0 && (
