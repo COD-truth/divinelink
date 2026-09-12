@@ -69,6 +69,17 @@ export function LoginScreen() {
       });
       const data = await res.json();
       if (data.token) {
+        // Clear ALL local data before joining new clinic
+        const { db: dbClear } = await import("@/lib/db");
+        await dbClear.patients.clear();
+        await dbClear.consultations.clear();
+        await dbClear.payments.clear();
+        await dbClear.drugs.clear();
+        await dbClear.drugTransactions.clear();
+        await dbClear.appointments.clear();
+        await dbClear.documents.clear();
+        await dbClear.users.clear();
+        await dbClear.auditLogs.clear();
         localStorage.setItem("divinelink.apiToken", data.token);
         localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
         // Create local user
