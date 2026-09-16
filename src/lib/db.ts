@@ -59,6 +59,8 @@ export interface User {
   /** Optional WhatsApp / phone number for doctor reminders */
   phone?: string;
   clinicId?: string;
+  /** Explicit page permissions; empty/undefined = role defaults */
+  permissions?: string[];
   createdAt: string;
 }
 

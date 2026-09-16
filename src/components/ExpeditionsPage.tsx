@@ -113,7 +113,7 @@ export function ExpeditionsPage() {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({unit:"mm",format:"a4"});
     const W=210, m=15; let y=15;
-    const T=[13,148,136], D=[15,23,42];
+    const T: [number,number,number]=[13,148,136], D: [number,number,number]=[15,23,42];
 
     doc.setFillColor(...T); doc.rect(0,0,W,30,"F");
     doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont("helvetica","bold");
@@ -187,7 +187,7 @@ export function ExpeditionsPage() {
         <div className="grid grid-cols-3 gap-3">
           {[
             {l:"Patients",v:report.totalPatients,c:"text-teal-600"},
-            {l:"Actes",v:Object.values(report.procedures||{}).reduce((s,v)=>s+v,0),c:"text-blue-600"},
+            {l:"Actes",v:(Object.values(report.procedures||{}) as number[]).reduce((s,v)=>s+v,0),c:"text-blue-600"},
             {l:"Suivis",v:report.followUps,c:"text-orange-600"},
           ].map((s,i)=>(
             <div key={i} className="bg-muted/40 rounded-lg p-3 text-center">
