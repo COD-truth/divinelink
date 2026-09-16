@@ -46,7 +46,7 @@ export function UsersPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", role: "receptionist", pin: "", phone: "" });
+    setForm({ name: "", role: "receptionist", pin: "", phone: "", permissions: [] });
     setDialogOpen(true);
   };
 

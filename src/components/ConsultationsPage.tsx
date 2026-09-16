@@ -61,6 +61,9 @@ interface ConsultForm {
   notes: string;
   // Images
   images: ConsultationImage[];
+  // Référence / orientation
+  referredBy?: string;
+  referralNote?: string;
 }
 
 type ConsultationWithMeta = Consultation & { patientName: string };

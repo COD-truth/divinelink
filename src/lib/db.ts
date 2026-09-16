@@ -59,6 +59,8 @@ export interface User {
   /** Optional WhatsApp / phone number for doctor reminders */
   phone?: string;
   clinicId?: string;
+  /** Explicit page permissions; empty/undefined = role defaults */
+  permissions?: string[];
   createdAt: string;
 }
 
@@ -649,6 +651,19 @@ export interface VoiceRecording {
   synced?: boolean;
 }
 
+/** Record of something deleted locally, so server pulls never resurrect it. */
+export interface Tombstone {
+  id?: number;
+  /** "patient" | "consultation" | "document" */
+  entity: string;
+  /** stable server-side key: patient code, consultation local id, document name */
+  key: string;
+  clinicId?: string;
+  deletedAt: string;
+  /** true once the deletion was accepted by the server */
+  pushed?: boolean;
+}
+
 function ORTHODONTIC_DEFAULTS(now: string): Omit<Drug, "id">[] {
   const item = (name: string, category: string, stock: number, unit: string, minStock: number): Omit<Drug, "id"> => ({
     name, category, stock, initialStock: stock, unit,
@@ -751,6 +766,7 @@ class DentaDB extends Dexie {
   beds!: Table<Bed>;
   admissions!: Table<Admission>;
   careNotes!: Table<CareNote>;
+  tombstones!: Table<Tombstone>;
 
 
 
@@ -1085,6 +1101,10 @@ class DentaDB extends Dexie {
       privateDocs: "++id, ownerUserId, createdAt, clinicId",
       quickTemplates: "++id, ownerUserId, label, clinicId",
       customCategories: "++id, value, clinicId, createdAt",
+    });
+    // v21: tombstones so deleted records never come back from the server
+    this.version(21).stores({
+      tombstones: "++id, [entity+key], entity, key, clinicId, deletedAt, pushed",
     });
     // v19: hospital admissions - wards, beds, admissions, care notes
     this.version(20).stores({
