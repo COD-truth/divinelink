@@ -1,18 +1,52 @@
 import { useCallback, useEffect, useRef } from "react";
 import { db } from "@/lib/db";
 import { api } from "@/lib/api";
+import { activeClinicId, activeToken, belongsToActiveClinic, tombstoneKeys } from "@/lib/clinicScope";
+
+const API_BASE =
+  (typeof window !== "undefined" && (window as any).__DIVINELINK_API_BASE__) ||
+  "https://divinelink.mooo.com/api";
 
 export function useServerSync(intervalMinutes = 5, enabled = true) {
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runningRef = useRef(false);
 
   const syncNow = useCallback(async () => {
     if (!navigator.onLine) return;
-    if (!localStorage.getItem("divinelink.apiToken")) return;
+    const token = activeToken();
+    const clinicId = activeClinicId();
+    // Hard guard: no clinic linked → this device is local-only, never sync.
+    if (!token || !clinicId) return;
+    if (runningRef.current) return;
+    runningRef.current = true;
 
     try {
-      // Sync patients
-      const patients = await db.patients.toArray();
+      const deletedPatients = await tombstoneKeys("patient");
+      const deletedConsults = await tombstoneKeys("consultation");
+
+      // ── PUSH deletions first, so the server stops sending them back ──────
+      try {
+        const pending = await db.tombstones.filter(t => !t.pushed && t.clinicId === clinicId).toArray();
+        for (const t of pending) {
+          const path =
+            t.entity === "patient" ? `/patients/${encodeURIComponent(t.key)}` :
+            t.entity === "consultation" ? `/consultations/${encodeURIComponent(t.key)}` :
+            t.entity === "document" ? `/documents/${encodeURIComponent(t.key)}` : null;
+          if (!path) continue;
+          try {
+            const res = await fetch(`${API_BASE}${path}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok || res.status === 404) await db.tombstones.update(t.id!, { pushed: true });
+          } catch {}
+        }
+      } catch {}
+
+      // ── PUSH patients (active clinic only) ───────────────────────────────
+      const patients = (await db.patients.toArray()).filter(belongsToActiveClinic);
       for (const p of patients) {
+        if (deletedPatients.has(String(p.patientId))) continue;
         try {
           await api.savePatient({
             patient_code: p.patientId,
@@ -28,17 +62,17 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
         } catch {}
       }
 
-      // Sync consultations
-      const consultations = await db.consultations
+      // ── PUSH consultations (active clinic only) ──────────────────────────
+      const consultations = (await db.consultations.toArray())
         .filter(c => c.isLatest !== false)
-        .toArray();
+        .filter(belongsToActiveClinic);
       for (const c of consultations) {
+        if (deletedConsults.has(String(c.id))) continue;
         try {
-          // look up the patient's CODE from their numeric id so it matches on the server
           const cPatient = await db.patients.get(c.patientId);
-          const patientCode = cPatient?.patientId || String(c.patientId);
+          if (!cPatient || !belongsToActiveClinic(cPatient)) continue;
           await api.saveConsultation({
-            patient_id: patientCode,
+            patient_id: cPatient.patientId,
             local_id: c.id,
             specialty: c.consultType || "general",
             chief_complaint: c.chiefComplaint || c.symptoms,
@@ -49,8 +83,8 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
         } catch {}
       }
 
-      // Sync documents
-      const documents = await db.documents.toArray();
+      // ── PUSH documents (active clinic only) ──────────────────────────────
+      const documents = (await db.documents.toArray()).filter(belongsToActiveClinic);
       for (const d of documents) {
         try {
           await api.saveDocument({
@@ -65,19 +99,17 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
         } catch {}
       }
 
-      // Sync survey responses (best-effort, marks synced=true on success)
+      // ── PUSH survey responses ────────────────────────────────────────────
       try {
         const unsynced = await db.surveyResponses.filter(r => !r.synced).toArray();
         for (const r of unsynced) {
           try {
             const survey = await db.surveys.get(r.surveyId);
             if (!survey) continue;
-            const res = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://divinelink.mooo.com/api"}/surveys/${survey.serverId || survey.inviteCode}/responses`, {
+            if (survey.clinicId && String(survey.clinicId) !== clinicId) continue;
+            const res = await fetch(`${API_BASE}/surveys/${survey.serverId || survey.inviteCode}/responses`, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                ...(localStorage.getItem("divinelink.apiToken") ? { Authorization: `Bearer ${localStorage.getItem("divinelink.apiToken")}` } : {}),
-              },
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify({
                 respondent_name: r.respondentName,
                 respondent_phone: r.respondentPhone,
@@ -88,18 +120,16 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
             });
             if (res.ok) {
               await db.surveyResponses.update(r.id!, { synced: true, syncedAt: new Date().toISOString() });
-              // Upload voice blobs for this response
               const voices = await db.voiceRecordings.where("responseId").equals(r.id!).toArray();
               for (const v of voices.filter(vv => !vv.synced)) {
                 try {
                   const fd = new FormData();
                   fd.append("audio", v.blob, `${v.questionId}.webm`);
                   fd.append("transcript", v.transcript || "");
-                  const vres = await fetch(`${(window as any).__DIVINELINK_API_BASE__ || "https://divinelink.mooo.com/api"}/surveys/${survey.serverId || survey.inviteCode}/responses/${r.id}/voices/${v.questionId}`, {
-                    method: "POST",
-                    headers: localStorage.getItem("divinelink.apiToken") ? { Authorization: `Bearer ${localStorage.getItem("divinelink.apiToken")}` } : {},
-                    body: fd,
-                  });
+                  const vres = await fetch(
+                    `${API_BASE}/surveys/${survey.serverId || survey.inviteCode}/responses/${r.id}/voices/${v.questionId}`,
+                    { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd }
+                  );
                   if (vres.ok) await db.voiceRecordings.update(v.id!, { synced: true });
                 } catch {}
               }
@@ -107,15 +137,15 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
           } catch {}
         }
       } catch {}
-// PULL: download patients from server that this device doesn't have
+
+      // ── PULL patients (active clinic only, tombstones respected) ─────────
       try {
-        const token = localStorage.getItem("divinelink.apiToken");
-        const res = await fetch("https://divinelink.mooo.com/api/patients", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(`${API_BASE}/patients`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
           const serverPatients = await res.json();
-          for (const sp of serverPatients) {
+          for (const sp of Array.isArray(serverPatients) ? serverPatients : []) {
+            if (sp.clinic_id != null && String(sp.clinic_id) !== clinicId) continue;
+            if (deletedPatients.has(String(sp.patient_code))) continue;
             const existing = await db.patients.where("patientId").equals(sp.patient_code).first();
             if (!existing) {
               await db.patients.add({
@@ -126,34 +156,35 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
                 dob: sp.date_of_birth || "",
                 address: sp.address || "",
                 medicalAlerts: "",
+                clinicId,
                 createdAt: sp.created_at || new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-              });
+              } as any);
+            } else if (!existing.clinicId) {
+              await db.patients.update(existing.id!, { clinicId });
             }
           }
-          console.log("Pulled", serverPatients.length, "patients from server");
         }
-      } catch (e) { console.warn("Pull failed", e); }
-      // PULL: download consultations from server that this device doesn't have
+      } catch (e) { console.warn("Pull patients failed", e); }
+
+      // ── PULL consultations (active clinic only) ──────────────────────────
       try {
-        const token = localStorage.getItem("divinelink.apiToken");
-        const res = await fetch("https://divinelink.mooo.com/api/consultations", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(`${API_BASE}/consultations`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
           const serverConsults = await res.json();
-          for (const sc of serverConsults) {
-            // map server patient code -> local patient numeric id
+          for (const sc of Array.isArray(serverConsults) ? serverConsults : []) {
+            if (sc.clinic_id != null && String(sc.clinic_id) !== clinicId) continue;
+            if (sc.local_id && deletedConsults.has(String(sc.local_id))) continue;
+            if (deletedPatients.has(String(sc.patient_id))) continue;
             const patient = await db.patients.where("patientId").equals(sc.patient_id).first();
-            const localPatientId = patient?.id ?? null;
-            // avoid duplicates: skip if a consultation with same diagnosis+patient already exists
+            if (!patient || !belongsToActiveClinic(patient)) continue;
             const dup = await db.consultations
-              .where("patientId").equals(localPatientId ?? -1)
+              .where("patientId").equals(patient.id!)
               .filter(c => c.diagnosis === (sc.diagnosis || "") && c.symptoms === (sc.chief_complaint || ""))
               .first();
-            if (!dup && localPatientId !== null) {
+            if (!dup) {
               await db.consultations.add({
-                patientId: localPatientId,
+                patientId: patient.id!,
                 doctorId: 0,
                 date: sc.created_at || new Date().toISOString(),
                 symptoms: sc.chief_complaint || "",
@@ -162,38 +193,36 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
                 prescription: "",
                 notes: "",
                 consultType: sc.specialty || "general",
-                clinicId: String(sc.clinic_id || ""),
+                clinicId,
                 createdAt: sc.created_at || new Date().toISOString(),
                 isLatest: true,
-              });
+              } as any);
             }
           }
-          console.log("Pulled", serverConsults.length, "consultations from server");
         }
-      } catch (e) { console.warn("Consultation pull failed", e); }
+      } catch (e) { console.warn("Pull consultations failed", e); }
+
       try { localStorage.setItem("dl.lastSyncAt", String(Date.now())); } catch {}
-      // Sync audit logs to server
+
+      // ── PUSH audit logs ──────────────────────────────────────────────────
       try {
-        const token = localStorage.getItem("divinelink.apiToken");
-        if (token) {
-          const unsynced = await db.auditLogs.toArray();
-          if (unsynced.length > 0) {
-            const res = await fetch("https://divinelink.mooo.com/api/audit", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ logs: unsynced.slice(0, 50) }),
-            });
-            if (res.ok) {
-              // Clear synced logs older than 7 days
-              const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-              await db.auditLogs.where("timestamp").below(cutoff).delete();
-            }
+        const logs = await db.auditLogs.toArray();
+        if (logs.length > 0) {
+          const res = await fetch(`${API_BASE}/audit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ logs: logs.slice(0, 50) }),
+          });
+          if (res.ok) {
+            const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+            await db.auditLogs.where("timestamp").below(cutoff).delete();
           }
         }
       } catch {}
-      console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {
       console.error("Server sync failed:", err);
+    } finally {
+      runningRef.current = false;
     }
   }, []);
 
