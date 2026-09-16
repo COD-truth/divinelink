@@ -751,6 +751,7 @@ class DentaDB extends Dexie {
   beds!: Table<Bed>;
   admissions!: Table<Admission>;
   careNotes!: Table<CareNote>;
+  tombstones!: Table<Tombstone>;
 
 
 
