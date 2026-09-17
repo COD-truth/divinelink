@@ -150,16 +150,6 @@ export function PatientsPage() {
       await db.payments.where("patientId").equals(id).delete();
       await db.patients.delete(id);
     });
-    // Also delete from server
-    try {
-      const token = localStorage.getItem("divinelink.apiToken");
-      if (token) {
-        const patient = await db.patients.get(id); const pid = patient?.patientId || String(id); await fetch("https://divinelink.mooo.com/api/patients/" + pid, {
-          method: "DELETE",
-          headers: { Authorization: "Bearer " + token }
-        });
-      }
-    } catch {}
     setDeleteConfirm(null);
     toast.success(t("common.delete"));
     load();

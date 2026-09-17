@@ -20,7 +20,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("doctor");
+  const [selectedRole, setSelectedRole] = useState("receptionist");
 
   const persistLocal = (clinicName: string) => {
     const cur = getClinicSettings();
