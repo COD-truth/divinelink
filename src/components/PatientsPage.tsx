@@ -154,7 +154,7 @@ export function PatientsPage() {
     try {
       const token = localStorage.getItem("divinelink.apiToken");
       if (token) {
-        await fetch("https://divinelink.mooo.com/api/patients/" + id, {
+        const patient = await db.patients.get(id); const pid = patient?.patientId || String(id); await fetch("https://divinelink.mooo.com/api/patients/" + pid, {
           method: "DELETE",
           headers: { Authorization: "Bearer " + token }
         });
