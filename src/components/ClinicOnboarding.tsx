@@ -22,11 +22,11 @@ export function ClinicOnboarding({ open, onDone }: Props) {
   const [busy, setBusy] = useState(false);
   const [selectedRole, setSelectedRole] = useState("receptionist");
 
-  const persistLocal = (clinicName: string) => {
+  const persistLocal = (clinicName: string, serverClinicId?: string) => {
     const cur = getClinicSettings();
     const next = {
       ...(cur || {}),
-      clinicId: cur?.clinicId || generateClinicId(),
+      clinicId: serverClinicId || cur?.clinicId || generateClinicId(),
       name: clinicName,
       currency: cur?.currency || "FCFA",
       createdAt: cur?.createdAt || new Date().toISOString(),
@@ -48,7 +48,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
       if (data.token) {
         localStorage.setItem("divinelink.apiToken", data.token);
         localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
-        persistLocal(data.clinic_name || "Clinique");
+        persistLocal(data.clinic_name || "Clinique", String(data.clinic_id));
         toast.success(fr ? `Clinique liée: ${data.clinic_name}` : `Linked: ${data.clinic_name}`);
         onDone();
       } else {
@@ -73,7 +73,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
       if (data.token) {
         localStorage.setItem("divinelink.apiToken", data.token);
         localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
-        persistLocal(n);
+        persistLocal(n, String(data.clinic_id));
         toast.success(fr ? `Espace créé ! Code: ${data.code}` : `Workspace created! Code: ${data.code}`);
         onDone();
       } else {
