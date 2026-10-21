@@ -5,7 +5,7 @@ import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { InstallPWAButton } from "@/components/InstallPWAButton";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check, AlertTriangle, BedDouble, MapPin } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check, AlertTriangle, BedDouble, MapPin, Warehouse, FlaskConical, Zap, TrendingUp } from "lucide-react";
 import { AppGuide } from "@/components/AppGuide";
 import { SyncStatus } from "@/components/SyncStatus";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,12 @@ export type Page =
   | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties"
   | "staff" | "myspace" | "docCategories" | "admissions"
   | "minsante"
-  | "expeditions";
+  | "expeditions"
+  | "magasin"
+  | "lab"
+  | "massconsult"
+  | "visit"
+  | "profits";
 
 interface Props {
   currentPage: Page;
@@ -48,7 +53,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     const id = setInterval(() => forceTick(t => t + 1), 30000);
     return () => clearInterval(id);
   }, []);
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === "1");
@@ -157,41 +162,70 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     : r === "doctor" ? "bg-primary text-primary-foreground"
     : "bg-secondary text-secondary-foreground";
 
-  // Flat main nav items (always visible based on role)
-  const mainNav: NavItem[] = [
-    { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "doctor", "receptionist"] },
-    { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "doctor", "receptionist"] },
-    { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
-    { page: "consultations", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
-    { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
-    { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
-    { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
-    { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: "Enquêtes", roles: ["admin", "doctor"] },
-    { page: "myspace", icon: <Lock className="w-5 h-5" />, label: "Mon espace", roles: ["admin", "doctor", "receptionist"] },
-    { page: "admissions", icon: <BedDouble className="w-5 h-5" />, label: "Hospitalisation", roles: ["admin", "doctor", "receptionist"] },
-    { page: "minsante", icon: <BarChart3 className="w-5 h-5" />, label: "Rapport MINSANTE", roles: ["admin"] },
-    { page: "expeditions", icon: <MapPin className="w-5 h-5" />, label: "Expeditions Terrain", roles: ["admin", "doctor"] },
-
+  // ── Grouped navigation (Hospital Management System structure) ──
+  // Each group renders under its own header; ADMINISTRATION is collapsible.
+  // Role + per-user permission filtering is applied at render via canAccess.
+  interface NavGroup { key: string; title: string; collapsible?: boolean; items: NavItem[]; }
+  const navGroups: NavGroup[] = [
+    {
+      key: "clinique", title: "Clinique",
+      items: [
+        { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "massconsult", icon: <Zap className="w-5 h-5" />, label: t("nav.massconsult"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "visit", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.visit"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "consultations", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
+        { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
+        { page: "lab", icon: <FlaskConical className="w-5 h-5" />, label: t("nav.lab"), roles: ["admin", "doctor"] },
+        { page: "admissions", icon: <BedDouble className="w-5 h-5" />, label: t("nav.admissions"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
+      ],
+    },
+    {
+      key: "operations", title: "Pharmacie & Facturation",
+      items: [
+        { page: "magasin", icon: <Warehouse className="w-5 h-5" />, label: t("nav.magasin"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "pharmacy", icon: <Pill className="w-5 h-5" />, label: t("nav.pharmacy"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "payments", icon: <CreditCard className="w-5 h-5" />, label: t("nav.payments"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "profits", icon: <TrendingUp className="w-5 h-5" />, label: lang === "en" ? "Profit & Back-fill" : "Bénéfices & Saisie", roles: ["admin", "doctor"] },
+        { page: "equipment", icon: <Package className="w-5 h-5" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
+      ],
+    },
+    {
+      key: "field", title: "Terrain & Recherche",
+      items: [
+        { page: "expeditions", icon: <MapPin className="w-5 h-5" />, label: t("nav.expeditions"), roles: ["admin", "doctor"] },
+        { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.surveys"), roles: ["admin", "doctor"] },
+        { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
+        { page: "minsante", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.minsante"), roles: ["admin"] },
+      ],
+    },
+    {
+      key: "personal", title: "Mon espace",
+      items: [
+        { page: "myspace", icon: <Lock className="w-5 h-5" />, label: t("nav.myspace"), roles: ["admin", "doctor", "receptionist"] },
+      ],
+    },
+    {
+      key: "admin", title: t("nav.group.admin"), collapsible: true,
+      items: [
+        { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
+        { page: "staff", icon: <UserCog className="w-5 h-5" />, label: t("nav.staff"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "clinic", icon: <Building2 className="w-5 h-5" />, label: t("nav.clinic"), roles: ["admin"] },
+        { page: "specialties", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.specialties"), roles: ["admin"] },
+        { page: "docCategories", icon: <FileImage className="w-5 h-5" />, label: t("nav.docCategories"), roles: ["admin"] },
+        { page: "templates", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.templates"), roles: ["admin"] },
+        { page: "importPatients", icon: <Upload className="w-5 h-5" />, label: t("nav.importPatients"), roles: ["admin"] },
+        { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },
+        { page: "audit", icon: <ScrollText className="w-5 h-5" />, label: t("nav.audit"), roles: ["admin"] },
+        { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
+        { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
+        { page: "conflicts", icon: <AlertTriangle className="w-5 h-5" />, label: t("nav.conflicts"), roles: ["admin"] },
+      ],
+    },
   ];
-
-  // Collapsible admin section (collapsed by default, muted style)
-  const adminNav: NavItem[] = [
-    { page: "payments", icon: <CreditCard className="w-5 h-5" />, label: t("nav.payments"), roles: ["admin", "doctor", "receptionist"] },
-    { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
-    { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
-    { page: "pharmacy", icon: <Pill className="w-5 h-5" />, label: t("nav.pharmacy"), roles: ["admin"] },
-    { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },
-    { page: "audit", icon: <ScrollText className="w-5 h-5" />, label: t("nav.audit"), roles: ["admin"] },
-    { page: "clinic", icon: <Building2 className="w-5 h-5" />, label: t("nav.clinic"), roles: ["admin"] },
-    { page: "equipment", icon: <Package className="w-5 h-5" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
-    { page: "templates", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.templates"), roles: ["admin"] },
-    { page: "importPatients", icon: <Upload className="w-5 h-5" />, label: t("nav.importPatients"), roles: ["admin"] },
-    { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
-    { page: "conflicts", icon: <AlertTriangle className="w-5 h-5" />, label: t("nav.conflicts"), roles: ["admin"] },
-    { page: "specialties", icon: <Stethoscope className="w-5 h-5" />, label: "Spécialités", roles: ["admin"] },
-    { page: "staff", icon: <UserCog className="w-5 h-5" />, label: "Personnel / Badges", roles: ["admin", "doctor", "receptionist"] },
-    { page: "docCategories", icon: <FileImage className="w-5 h-5" />, label: "Catégories docs", roles: ["admin"] },
-  ];
+  const allNavItems: NavItem[] = navGroups.flatMap(g => g.items);
 
   const userPerms = user?.permissions;
   const canAccess = (item: NavItem) => {
@@ -199,9 +233,17 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     if (!userPerms || userPerms.length === 0) return true;
     return userPerms.includes(item.page);
   };
-  const visibleMain = applyOrder(mainNav.filter(i => canAccess(i)), navOrder);
-  const visibleAdmin = applyOrder(adminNav.filter(i => canAccess(i)), navOrder);
-  const allItems = [...visibleMain, ...visibleAdmin];
+  // Visible groups: filter each group's items by role+permission, apply the
+  // user's saved order within the group, drop empty groups.
+  const visibleGroups = navGroups
+    .map(g => ({ ...g, items: g.items.filter(canAccess) }))
+    .filter(g => g.items.length > 0);
+  const allItems = visibleGroups.flatMap(g => g.items);
+  // Once the user has a custom order, the sidebar becomes ONE flat drag-anywhere
+  // list across all groups (Lab can sit next to Pharmacy, etc.). Until then we
+  // keep the tidy grouped layout with headers + collapsible admin.
+  const useFlatNav = navOrder.length > 0;
+  const flatItems = applyOrder(allItems, navOrder);
   const currentLabel = allItems.find(i => i.page === currentPage)?.label || "";
 
   const navigate = (p: Page) => {
@@ -226,27 +268,24 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     { kind: "more", icon: <LayoutGrid className="w-6 h-6" />, label: t("nav.more") },
   ];
 
-  const moreItems = [
-    { page: "payments" as Page, icon: <CreditCard className="w-6 h-6" />, label: t("nav.payments"), roles: ["admin", "doctor", "receptionist"] },
-    { page: "diagnosis" as Page, icon: <Stethoscope className="w-6 h-6" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
-    { page: "documents" as Page, icon: <FileImage className="w-6 h-6" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
-    { page: "research" as Page, icon: <BarChart3 className="w-6 h-6" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
-    { page: "pharmacy" as Page, icon: <Pill className="w-6 h-6" />, label: t("nav.pharmacy"), roles: ["admin"] },
-    
-    { page: "users" as Page, icon: <UserCog className="w-6 h-6" />, label: t("nav.users"), roles: ["admin"] },
-    { page: "backup" as Page, icon: <Database className="w-6 h-6" />, label: t("nav.backup"), roles: ["admin"] },
-    { page: "security" as Page, icon: <ShieldCheck className="w-6 h-6" />, label: t("nav.security"), roles: ["admin"] },
-    { page: "audit" as Page, icon: <ScrollText className="w-6 h-6" />, label: t("nav.audit"), roles: ["admin"] },
-    { page: "clinic" as Page, icon: <Building2 className="w-6 h-6" />, label: t("nav.clinic"), roles: ["admin"] },
-    { page: "equipment" as Page, icon: <Package className="w-6 h-6" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
-  ].filter(i => hasRole(i.roles as any));
+  // Mobile "More" sheet = every destination NOT already in the bottom bar,
+  // role + permission filtered. Derived from the full grouped nav so no page
+  // is ever unreachable on mobile (previously surveys, expeditions,
+  // hospitalisation, mon espace, etc. had no mobile entry point).
+  const bottomPages: Page[] = ["dashboard", "patients", "appointments", "consultations"];
+  const moreItems = applyOrder(
+    allNavItems.filter(i => !bottomPages.includes(i.page) && canAccess(i)),
+    navOrder,
+  );
 
   const remainingMs = sessionExpiresAt ? Math.max(0, sessionExpiresAt - Date.now()) : 0;
   const remainingMin = Math.ceil(remainingMs / 60000);
 
   // Reorder helpers
   const startReorder = () => {
-    const combined = [...visibleMain, ...visibleAdmin].map(i => i.page);
+    // Seed from the current visible order (flat list honoring any saved order)
+    // so editing preserves what the user already arranged.
+    const combined = (useFlatNav ? flatItems : allItems).map(i => i.page);
     setDraftOrder(combined);
     setReorderMode(true);
   };
@@ -273,7 +312,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const onDragEnd = () => { dragFromRef.current = null; };
 
   const renderReorderList = () => {
-    const all = [...visibleMain, ...visibleAdmin];
+    const all = allItems;
     const byPage = new Map(all.map(i => [i.page, i]));
     return (
       <div className="space-y-1">
@@ -313,30 +352,70 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
             </Button>
           </div>
         </>
+      ) : useFlatNav ? (
+        <>
+          {/* Flat nav — user has a custom order; render one drag-anywhere list,
+              no group headers, in the saved order across all groups. */}
+          {flatItems.map(item => (
+            <NavBtn
+              key={item.page}
+              item={item}
+              currentPage={currentPage}
+              collapsed={isCollapsed}
+              onClick={navigate}
+              badgeCount={item.page === "equipment" ? lowStockCount : undefined}
+            />
+          ))}
+          {!isCollapsed && (
+            <button
+              onClick={startReorder}
+              className="w-full mt-3 pt-2 border-t border-sidebar-border/50 flex items-center gap-2 px-3 py-2 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground/90 transition-colors"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              {t("nav.reorder")}
+            </button>
+          )}
+        </>
       ) : (
         <>
-          {/* Main nav — flat list */}
-          {visibleMain.map(item => (
-            <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} />
-          ))}
-
-          {/* Admin section — collapsible, muted */}
-          {visibleAdmin.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-sidebar-border/50">
-              {!isCollapsed && (
-                <button
-                  onClick={() => setAdminOpen(o => !o)}
-                  className="w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
-                >
-                  <span className="flex items-center gap-1.5"><Settings className="w-3 h-3" />{t("nav.group.admin")}</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${adminOpen ? "" : "-rotate-90"}`} />
-                </button>
-              )}
-              {(isCollapsed || adminOpen) && visibleAdmin.map(item => (
-                <NavBtn key={item.page} item={item} currentPage={currentPage} collapsed={isCollapsed} onClick={navigate} muted badgeCount={item.page === "equipment" ? lowStockCount : undefined} />
-              ))}
-            </div>
-          )}
+          {/* Grouped nav — each group under its own header; admin collapsible */}
+          {visibleGroups.map((group, gi) => {
+            const isAdminGroup = !!group.collapsible;
+            const open = !isAdminGroup || isCollapsed || adminOpen;
+            return (
+              <div
+                key={group.key}
+                className={isAdminGroup ? "mt-2 pt-2 border-t border-sidebar-border/50" : gi === 0 ? "" : "mt-2"}
+              >
+                {!isCollapsed && (
+                  isAdminGroup ? (
+                    <button
+                      onClick={() => setAdminOpen(o => !o)}
+                      className="w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5"><Settings className="w-3 h-3" />{group.title}</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${adminOpen ? "" : "-rotate-90"}`} />
+                    </button>
+                  ) : (
+                    <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 uppercase">
+                      {group.title}
+                    </div>
+                  )
+                )}
+                {open && group.items.map(item => (
+                  <NavBtn
+                    key={item.page}
+                    item={item}
+                    currentPage={currentPage}
+                    collapsed={isCollapsed}
+                    onClick={navigate}
+                    muted={isAdminGroup}
+                    badgeCount={item.page === "equipment" ? lowStockCount : undefined}
+                  />
+                ))}
+              </div>
+            );
+          })}
 
           {/* Reorder trigger — bottom of sidebar nav, expanded only */}
           {!isCollapsed && (

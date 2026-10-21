@@ -26,10 +26,12 @@ export function MedicalBookletScanner({ patientId }: Props) {
   const [saved, setSaved] = useState<Doc[]>([]);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = React.useRef(false);
 
   const reload = async () => {
     const all = await db.documents.where("patientId").equals(patientId).toArray();
-    setSaved(all.filter(d => d.source === "carnet_capture").sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    setSaved(all.filter(d => d.source === "carnet_capture" && !d.deleted).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   };
   useEffect(() => { reload(); }, [patientId]);
 
@@ -48,35 +50,50 @@ export function MedicalBookletScanner({ patientId }: Props) {
   };
 
   const savePending = async () => {
-    if (!pending.length) return;
+    // Guard against double-submit / re-entrancy — the cause of duplicated pages.
+    if (savingRef.current || !pending.length) return;
+    savingRef.current = true;
+    setSaving(true);
+    // Snapshot and clear the queue immediately so a second tap has nothing to save.
+    const batch = pending;
+    setPending([]);
     const now = new Date().toISOString();
     const cid = getClinicId();
     const startIndex = saved.length;
-    for (let i = 0; i < pending.length; i++) {
-      const f = pending[i];
-      try {
-        const data = await compressImage(f);
-        await db.documents.add({
-          patientId,
-          name: `${lang === "fr" ? "Carnet page" : "Booklet page"} ${startIndex + i + 1}`,
-          type: f.type || "image/jpeg",
-          data,
-          size: f.size,
-          source: "carnet_capture",
-          clinicId: cid,
-          createdAt: now,
-          updatedAt: now,
-          updatedBy: user?.name,
-        });
-      } catch { /* skip */ }
+    // Existing signatures (name+size) so a re-save of the same page is skipped.
+    const existingSig = new Set(saved.map(d => `${d.name}|${d.size}`));
+    try {
+      for (let i = 0; i < batch.length; i++) {
+        const f = batch[i];
+        const name = `${lang === "fr" ? "Carnet page" : "Booklet page"} ${startIndex + i + 1}`;
+        if (existingSig.has(`${name}|${f.size}`)) continue; // already saved — skip duplicate
+        try {
+          const data = await compressImage(f);
+          await db.documents.add({
+            patientId,
+            name,
+            type: f.type || "image/jpeg",
+            data,
+            size: f.size,
+            source: "carnet_capture",
+            clinicId: cid,
+            createdAt: now,
+            updatedAt: now,
+            updatedBy: user?.name,
+          });
+        } catch { /* skip bad file */ }
+      }
+      toast.success(lang === "fr" ? "Carnet enregistré" : "Booklet saved");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+      reload();
     }
-    toast.success(lang === "fr" ? "Carnet enregistré" : "Booklet saved");
-    setPending([]);
-    reload();
   };
 
   const deleteOne = async (id: number) => {
-    await db.documents.delete(id);
+    // Soft-delete (tombstone) so the removal syncs and never resurrects.
+    await db.documents.update(id, { deleted: true, updatedAt: new Date().toISOString() });
     reload();
   };
 
@@ -131,9 +148,11 @@ export function MedicalBookletScanner({ patientId }: Props) {
                 </div>
               ))}
             </div>
-            <Button type="button" onClick={savePending} className="w-full gap-2">
+            <Button type="button" onClick={savePending} disabled={saving} className="w-full gap-2">
               <Save className="w-4 h-4" />
-              {lang === "fr" ? `Sauvegarder (${pending.length})` : `Save (${pending.length})`}
+              {saving
+                ? (lang === "fr" ? "Enregistrement…" : "Saving…")
+                : (lang === "fr" ? `Sauvegarder (${pending.length})` : `Save (${pending.length})`)}
             </Button>
           </>
         )}

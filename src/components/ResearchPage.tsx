@@ -21,6 +21,8 @@ import {
 import {
   pageVisitCounts, topSearches, hourlyHistogram, weeklyBuckets, clearMetrics,
 } from "@/lib/metrics";
+import { MonthlyReport } from "./MonthlyReport";
+import { PublicHealthReport } from "./PublicHealthReport";
 
 interface ResultRow {
   patientName: string; patientId: string; age: number | "";
@@ -260,8 +262,10 @@ export function ResearchPage() {
         <QuickStat label={t("research.quick.topDx")} value={<span className="text-base">{topDx}</span>} />
       </div>
 
-      <Tabs defaultValue="builder">
+      <Tabs defaultValue="monthly">
         <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="monthly">{t("stats.tab.monthly")}</TabsTrigger>
+          <TabsTrigger value="publichealth">{t("stats.tab.publichealth")}</TabsTrigger>
           <TabsTrigger value="today">{t("stats.tab.today")}</TabsTrigger>
           <TabsTrigger value="builder">{t("research.tab.builder")}</TabsTrigger>
           <TabsTrigger value="tracker">{t("research.tab.tracker")}</TabsTrigger>
@@ -270,6 +274,16 @@ export function ResearchPage() {
           <TabsTrigger value="insights">{t("research.tab.insights")}</TabsTrigger>
           {hasRole(["admin"]) && <TabsTrigger value="research">{t("research.tab.researchMode")}</TabsTrigger>}
         </TabsList>
+
+        {/* MONTHLY REPORT */}
+        <TabsContent value="monthly" className="space-y-3 mt-3">
+          <MonthlyReport />
+        </TabsContent>
+
+        {/* PUBLIC HEALTH */}
+        <TabsContent value="publichealth" className="space-y-3 mt-3">
+          <PublicHealthReport />
+        </TabsContent>
 
         {/* TODAY */}
         <TabsContent value="today" className="space-y-3 mt-3">
@@ -282,12 +296,12 @@ export function ResearchPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Card><CardContent className="p-3 text-center">
-                  <p className="text-xs text-muted-foreground">{t("stats.men")}</p>
-                  <p className="text-2xl font-bold">{patients.filter(p => p.firstName && p.lastName).length}</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.newToday")}</p>
+                  <p className="text-2xl font-bold">{patients.filter(p => (p.createdAt || "").slice(0, 10) === new Date().toISOString().slice(0, 10)).length}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-3 text-center">
-                  <p className="text-xs text-muted-foreground">{t("stats.women")}</p>
-                  <p className="text-2xl font-bold">{patients.length}</p>
+                  <p className="text-xs text-muted-foreground">{t("stats.aptsToday")}</p>
+                  <p className="text-2xl font-bold">{appointments.filter(a => (a.date || "").slice(0, 10) === new Date().toISOString().slice(0, 10)).length}</p>
                 </CardContent></Card>
               </div>
               <div>
@@ -304,14 +318,7 @@ export function ResearchPage() {
                   );
                 })()}
               </div>
-              <div>
-                <p className="text-sm font-semibold mb-1">{t("stats.totalRevenue")}</p>
-                <p className="text-3xl font-bold text-success">{(() => {
-                  const today = new Date().toISOString().slice(0, 10);
-                  // We'd need payments data - approximate from consultations
-                  return "0";
-                })()} FCFA</p>
-              </div>
+              <p className="text-xs text-muted-foreground pt-2 border-t">{t("stats.seeMonthly")}</p>
             </CardContent>
           </Card>
         </TabsContent>

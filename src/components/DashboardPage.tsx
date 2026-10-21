@@ -80,17 +80,25 @@ export function DashboardPage({ onNavigate }: Props) {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
 
-      const [patients, todayApptsCount, weekAppts, consultations, recentRaw, allPatients, todayApptsRaw] = await Promise.all([
-        db.patients.count(),
+      // Clinic isolation: only count/show the active clinic's rows (untagged kept,
+      // other-clinic-tagged hidden).
+      const activeClinic = localStorage.getItem("divinelink.clinicId");
+      const inClinic = (r: { clinicId?: string }) => !activeClinic || !r.clinicId || String(r.clinicId) === String(activeClinic);
+      const [patients, todayApptsCount, weekAppts, consultations, recentRaw, allPatientsRaw, todayApptsRaw] = await Promise.all([
+        // Count only LIVE patients of THIS clinic (exclude tombstones + other clinics).
+        db.patients.filter(p => !p.deleted && inClinic(p)).count(),
         db.appointments.where("date").equals(today).count(),
         db.appointments.where("date")
           .between(weekStart.toISOString().split("T")[0], weekEnd.toISOString().split("T")[0], true, true)
           .count(),
-        db.consultations.count(),
-        db.patients.orderBy("id").reverse().limit(5).toArray(),
+        // Count only the LATEST version of each consultation of THIS clinic.
+        db.consultations.filter(c => c.isLatest !== false && inClinic(c)).count(),
+        db.patients.orderBy("id").reverse().filter(p => !p.deleted && inClinic(p)).limit(5).toArray(),
         db.patients.toArray(),
         db.appointments.where("date").equals(today).toArray(),
       ]);
+      // Drop deleted + other-clinic patients everywhere downstream.
+      const allPatients = allPatientsRaw.filter(p => !p.deleted && inClinic(p));
 
       const decryptedPatients = await decryptPatients(allPatients);
       const decryptedRecent = await decryptPatients(recentRaw);
@@ -156,9 +164,9 @@ export function DashboardPage({ onNavigate }: Props) {
       const lowStock = await db.drugs.where("status").anyOf(["low", "out"]).count();
       setLowStockCount(lowStock);
 
-      // Today's consultations
+      // Today's consultations — latest versions only (edits create new versions).
       const todayStr = new Date().toISOString().split("T")[0];
-      const allConsultations = await db.consultations.toArray();
+      const allConsultations = (await db.consultations.toArray()).filter(c => c.isLatest !== false);
       const todayConults = allConsultations.filter(c => c.date && c.date.startsWith(todayStr));
       // Determine new vs returning patients
       const patientFirstConsult = new Map<number, string>();

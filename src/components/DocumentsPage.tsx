@@ -65,9 +65,9 @@ export function DocumentsPage() {
   const load = async () => {
     setPatients(await decryptPatients(await db.patients.toArray()));
     if (selectedPatient) {
-      setDocs(await db.documents.where("patientId").equals(parseInt(selectedPatient)).reverse().toArray());
+      setDocs((await db.documents.where("patientId").equals(parseInt(selectedPatient)).reverse().toArray()).filter(d => !d.deleted));
     } else {
-      setDocs(await db.documents.reverse().toArray());
+      setDocs((await db.documents.reverse().toArray()).filter(d => !d.deleted));
     }
     const allConsults = await db.consultations.toArray();
     const map = new Map<number, Consultation[]>();
@@ -78,7 +78,51 @@ export function DocumentsPage() {
     setConsultsByPatient(map);
   };
 
-  useEffect(() => { load(); }, [selectedPatient]);
+  // Lazy per-patient fetch: when a patient is opened, pull THEIR documents
+  // from the server on demand so existing images appear even on a device that
+  // never had them. Merged by uid (idempotent — never duplicates), then reload.
+  const syncPatientDocs = async (localPatientId: number) => {
+    try {
+      if (!navigator.onLine) return;
+      const token = localStorage.getItem("divinelink.apiToken");
+      if (!token) return;
+      const p = await db.patients.get(localPatientId);
+      const code = p?.patientId;
+      if (!code) return;
+      const res = await fetch(`https://divinelink.mooo.com/api/documents?patient_id=${encodeURIComponent(code)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const rows = await res.json();
+      let added = 0;
+      for (const sd of rows) {
+        if (!sd.uid || sd.deleted) continue;
+        const existing = await db.documents.where("uid").equals(sd.uid).first();
+        if (existing) continue; // uid identity → no duplicates
+        await db.documents.add({
+          uid: sd.uid,
+          patientId: localPatientId,
+          consultId: sd.consult_id ? (Number(sd.consult_id) || undefined) : undefined,
+          type: sd.type || "",
+          name: sd.name || "",
+          data: sd.data || "",
+          size: sd.data ? String(sd.data).length : 0,
+          source: sd.source || undefined,
+          clinicId: localStorage.getItem("divinelink.clinicId") || undefined,
+          deleted: false,
+          createdAt: sd.created_at || new Date().toISOString(),
+          updatedAt: sd.updated_at || sd.created_at || new Date().toISOString(),
+        } as any);
+        added++;
+      }
+      if (added) await load();
+    } catch { /* best-effort */ }
+  };
+
+  useEffect(() => {
+    load();
+    if (selectedPatient) syncPatientDocs(parseInt(selectedPatient));
+  }, [selectedPatient]);
 
   const patientName = (id: number) => {
     const p = patients.find(p => p.id === id);
@@ -144,6 +188,7 @@ export function DocumentsPage() {
         : await fileToDataUrl(pendingFile);
       const now = new Date().toISOString();
       await db.documents.add({
+        uid: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`),
         patientId: parseInt(selectedPatient),
         name: pendingFile.name,
         type: pendingFile.type,
@@ -151,6 +196,7 @@ export function DocumentsPage() {
         size: pendingFile.size,
         tag: pendingTag,
         treatmentCategory: pendingCategory,
+        clinicId: localStorage.getItem("divinelink.clinicId") || undefined,
         createdAt: now,
         updatedAt: now,
         updatedBy: user?.name,
@@ -165,7 +211,8 @@ export function DocumentsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    await db.documents.delete(id);
+    // Soft-delete (tombstone) so the removal syncs and never resurrects.
+    await db.documents.update(id, { deleted: true, updatedAt: new Date().toISOString() });
     toast.success(t("doc.delete"));
     setPreview(null);
     load();

@@ -3,6 +3,7 @@ import { getClinicSettings } from "@/lib/clinicSettings";
 export interface ReceiptLineItem {
   description: string;
   tooth?: string;
+  lot?: string;
   quantity: number;
   unitPrice: number;
 }
@@ -22,6 +23,7 @@ export interface ReceiptData {
   amountDue?: number;
   notes?: string;
   isProforma?: boolean;
+  cashier?: string;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -143,14 +145,15 @@ export function generateReceipt(data: ReceiptData) {
     data.items.forEach((item, i) => {
       const total = item.quantity * item.unitPrice;
       subtotal += total;
+      const rowH = item.lot ? 11 : 7;
       if (i % 2 === 0) {
         doc.setFillColor(248,250,252);
-        doc.rect(mg, y, W-mg*2, 7, "F");
+        doc.rect(mg, y, W-mg*2, rowH, "F");
       }
       doc.setTextColor(...DARK);
       doc.setFont("helvetica","normal");
       doc.setFontSize(7.5);
-      
+
       // Truncate long descriptions
       const desc = item.description.length > 30 ? item.description.substring(0,28)+"..." : item.description;
       doc.text(desc, mg+2, y+5);
@@ -159,7 +162,16 @@ export function generateReceipt(data: ReceiptData) {
       doc.text(item.unitPrice.toLocaleString(), mg+95, y+5, {align:"center"});
       doc.setFont("helvetica","bold");
       doc.text(total.toLocaleString(), W-mg-2, y+5, {align:"right"});
-      y += 7;
+      // LOT number line under the designation (matches local clinic receipts)
+      if (item.lot) {
+        doc.setFont("helvetica","normal");
+        doc.setFontSize(6.5);
+        doc.setTextColor(...GREY);
+        doc.text("N: " + item.lot, mg+4, y+9);
+        doc.setTextColor(...DARK);
+        doc.setFontSize(7.5);
+      }
+      y += rowH;
     });
     y += 2;
 
@@ -275,5 +287,233 @@ export function generateReceipt(data: ReceiptData) {
 
     const filename = (data.isProforma ? "proforma" : "recu") + "_" + data.receiptNumber + ".pdf";
     doc.save(filename);
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// THERMAL 80mm RECEIPT — faithful to local clinic receipts (CENTRE MÉDICAL…)
+// Black & white, narrow roll, QTÉ / NOM / PT.TTC, LOT lines, Net à Payer /
+// Acompte / Reste, status box, and a scannable Code 39 barcode of the invoice №.
+// ─────────────────────────────────────────────────────────────────────────────
+const CODE39: Record<string, string> = {
+  "0":"000110100","1":"100100001","2":"001100001","3":"101100000","4":"000110001",
+  "5":"100110000","6":"001110000","7":"000100101","8":"100100100","9":"001100100",
+  "*":"010010100",
+};
+
+export function generateThermalReceipt(data: ReceiptData) {
+  import("jspdf").then(({ jsPDF }) => {
+    const clinic = getClinicSettings();
+    const W = 80;                 // 80mm thermal roll
+    const mg = 4;
+    const CW = W - mg * 2;        // content width
+    const cur = clinic?.currency || "FCFA";
+
+    // Pre-compute height from the number of items so the roll is the right length.
+    let bodyH = 0;
+    data.items.forEach(it => { bodyH += it.lot ? 8 : 5; });
+    const H = 86 + bodyH + 34;    // header + items + totals/barcode/footer
+
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [W, H] });
+    const line = (y: number) => { doc.setLineDashPattern([0.6, 0.6], 0); doc.setDrawColor(0); doc.setLineWidth(0.2); doc.line(mg, y, W - mg, y); doc.setLineDashPattern([], 0); };
+    // Plain thousands separator (a regular space) — the fr-FR locale uses a
+    // narrow no-break space that renders as "/" in the jsPDF core font.
+    const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    const money = (n: number) => fmt(n) + " " + cur;
+    let y = 7;
+
+    // ── Header ──
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+    doc.text((clinic?.name || "CENTRE MÉDICAL").toUpperCase(), W / 2, y, { align: "center" }); y += 5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7);
+    if (clinic?.phone) { doc.text("Contacts: " + clinic.phone, W / 2, y, { align: "center" }); y += 3.5; }
+    if (clinic?.address) { doc.text("Adresse: " + clinic.address + (clinic.city ? ", " + clinic.city : ""), W / 2, y, { align: "center" }); y += 3.5; }
+    y += 1; line(y); y += 5;
+
+    // ── Title + meta ──
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    doc.text(data.isProforma ? "FACTURE PROFORMA" : "FACTURE", W / 2, y, { align: "center" }); y += 5;
+    doc.setFontSize(8);
+    doc.text("Facture N° : " + data.receiptNumber, W / 2, y, { align: "center" }); y += 5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+    doc.text("Client : " + data.patientName, mg, y); y += 3.6;
+    if (data.cashier) { doc.text("Caissier : " + data.cashier, mg, y); y += 3.6; }
+    doc.text("FACTURE DU : " + data.date, mg, y); y += 3;
+    line(y); y += 4;
+
+    // ── Column header ──
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
+    doc.text("QTÉ", mg, y);
+    doc.text("NOM", mg + 10, y);
+    doc.text("PT.TTC", W - mg, y, { align: "right" });
+    y += 1.5; line(y); y += 4;
+
+    // ── Items ──
+    let subtotal = 0;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5);
+    data.items.forEach(it => {
+      const total = it.quantity * it.unitPrice;
+      subtotal += total;
+      doc.text(String(it.quantity), mg + 1, y, { align: "center" });
+      const name = it.description.length > 26 ? it.description.slice(0, 25) + "…" : it.description;
+      doc.text(name.toUpperCase(), mg + 10, y);
+      doc.text(fmt(total), W - mg, y, { align: "right" });
+      y += 4;
+      if (it.lot) { doc.setFontSize(6.3); doc.setTextColor(90); doc.text("N:" + it.lot, mg + 10, y); doc.setTextColor(0); doc.setFontSize(7.5); y += 4; }
+    });
+    y += 1; line(y); y += 5;
+
+    // ── Totals ──
+    const paid = data.amountPaid ?? 0;
+    const due = data.amountDue ?? subtotal;
+    const reste = Math.max(0, due - paid);
+    const rowR = (label: string, val: string, bold = false, size = 8) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size);
+      doc.text(label, mg, y); doc.text(val, W - mg, y, { align: "right" }); y += bold ? 5.5 : 4.2;
+    };
+    rowR("Sous-total HT:", money(subtotal));
+    rowR("TVA 0%:", money(0));
+    line(y); y += 4;
+    rowR("Net À Payer:", money(due), true, 10);
+    rowR("Acompte:", money(paid));
+    rowR("Reste:", money(reste), true, 9);
+    y += 2;
+
+    // ── Status box ──
+    const label = data.status === "paid" ? "Payée" : data.status === "partial" ? "Acompte" : "Non payée";
+    doc.setDrawColor(0); doc.setLineWidth(0.3);
+    const bw = 34, bx = (W - bw) / 2;
+    doc.roundedRect(bx, y, bw, 7, 1, 1, "S");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+    doc.text(label, W / 2, y + 4.8, { align: "center" });
+    y += 12;
+
+    // ── Code 39 barcode of the invoice number ──
+    const code = "*" + data.receiptNumber.replace(/[^0-9]/g, "") + "*";
+    const narrow = 0.33, wide = narrow * 2.3, barH = 11;
+    let totalW = 0;
+    for (const ch of code) { const p = CODE39[ch] || CODE39["0"]; for (let i = 0; i < 9; i++) totalW += (p[i] === "1" ? wide : narrow); totalW += narrow; }
+    let cx = (W - totalW) / 2;
+    doc.setFillColor(0);
+    for (const ch of code) {
+      const p = CODE39[ch] || CODE39["0"];
+      for (let i = 0; i < 9; i++) { const w = p[i] === "1" ? wide : narrow; if (i % 2 === 0) doc.rect(cx, y, w, barH, "F"); cx += w; }
+      cx += narrow;
+    }
+    y += barH + 3;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(90);
+    doc.text("Généré par DivineLink", W / 2, y, { align: "center" });
+
+    doc.save("facture_" + data.receiptNumber + ".pdf");
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FERMETURE DE CAISSE — thermal daily cash-close report (80mm)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface CaisseReportData {
+  from: string; to: string; cashier?: string;
+  totalFacture: number; totalRecette: number; impayees: number;
+  byMethod: Record<string, number>;
+  topSold: { name: string; qty: number; revenue: number }[];
+  topProfit: { name: string; qty: number; profit: number }[];
+  soldByCategory?: { category: string; items: { name: string; qty: number; pu: number; total: number }[] }[];
+  soldTotal?: number;
+  recouvrements?: { client: string; invoice: string; method: string; amount: number }[];
+  recouvrementTotal?: number;
+  fond: number; reel: number; theorique: number; ecart: number;
+}
+
+export function generateCaisseReport(d: CaisseReportData) {
+  import("jspdf").then(({ jsPDF }) => {
+    const clinic = getClinicSettings();
+    const W = 80, mg = 4, cur = clinic?.currency || "FCFA";
+    const methodsShown = Object.values(d.byMethod).filter(v => v > 0).length;
+    const profitShown = d.topProfit.filter(r => r.profit > 0).length;
+    const catRows = (d.soldByCategory || []).reduce((s, c) => s + 1 + c.items.length, 0);
+    const recoRows = (d.recouvrements || []).length;
+    const H = 100 + (d.topSold.length + profitShown) * 4 + methodsShown * 4.2
+      + (catRows ? catRows * 4 + 8 : 0)
+      + (recoRows ? recoRows * 4 + 10 : 0);
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [W, H] });
+    const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    const money = (n: number) => fmt(n) + " " + cur;
+    const line = (y: number) => { doc.setLineDashPattern([0.6, 0.6], 0); doc.setDrawColor(0); doc.setLineWidth(0.2); doc.line(mg, y, W - mg, y); doc.setLineDashPattern([], 0); };
+    const L: Record<string, string> = { cash: "Espèces", orange_money: "Orange Money", mtn_momo: "MTN MoMo", other: "Autre" };
+    const fmtDate = (s: string) => { try { return new Date(s).toLocaleString("fr-FR"); } catch { return s; } };
+    let y = 7;
+    doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+    doc.text((clinic?.name || "CENTRE MÉDICAL").toUpperCase(), W / 2, y, { align: "center" }); y += 5;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+    doc.text("RAPPORT DE FERMETURE CAISSE", W / 2, y, { align: "center" }); y += 4.5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.8); doc.setTextColor(80);
+    doc.text("Du " + fmtDate(d.from) + "  au " + fmtDate(d.to), W / 2, y, { align: "center" }); y += 3.4;
+    if (d.cashier) { doc.text("Caissier: " + d.cashier, W / 2, y, { align: "center" }); y += 3; }
+    doc.setTextColor(0); line(y); y += 5;
+
+    const row = (label: string, val: string, bold = false, size = 8) => {
+      doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size);
+      doc.text(label, mg, y); doc.text(val, W - mg, y, { align: "right" }); y += bold ? 5 : 4.2;
+    };
+    row("Total facturé:", money(d.totalFacture));
+    row("Recette totale:", money(d.totalRecette), true, 9);
+    for (const [m, v] of Object.entries(d.byMethod)) if (v > 0) { doc.setTextColor(80); row("  " + (L[m] || m) + ":", money(v)); doc.setTextColor(0); }
+    row("Impayées:", money(d.impayees));
+    line(y); y += 4;
+    row("Fond de caisse:", money(d.fond));
+    row("Théorique (espèces):", money(d.theorique));
+    row("Réel compté:", money(d.reel));
+    row("Écart:", (d.ecart >= 0 ? "+" : "") + money(d.ecart), true, 9);
+    line(y); y += 4;
+
+    const section = (title: string, rows: { name: string; right: string }[]) => {
+      if (!rows.length) return;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.text(title, mg, y); y += 4;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(7);
+      rows.forEach(r => { const n = r.name.length > 24 ? r.name.slice(0, 23) + "…" : r.name; doc.text(n.toUpperCase(), mg, y); doc.text(r.right, W - mg, y, { align: "right" }); y += 4; });
+      y += 1.5;
+    };
+    section("DÉSIGNATION LA PLUS VENDUE", d.topSold.map(r => ({ name: r.name, right: `${r.qty} · ${fmt(r.revenue)}` })));
+    section("DÉSIGNATION LA PLUS RENTABLE", d.topProfit.filter(r => r.profit > 0).map(r => ({ name: r.name, right: `+${fmt(r.profit)}` })));
+
+    // ── Full list of everything sold, grouped by category ──
+    if (d.soldByCategory && d.soldByCategory.length) {
+      line(y); y += 4;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("DÉSIGNATION VENDUE", mg, y); y += 4.5;
+      doc.setFontSize(5.8); doc.setTextColor(110);
+      doc.text("Nom", mg, y); doc.text("Qté", W - 30, y, { align: "right" }); doc.text("PU", W - 17, y, { align: "right" }); doc.text("Total", W - mg, y, { align: "right" }); y += 3;
+      doc.setTextColor(0);
+      for (const cat of d.soldByCategory) {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(6.8); doc.text(cat.category.toUpperCase(), mg, y); y += 3.6;
+        doc.setFont("helvetica", "normal"); doc.setFontSize(6.8);
+        for (const it of cat.items) {
+          const n = it.name.length > 20 ? it.name.slice(0, 19) + "…" : it.name;
+          doc.text(n, mg + 1, y); doc.text(String(it.qty), W - 30, y, { align: "right" });
+          doc.text(fmt(it.pu), W - 17, y, { align: "right" }); doc.text(fmt(it.total), W - mg, y, { align: "right" }); y += 3.8;
+        }
+      }
+      y += 1;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+      doc.text("TOTAL PRODUITS VENDUS:", mg, y); doc.text(money(d.soldTotal || 0), W - mg, y, { align: "right" }); y += 5;
+    }
+
+    // ── Recouvrements (old debts cleared during the day) ──
+    if (d.recouvrements && d.recouvrements.length) {
+      line(y); y += 4;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("RECOUVREMENTS", mg, y); y += 4.5;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(6.8);
+      for (const r of d.recouvrements) {
+        const nm = r.client.length > 18 ? r.client.slice(0, 17) + "…" : r.client;
+        doc.text(`${nm} ${r.invoice}`, mg, y); doc.text(fmt(r.amount), W - mg, y, { align: "right" }); y += 3.8;
+      }
+      y += 0.5;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+      doc.text("TOTAL RECOUVREMENTS:", mg, y); doc.text(money(d.recouvrementTotal || 0), W - mg, y, { align: "right" }); y += 5;
+    }
+
+    line(y); y += 4;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(90);
+    doc.text("Généré par DivineLink · " + new Date().toLocaleString("fr-FR"), W / 2, y, { align: "center" });
+    doc.save("fermeture_caisse_" + new Date().toISOString().slice(0, 10) + ".pdf");
   });
 }

@@ -22,6 +22,10 @@ const DocumentsPage = lazy(() => import("@/components/DocumentsPage").then(m => 
 const DiagnosisPage = lazy(() => import("@/components/DiagnosisPage").then(m => ({ default: m.DiagnosisPage })));
 const ResearchPage = lazy(() => import("@/components/ResearchPage").then(m => ({ default: m.ResearchPage })));
 const PharmacyPage = lazy(() => import("@/components/PharmacyPage").then(m => ({ default: m.PharmacyPage })));
+const MagasinPage = lazy(() => import("@/components/MagasinPage").then(m => ({ default: m.MagasinPage })));
+const LabPage = lazy(() => import("@/components/LabPage").then(m => ({ default: m.LabPage })));
+const MassConsultPage = lazy(() => import("@/components/MassConsultPage").then(m => ({ default: m.MassConsultPage })));
+const VisitQuickPage = lazy(() => import("@/components/VisitQuickPage").then(m => ({ default: m.VisitQuickPage })));
 const DentalExamPage = lazy(() => import("@/components/DentalExamPage").then(m => ({ default: m.DentalExamPage })));
 const UsersPage = lazy(() => import("@/components/UsersPage").then(m => ({ default: m.UsersPage })));
 const BackupPage = lazy(() => import("@/components/BackupPage").then(m => ({ default: m.BackupPage })));
@@ -43,6 +47,7 @@ const DocumentCategoriesPage = lazy(() => import("@/components/DocumentCategorie
 const AdmissionsPage = lazy(() => import("@/components/AdmissionsPage").then(m => ({ default: m.AdmissionsPage })));
 const ExpeditionsPage = lazy(() => import("@/components/ExpeditionsPage").then(m => ({ default: m.ExpeditionsPage })));
 const MinsanteReport = lazy(() => import("@/components/MinsanteReport").then(m => ({ default: m.MinsanteReport })));
+const ProfitReport = lazy(() => import("@/components/ProfitReport").then(m => ({ default: m.ProfitReport })));
 
 function PageLoader() {
   return (
@@ -122,9 +127,14 @@ function AppContent() {
     expeditions: <Suspense fallback={<PageLoader />}><ExpeditionsPage /></Suspense>,
     clinic: <Suspense fallback={<PageLoader />}><ClinicSettingsPage /></Suspense>,
     pharmacy: <Suspense fallback={<PageLoader />}><PharmacyPage /></Suspense>,
-    
+    magasin: <Suspense fallback={<PageLoader />}><MagasinPage /></Suspense>,
+    lab: <Suspense fallback={<PageLoader />}><LabPage /></Suspense>,
+    massconsult: <Suspense fallback={<PageLoader />}><MassConsultPage /></Suspense>,
+    visit: <Suspense fallback={<PageLoader />}><VisitQuickPage /></Suspense>,
+
     workspace: <Suspense fallback={<PageLoader />}><WorkspacePage /></Suspense>,
     payments: <Suspense fallback={<PageLoader />}><PaymentsPage /></Suspense>,
+    profits: <Suspense fallback={<PageLoader />}><ProfitReport /></Suspense>,
     equipment: <Suspense fallback={<PageLoader />}><EquipmentPage /></Suspense>,
     templates: adminOnly(<Suspense fallback={<PageLoader />}><ObservationTemplatesPage /></Suspense>),
     importPatients: adminOnly(<Suspense fallback={<PageLoader />}><ImportPatientsPage /></Suspense>),

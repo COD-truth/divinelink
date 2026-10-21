@@ -9,7 +9,7 @@ import { Search, Plus, FlaskConical, ChevronDown, ChevronUp } from "lucide-react
 import { toast } from "sonner";
 import { type Patient } from "@/lib/db";
 
-const LAB_CATALOGUE = [
+export const LAB_CATALOGUE = [
   { category: "Hematologie", exams: [
     { id: "nfs", name: "NFS - Numeration Formule Sanguine", short: "NFS", fields: [
       { key: "gb", label: "Globules Blancs", unit: "G/L", min: 4, max: 10 },

@@ -15,6 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { generateReceipt } from "@/components/ReceiptGenerator";
+import { InvoiceBuilder } from "@/components/InvoiceBuilder";
+import { CaisseClosing } from "@/components/CaisseClosing";
 import { Printer, CreditCard, Plus, Search, TrendingUp, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Clock, Download, Eye, Trash2, CirclePlus as PlusCircle } from "lucide-react";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 
@@ -61,6 +63,8 @@ export function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab, setTab] = useState("overview");
   const [addOpen, setAddOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [caisseOpen, setCaisseOpen] = useState(false);
   const [detailPayment, setDetailPayment] = useState<Payment|null>(null);
   const [installmentOpen, setInstallmentOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment|null>(null);
@@ -219,11 +223,19 @@ export function PaymentsPage() {
           <Button variant="outline" size="sm" onClick={exportPayments}>
             <Download className="w-4 h-4 mr-1"/>Export
           </Button>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <Plus className="w-4 h-4 mr-1"/>Nouveau paiement
+          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
+            <Plus className="w-4 h-4 mr-1"/>Paiement rapide
+          </Button>
+          <Button size="sm" onClick={() => setInvoiceOpen(true)}>
+            <Printer className="w-4 h-4 mr-1"/>Nouvelle facture
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setCaisseOpen(true)}>
+            <TrendingUp className="w-4 h-4 mr-1"/>Fermeture caisse
           </Button>
         </div>
       </div>
+      <InvoiceBuilder open={invoiceOpen} onOpenChange={setInvoiceOpen} onSaved={load} />
+      <CaisseClosing open={caisseOpen} onOpenChange={setCaisseOpen} />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3">

@@ -19,6 +19,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
   const [mode, setMode] = useState<Mode>("choose");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
 
   const persistLocal = (clinicName: string) => {
@@ -34,24 +35,60 @@ export function ClinicOnboarding({ open, onDone }: Props) {
   };
 
   const doJoin = async () => {
+    const cn = name.trim();
     const c = code.trim();
+    if (!cn) { toast.error(fr ? "Entrez le nom exact de la clinique" : "Enter the exact clinic name"); return; }
     if (!c) { toast.error(fr ? "Entrez le code" : "Enter the code"); return; }
+    if (pin.length < 4) { toast.error(fr ? "Entrez le PIN du personnel" : "Enter the staff PIN"); return; }
     setBusy(true);
     try {
       const res = await fetch("https://divinelink.mooo.com/api/clinic/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: c }),
+        body: JSON.stringify({ code: c, pin, name: cn }),
       });
-      const data = await res.json();
-      if (data.token) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.token) {
+        // Clean start on this clinic: wipe any previous clinic's data on this device.
+        try {
+          const { db: dbw } = await import("@/lib/db");
+          const tables = ["patients", "consultations", "appointments", "documents", "payments", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
+          for (const tbl of tables) { try { await (dbw as any)[tbl]?.clear(); } catch { /* ignore */ } }
+          localStorage.removeItem("dl.lastSyncAt");
+          // CRITICAL: also reset the per-clinic sync cursors. We just cleared the
+          // local tables, so the device must re-download EVERYTHING from the
+          // server. If the cursor is left in place, the next pull thinks it is
+          // already up to date and downloads nothing → the joined device shows
+          // an empty/near-empty clinic while the server has all the records.
+          try {
+            Object.keys(localStorage)
+              .filter(k => k.startsWith("dl.lastSync."))
+              .forEach(k => localStorage.removeItem(k));
+          } catch { /* ignore */ }
+        } catch { /* non-fatal */ }
         localStorage.setItem("divinelink.apiToken", data.token);
         localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
-        persistLocal(data.clinic_name || "Clinique");
-        toast.success(fr ? `Clinique liée: ${data.clinic_name}` : `Linked: ${data.clinic_name}`);
+        // Set this role's local login PIN to the staff PIN just used, so the
+        // person logs in day-to-day with the same PIN (server decided the role).
+        try {
+          const { db, hashPin } = await import("@/lib/db");
+          const role = (data.role || "receptionist") as any;
+          const pinHash = await hashPin(pin);
+          const existing = await db.users.where("role").equals(role).first();
+          if (existing?.id) await db.users.update(existing.id, { pinHash, active: true });
+          else await db.users.add({ name: String(role).charAt(0).toUpperCase() + String(role).slice(1), role, pinHash, active: true, createdAt: new Date().toISOString() });
+        } catch { /* non-fatal */ }
+        persistLocal(data.clinic_name || cn);
+        toast.success(fr ? `Clinique liée: ${data.clinic_name} (${data.role})` : `Linked: ${data.clinic_name} (${data.role})`);
         onDone();
-      } else {
+      } else if (res.status === 401) {
+        toast.error(fr ? "PIN du personnel invalide" : "Invalid staff PIN");
+      } else if (res.status === 409) {
+        toast.error(fr ? `Le nom ne correspond pas${data.clinic_name ? ` (${data.clinic_name})` : ""}` : `Clinic name doesn't match${data.clinic_name ? ` (${data.clinic_name})` : ""}`);
+      } else if (res.status === 404) {
         toast.error(fr ? "Code clinique invalide" : "Invalid clinic code");
+      } else {
+        toast.error(fr ? "Échec de la connexion" : "Join failed");
       }
     } catch {
       toast.error(fr ? "Serveur injoignable" : "Server unreachable");
@@ -70,6 +107,16 @@ export function ClinicOnboarding({ open, onDone }: Props) {
       });
       const data = await res.json().catch(() => ({}));
       if (data.token) {
+        // Clean start: a new clinic must NOT inherit the previous clinic's local
+        // data (which would otherwise get uploaded into it). Wipe clinical tables
+        // and reset the sync cursors, same as joining an existing clinic.
+        try {
+          const { db: dbw } = await import("@/lib/db");
+          const tables = ["patients", "consultations", "appointments", "documents", "payments", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
+          for (const tbl of tables) { try { await (dbw as any)[tbl]?.clear(); } catch { /* ignore */ } }
+          localStorage.removeItem("dl.lastSyncAt");
+          Object.keys(localStorage).filter(k => k.startsWith("dl.lastSync.")).forEach(k => localStorage.removeItem(k));
+        } catch { /* non-fatal */ }
         localStorage.setItem("divinelink.apiToken", data.token);
         localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
         persistLocal(n);
@@ -164,11 +211,23 @@ export function ClinicOnboarding({ open, onDone }: Props) {
         {mode === "join" && (
           <div className="space-y-4">
             <div>
+              <Label>{fr ? "Nom exact de la clinique" : "Exact clinic name"}</Label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder={fr ? "Clinique Divine" : "Divine Clinic"} autoFocus />
+            </div>
+            <div>
               <Label>{fr ? "Code de la clinique" : "Clinic code"}</Label>
-              <Input value={code} onChange={e => setCode(e.target.value)} placeholder="DIVINE001" autoFocus
-                onKeyDown={e => { if (e.key === "Enter") doJoin(); }} />
+              <Input value={code} onChange={e => setCode(e.target.value)} placeholder="DIVINE001" />
               <p className="text-xs text-muted-foreground mt-1">
                 {fr ? "Demandez le code à l'administrateur de votre clinique." : "Ask your clinic admin for the code."}
+              </p>
+            </div>
+            <div>
+              <Label>{fr ? "PIN du personnel" : "Staff PIN"}</Label>
+              <Input type="password" inputMode="numeric" maxLength={6} value={pin}
+                onChange={e => setPin(e.target.value.replace(/\D/g, ""))} placeholder="••••"
+                onKeyDown={e => { if (e.key === "Enter") doJoin(); }} />
+              <p className="text-xs text-muted-foreground mt-1">
+                {fr ? "Le PIN détermine votre rôle : admin 1111 · médecin 2222 · secrétaire 3333" : "Your PIN sets your role: admin 1111 · doctor 2222 · reception 3333"}
               </p>
             </div>
             <div className="flex gap-2">

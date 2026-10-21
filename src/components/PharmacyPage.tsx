@@ -12,11 +12,16 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Download, TriangleAlert as AlertTriangle, ArrowDown, ArrowUp, Bell, Pencil, Trash2, ArrowUpDown, Package } from "lucide-react";
+import { Plus, Search, Download, TriangleAlert as AlertTriangle, ArrowDown, ArrowUp, Bell, Pencil, Trash2, ArrowUpDown, Package, Printer, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 import { logAudit } from "@/lib/audit";
 import { decryptPatients } from "@/lib/patientCrypto";
+import { COMMON_DRUGS } from "@/lib/seedCatalogues";
+import { generateThermalReceipt } from "./ReceiptGenerator";
+import { DispensePrescription } from "./DispensePrescription";
+import { syncPharmacy, pharmaSyncEnabled, setPharmaSyncEnabled } from "@/lib/pharmaSync";
+import clinicStockDH from "@/lib/clinicStockDH.json";
 
 /* ---- Constants ---- */
 const DRUG_CATEGORIES = [
@@ -59,11 +64,17 @@ function fmtDateTime(iso: string) {
 
 /* ============================================================ */
 export function PharmacyPage() {
+  const [rxOpen, setRxOpen] = useState(false);
   const { t } = useLang();
+  const { user } = useAuth();
   const [tab, setTab] = useState("inventory");
   const [drugs, setDrugs] = useState<Drug[]>([]);
   const [transactions, setTransactions] = useState<DrugTransaction[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  // Bulk stock importer (loads a bundled catalogue into the ACTIVE clinic)
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [clinicName, setClinicName] = useState<string>("");
 
   const load = useCallback(async () => {
     const allDrugs = await db.drugs.toArray();
@@ -117,8 +128,102 @@ export function PharmacyPage() {
     return { totalValue, revenueToday, revenueMonth, totalReceived, totalDispensed, mostDispensed, valueByCategory, expiring60 };
   }, [drugs, transactions]);
 
+  const openImport = async () => {
+    // Resolve the active clinic's display name for the confirmation.
+    const cid = localStorage.getItem("divinelink.clinicId") || "";
+    let nm = cid;
+    try {
+      const anyDb = db as any;
+      if (anyDb.clinics?.toArray) {
+        const cl = (await anyDb.clinics.toArray()).find((c: any) => String(c.id) === String(cid) || String(c.clinicId) === String(cid));
+        if (cl?.name) nm = cl.name;
+      }
+    } catch { /* fall back to id */ }
+    setClinicName(nm || "—");
+    setImportOpen(true);
+  };
+
+  const doImportStock = async () => {
+    setImporting(true);
+    try {
+      const cid = localStorage.getItem("divinelink.clinicId") || undefined;
+      const inClinic = (c?: string) => { return !cid || !c || String(c) === String(cid); };
+      const existing = await db.drugs.toArray();
+      const norm = (s: string) => s.trim().toLowerCase();
+      const present = new Set(existing.filter(d => inClinic(d.clinicId)).map(d => norm(d.name)));
+      const now = new Date().toISOString();
+      let added = 0, skipped = 0;
+      for (const it of (clinicStockDH as any).items as any[]) {
+        if (present.has(norm(it.name))) { skipped++; continue; }
+        const drug: Omit<Drug, "id"> = {
+          name: it.name, category: it.category || "Médicament",
+          stock: it.stock || 0, stockMagasin: 0, initialStock: it.stock || 0,
+          unit: it.unit || "unité", packSize: it.packSize && it.packSize > 1 ? it.packSize : undefined,
+          buyPrice: it.buyPrice || 0, sellPrice: it.sellPrice ?? it.price ?? 0,
+          minStock: 5, status: "in_stock",
+          supplier: it.dci && it.dci !== "-" ? `DCI: ${it.dci}` : undefined,
+          clinicId: cid, createdAt: now, updatedAt: now,
+        };
+        drug.status = computeStatus(drug as Drug);
+        await db.drugs.add(drug as Drug);
+        present.add(norm(it.name));
+        added++;
+      }
+      await logAudit("drug_create", user?.name || "—", { resource: "drug", message: `Import stock: ${added} ajoutés, ${skipped} déjà présents` });
+      toast.success(`${added} médicament(s) importé(s)${skipped ? `, ${skipped} déjà présent(s)` : ""}`);
+      setImportOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error("Erreur import: " + (e?.message || "échec"));
+    } finally { setImporting(false); }
+  };
+
+  const importCount = ((clinicStockDH as any).items as any[]).length;
+
+  const [pharmaSyncing, setPharmaSyncing] = useState(false);
+  const doPharmaSync = async () => {
+    if (!pharmaSyncEnabled()) { setPharmaSyncEnabled(true); toast.message(t("pharm.syncOn")); }
+    setPharmaSyncing(true);
+    try {
+      const r = await syncPharmacy();
+      if (!r) { toast.error(t("pharm.syncOffline")); return; }
+      toast.success(`${t("pharm.syncDone")} ↑${r.pushedDrugs + r.pushedTx} ↓${r.pulledDrugs + r.pulledTx}`);
+      load();
+    } catch (e: any) { toast.error("Sync: " + (e?.message || "échec")); }
+    finally { setPharmaSyncing(false); }
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <Badge variant="outline" className="gap-1.5 py-1 px-2.5 text-sm">
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          {t("pharm.onShift")}: <span className="font-semibold">{user?.name || "—"}</span>
+          {user?.role ? <span className="text-muted-foreground">· {user.role}</span> : null}
+        </Badge>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={doPharmaSync} disabled={pharmaSyncing} className="gap-1" title={t("pharm.sync")}><RefreshCw className={`w-4 h-4 ${pharmaSyncing ? "animate-spin" : ""}`} /></Button>
+          <Button size="sm" variant="outline" onClick={openImport} className="gap-1"><Download className="w-4 h-4" /> {t("pharm.importStock")}</Button>
+          <Button size="sm" onClick={() => setRxOpen(true)} className="gap-1"><Plus className="w-4 h-4" /> {t("pharm.prescription")}</Button>
+        </div>
+      </div>
+      <DispensePrescription open={rxOpen} onOpenChange={setRxOpen} onSaved={load} />
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("pharm.importStock")}</DialogTitle></DialogHeader>
+          <div className="space-y-2 text-sm">
+            <p>{t("pharm.importInto")} : <span className="font-semibold">{clinicName}</span></p>
+            <p className="text-muted-foreground">{importCount} {t("pharm.importItems")}. {t("pharm.importNote")}</p>
+            <p className="text-xs text-muted-foreground">{(clinicStockDH as any).note}</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>{t("common.cancel")}</Button>
+            <Button onClick={doImportStock} disabled={importing} className="gap-1"><Download className="w-4 h-4" /> {t("pharm.importConfirm")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {alerts.length > 0 && (
         <Card className="border-warning/50 bg-warning/5">
           <CardContent className="p-3">
@@ -184,7 +289,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
   const [addOpen, setAddOpen] = useState(false);
   const [editDrug, setEditDrug] = useState<Drug | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Drug | null>(null);
-  const [form, setForm] = useState({ name: "", category: "Consommable ortho", stock: "", unit: "unité", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
+  const [form, setForm] = useState({ name: "", category: "Consommable ortho", stock: "", stockMagasin: "", minStockMagasin: "", unit: "unité", packSize: "", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
 
   const totalDispensedMap = useMemo(() => {
     const map = new Map<number, number>();
@@ -209,7 +314,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
     return list;
   }, [drugs, search, sortKey, filterCategory, filterStatus]);
 
-  const resetForm = () => setForm({ name: "", category: "Consommable ortho", stock: "", unit: "unité", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
+  const resetForm = () => setForm({ name: "", category: "Consommable ortho", stock: "", stockMagasin: "", minStockMagasin: "", unit: "unité", packSize: "", buyPrice: "", sellPrice: "", expiration: "", minStock: "5", supplier: "", batchNumber: "", location: "" });
 
   const saveDrug = async () => {
     if (!form.name.trim()) return;
@@ -220,19 +325,28 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
     if (editDrug?.id) {
       await db.drugs.update(editDrug.id, {
         name: form.name.trim(), category: form.category.trim(), stock: stockVal,
-        unit: form.unit, buyPrice: parseFloat(form.buyPrice) || 0, sellPrice: parseFloat(form.sellPrice) || 0,
+        stockMagasin: parseInt(form.stockMagasin) || 0, minStockMagasin: parseInt(form.minStockMagasin) || 0,
+        unit: form.unit, packSize: parseInt(form.packSize) || undefined,
+        buyPrice: parseFloat(form.buyPrice) || 0, sellPrice: parseFloat(form.sellPrice) || 0,
         expiration: form.expiration || undefined, minStock: parseInt(form.minStock) || 5,
         supplier: form.supplier || undefined, batchNumber: form.batchNumber || undefined,
         location: form.location || undefined, updatedAt: now,
         status: computeStatus({ ...editDrug, stock: stockVal, expiration: form.expiration || undefined, minStock: parseInt(form.minStock) || 5 }),
       });
       await logAudit("drug_update", actor, { resource: "drug", resourceId: editDrug.id, message: `${form.name} · stock=${stockVal} ${form.unit} (was ${editDrug.stock})` });
+      // A manual stock change is recorded as an append-only adjustment event so
+      // it stays correct and propagates under multi-device sync (harmless offline).
+      const delta = stockVal - (editDrug.stock || 0);
+      if (delta !== 0) {
+        await db.drugTransactions.add({ uid: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`), drugUid: editDrug.uid, drugId: editDrug.id, type: delta > 0 ? "in" : "out", quantity: Math.abs(delta), price: 0, performedBy: actor, notes: "Ajustement manuel du stock", clinicId: cid, createdAt: now } as any);
+      }
       toast.success(t("common.save"));
       setEditDrug(null);
     } else {
       const drug: Omit<Drug, "id"> = {
         name: form.name.trim(), category: form.category.trim(), stock: stockVal,
-        initialStock: stockVal, unit: form.unit,
+        stockMagasin: parseInt(form.stockMagasin) || 0, minStockMagasin: parseInt(form.minStockMagasin) || 0,
+        initialStock: stockVal, unit: form.unit, packSize: parseInt(form.packSize) || undefined,
         buyPrice: parseFloat(form.buyPrice) || 0, sellPrice: parseFloat(form.sellPrice) || 0,
         expiration: form.expiration || undefined, minStock: parseInt(form.minStock) || 5,
         supplier: form.supplier || undefined, batchNumber: form.batchNumber || undefined,
@@ -242,6 +356,8 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
       drug.status = computeStatus(drug as Drug);
       const newId = await db.drugs.add(drug as Drug);
       await logAudit("drug_create", actor, { resource: "drug", resourceId: newId, message: `${form.name} · stock=${stockVal} ${form.unit}` });
+      // One-way model: the Magasin is the master. Creating a drug here stays in
+      // the Pharmacie and does NOT touch the Magasin.
       toast.success(t("common.save"));
       setAddOpen(false);
     }
@@ -251,7 +367,9 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
 
   const openEdit = (d: Drug) => {
     setForm({
-      name: d.name, category: d.category, stock: String(d.stock), unit: d.unit,
+      name: d.name, category: d.category, stock: String(d.stock),
+      stockMagasin: String(d.stockMagasin ?? ""), minStockMagasin: String(d.minStockMagasin ?? ""),
+      unit: d.unit, packSize: String(d.packSize ?? ""),
       buyPrice: String(d.buyPrice), sellPrice: String(d.sellPrice),
       expiration: d.expiration || "", minStock: String(d.minStock),
       supplier: d.supplier || "", batchNumber: d.batchNumber || "", location: d.location || "",
@@ -283,11 +401,22 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
     if (ok) toast.success(t("download.done"));
   };
 
+  // Live pricing conversions (box ↔ unit) for the form helper text.
+  const packN = Math.max(1, parseInt(form.packSize) || 1);
+  const buyBox = parseFloat(form.buyPrice) || 0;
+  const sellUnit = parseFloat(form.sellPrice) || 0;
+  const nf = (n: number) => Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ");
+  const buyPerUnit = packN > 1 ? buyBox / packN : buyBox;
+  const sellPerBox = sellUnit * packN;
+  const margeUnit = sellUnit - buyPerUnit;
+
   // DrugForm as inline JSX to avoid remount on rerender
   const drugFormJSX = (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2"><Label>{t("pharm.name")} *</Label><Input id="df-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+        <div className="col-span-2"><Label>{t("pharm.name")} *</Label><Input id="df-name" list="common-drugs" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <datalist id="common-drugs">{COMMON_DRUGS.map(d => <option key={d} value={d} />)}</datalist>
+        </div>
         <div>
           <Label>{t("pharm.category")}</Label>
           <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
@@ -297,12 +426,35 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
         </div>
         <div>
           <Label>{t("pharm.unit")}</Label>
-          <Input id="df-unit" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} />
+          <Input id="df-unit" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} placeholder="plaquette" />
         </div>
-        <div><Label>{t("pharm.stock")}</Label><Input id="df-stock" type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} /></div>
+        <div><Label>{t("pharm.packSize")}</Label><Input id="df-pack" type="number" min={1} value={form.packSize} onChange={e => setForm(f => ({ ...f, packSize: e.target.value }))} placeholder="10" /></div>
+        <div><Label>{t("pharm.stock")} ({form.unit || "u."})</Label><Input id="df-stock" type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} /></div>
         <div><Label>{t("pharm.minStock")}</Label><Input id="df-min" type="number" value={form.minStock} onChange={e => setForm(f => ({ ...f, minStock: e.target.value }))} /></div>
-        <div><Label>{t("pharm.buyPrice")}</Label><Input id="df-buy" type="number" value={form.buyPrice} onChange={e => setForm(f => ({ ...f, buyPrice: e.target.value }))} /></div>
-        <div><Label>{t("pharm.sellPrice")}</Label><Input id="df-sell" type="number" value={form.sellPrice} onChange={e => setForm(f => ({ ...f, sellPrice: e.target.value }))} /></div>
+
+        <div className="col-span-2 rounded-md border p-2.5 space-y-2 bg-muted/20">
+          <p className="text-xs font-semibold text-muted-foreground">
+            {t("pharm.pricing")}{packN > 1 ? ` — 1 ${t("pharm.box")} = ${packN} ${form.unit || "u."}` : ""}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>{t("pharm.buyPriceBox")}</Label>
+              <Input id="df-buy" type="number" value={form.buyPrice} onChange={e => setForm(f => ({ ...f, buyPrice: e.target.value }))} />
+              {packN > 1 && buyBox > 0 && <p className="text-[11px] text-muted-foreground mt-0.5">= {nf(buyPerUnit)} F / {form.unit || "u."}</p>}
+            </div>
+            <div>
+              <Label>{t("pharm.sellPriceUnit")}</Label>
+              <Input id="df-sell" type="number" value={form.sellPrice} onChange={e => setForm(f => ({ ...f, sellPrice: e.target.value }))} />
+              {packN > 1 && sellUnit > 0 && <p className="text-[11px] text-muted-foreground mt-0.5">= {nf(sellPerBox)} F / {t("pharm.box")}</p>}
+            </div>
+          </div>
+          {buyBox > 0 && sellUnit > 0 && (
+            <p className={`text-[11px] font-medium ${margeUnit >= 0 ? "text-green-600" : "text-destructive"}`}>
+              {t("pharm.margin")}: {nf(margeUnit)} F / {form.unit || "u."}{packN > 1 ? ` · ${nf(margeUnit * packN)} F / ${t("pharm.box")}` : ""}
+            </p>
+          )}
+        </div>
+
         <div><Label>{t("pharm.expiration")}</Label><Input id="df-exp" type="date" value={form.expiration} onChange={e => setForm(f => ({ ...f, expiration: e.target.value }))} /></div>
         <div><Label>{t("pharm.supplier")}</Label><Input id="df-sup" value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} /></div>
         <div><Label>{t("pharm.batchNumber")}</Label><Input id="df-batch" value={form.batchNumber} onChange={e => setForm(f => ({ ...f, batchNumber: e.target.value }))} /></div>
@@ -476,6 +628,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
@@ -486,6 +639,7 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
   const { user } = useAuth();
   const [drugId, setDrugId] = useState("");
   const [qty, setQty] = useState("");
+  const [recvMode, setRecvMode] = useState<"box" | "unit">("box");
   const [price, setPrice] = useState("");
   const [expiry, setExpiry] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -493,11 +647,14 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
   const [notes, setNotes] = useState("");
 
   const selectedDrug = drugs.find(d => d.id === parseInt(drugId));
+  const pack = selectedDrug?.packSize && selectedDrug.packSize > 1 ? selectedDrug.packSize : 1;
+  // Units actually added to stock = boxes × pack size, or the raw count.
+  const addedUnits = (parseInt(qty) || 0) * (recvMode === "box" ? pack : 1);
 
   const save = async () => {
     if (!drugId || !qty) return;
-    const q = parseInt(qty);
     if (!selectedDrug) return;
+    const q = addedUnits;
     const now = new Date().toISOString();
     const cid = localStorage.getItem("divinelink.clinicId") || undefined;
     const stockBefore = selectedDrug.stock;
@@ -508,7 +665,8 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
       price: parseFloat(price) || selectedDrug.buyPrice,
       batchNumber: batchNumber || undefined,
       performedBy: user?.name || undefined,
-      stockBefore, stockAfter, notes: notes || undefined,
+      stockBefore, stockAfter,
+      notes: (notes ? notes + " · " : "") + (recvMode === "box" ? `${parseInt(qty)} boîte(s) ×${pack}` : ""),
       clinicId: cid, createdAt: now,
     });
     await db.drugs.update(selectedDrug.id!, {
@@ -537,14 +695,20 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
       <CardContent className="space-y-3">
         <div>
           <Label>{t("pharm.drug")} *</Label>
-          <Select value={drugId} onValueChange={v => { setDrugId(v); const d = drugs.find(dr => dr.id === parseInt(v)); if (d) setPrice(String(d.buyPrice)); }}>
-            <SelectTrigger><SelectValue placeholder="Choisir médicament..." /></SelectTrigger>
-            <SelectContent>{drugs.map(d => <SelectItem key={d.id} value={d.id!.toString()}>{d.name} ({d.stock} {d.unit})</SelectItem>)}</SelectContent>
-          </Select>
+          <DrugPicker drugs={drugs} value={drugId} placeholder="Rechercher un médicament…" onPick={d => { setDrugId(String(d.id)); setPrice(String(d.buyPrice)); }} />
         </div>
+        {selectedDrug && pack > 1 && (
+          <div className="flex items-center gap-2">
+            <Label className="shrink-0">{t("pharm.receiveIn")}</Label>
+            <Button type="button" size="sm" variant={recvMode === "box" ? "default" : "outline"} onClick={() => setRecvMode("box")}>{t("pharm.inBoxes")} (×{pack})</Button>
+            <Button type="button" size="sm" variant={recvMode === "unit" ? "default" : "outline"} onClick={() => setRecvMode("unit")}>{selectedDrug.unit}</Button>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>{t("pharm.qty")} *</Label><Input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} /></div>
-          <div><Label>{t("pharm.buyPrice")}</Label><Input type="number" value={price} onChange={e => setPrice(e.target.value)} /></div>
+          <div><Label>{t("pharm.qty")} * {pack > 1 ? `(${recvMode === "box" ? t("pharm.inBoxes") : selectedDrug?.unit})` : ""}</Label><Input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} />
+            {selectedDrug && pack > 1 && qty && <p className="text-xs text-muted-foreground mt-1">= {addedUnits} {selectedDrug.unit} {t("pharm.addedToStock")}</p>}
+          </div>
+          <div><Label>{t("pharm.buyPriceBox")}</Label><Input type="number" value={price} onChange={e => setPrice(e.target.value)} /></div>
           <div><Label>{t("pharm.expiration")}</Label><Input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} /></div>
           <div><Label>{t("pharm.supplier")}</Label><Input value={supplier} onChange={e => setSupplier(e.target.value)} /></div>
           <div><Label>{t("pharm.batchNumber")}</Label><Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} /></div>
@@ -558,6 +722,38 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
         <Button onClick={save} disabled={!drugId || !qty} className="w-full">{t("common.save")}</Button>
       </CardContent>
     </Card>
+  );
+}
+
+/* ============ Drug search picker (reusable: type-to-search) ============ */
+function DrugPicker({ drugs, value, onPick, placeholder }: { drugs: Drug[]; value: string; onPick: (d: Drug) => void; placeholder?: string }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const selected = drugs.find(d => String(d.id) === value);
+  const show = open ? q : (selected ? selected.name : q);
+  const ql = q.trim().toLowerCase();
+  const matches = drugs.filter(d => !ql || d.name.toLowerCase().includes(ql) || (d.category || "").toLowerCase().includes(ql)).slice(0, 40);
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2 rounded-md border px-2 h-9">
+        <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+        <input className="flex-1 bg-transparent outline-none text-sm" placeholder={placeholder || "Rechercher…"} value={show}
+          onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => { setQ(""); setOpen(true); }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)} />
+      </div>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full max-h-64 overflow-y-auto rounded-md border bg-popover shadow-md">
+          {matches.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">—</div>}
+          {matches.map(d => (
+            <button key={d.id} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex justify-between gap-2"
+              onMouseDown={e => e.preventDefault()} onClick={() => { onPick(d); setQ(d.name); setOpen(false); }}>
+              <span className="truncate">{d.name}</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{d.stock} {d.unit}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -577,7 +773,7 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
   const selectedDrug = drugs.find(d => d.id === parseInt(drugId));
   const available = drugs.filter(d => d.stock > 0);
 
-  const save = async () => {
+  const save = async (print = false) => {
     if (!drugId || !qty) return;
     const q = parseInt(qty);
     if (!selectedDrug) return;
@@ -586,10 +782,11 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
     const cid = localStorage.getItem("divinelink.clinicId") || undefined;
     const stockBefore = selectedDrug.stock;
     const stockAfter = stockBefore - q;
+    const unitPrice = parseFloat(price) || selectedDrug.sellPrice;
 
     await db.drugTransactions.add({
       drugId: selectedDrug.id!, type: "out", quantity: q,
-      price: parseFloat(price) || selectedDrug.sellPrice,
+      price: unitPrice,
       patientId: patientId !== "__none__" ? parseInt(patientId) : undefined,
       paymentStatus: payStatus,
       exitReason, batchNumber: batchNumber || undefined,
@@ -602,6 +799,19 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
       resource: "drug", resourceId: selectedDrug.id,
       message: `${selectedDrug.name} -${q} ${selectedDrug.unit} (${stockBefore}→${stockAfter})${patientId !== "__none__" ? ` · patient#${patientId}` : ""} · ${exitReason} · ${payStatus}`
     });
+    if (print) {
+      const p = patientId !== "__none__" ? patients.find(x => x.id === parseInt(patientId)) : undefined;
+      const amount = unitPrice * q;
+      const num = String(await db.drugTransactions.count()).padStart(7, "0");
+      generateThermalReceipt({
+        receiptNumber: num, date: new Date().toLocaleString("fr-FR"),
+        patientName: p ? `${p.firstName} ${p.lastName}`.trim() : (t("pharm.walkIn") || "Client comptant"),
+        patientId: p?.patientId, cashier: user?.name,
+        items: [{ description: selectedDrug.name, quantity: q, unitPrice }],
+        paymentMethod: "cash", status: payStatus === "paid" ? "paid" : payStatus === "partial" ? "partial" : "unpaid",
+        amountPaid: payStatus === "paid" ? amount : 0, amountDue: amount,
+      });
+    }
     toast.success(t("common.save"));
     setDrugId(""); setQty(""); setPatientId("__none__"); setPrice(""); setBatchNumber(""); setNotes("");
     onRefresh();
@@ -617,10 +827,7 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
       <CardContent className="space-y-3">
         <div>
           <Label>{t("pharm.drug")} *</Label>
-          <Select value={drugId} onValueChange={v => { setDrugId(v); const d = drugs.find(dr => dr.id === parseInt(v)); if (d) setPrice(String(d.sellPrice)); }}>
-            <SelectTrigger><SelectValue placeholder="Choisir médicament..." /></SelectTrigger>
-            <SelectContent>{available.map(d => <SelectItem key={d.id} value={d.id!.toString()}>{d.name} ({d.stock} {d.unit})</SelectItem>)}</SelectContent>
-          </Select>
+          <DrugPicker drugs={available} value={drugId} placeholder="Rechercher un médicament…" onPick={d => { setDrugId(String(d.id)); setPrice(String(d.sellPrice)); }} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -679,7 +886,10 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
           </div>
         )}
         <div><Label>{t("pharm.notes")}</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
-        <Button onClick={save} disabled={!drugId || !qty || (!!selectedDrug && parseInt(qty) > selectedDrug.stock)} className="w-full">{t("common.save")}</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => save(false)} disabled={!drugId || !qty || (!!selectedDrug && parseInt(qty) > selectedDrug.stock)} className="flex-1">{t("common.save")}</Button>
+          <Button onClick={() => save(true)} disabled={!drugId || !qty || (!!selectedDrug && parseInt(qty) > selectedDrug.stock)} className="flex-1 gap-1"><Printer className="w-4 h-4" /> {t("pharm.saveReceipt")}</Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -753,6 +963,32 @@ function TransactionsTab({ transactions, drugs, patients }: { transactions: Drug
         <Button variant="outline" onClick={exportCsv} className="gap-1 ml-auto"><Download className="w-4 h-4" />{t("pharm.exportCsv")}</Button>
       </div>
 
+      {(() => {
+        const byStaff: Record<string, { out: number; qty: number; total: number }> = {};
+        filtered.filter(x => x.type === "out").forEach(x => {
+          const k = x.performedBy || "—";
+          const s = byStaff[k] || { out: 0, qty: 0, total: 0 };
+          s.out += 1; s.qty += x.quantity; s.total += x.price * x.quantity; byStaff[k] = s;
+        });
+        const rows = Object.entries(byStaff).sort((a, b) => b[1].total - a[1].total);
+        if (rows.length === 0) return null;
+        return (
+          <Card>
+            <CardContent className="p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">{t("pharm.byStaff")}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {rows.map(([name, s]) => (
+                  <div key={name} className="rounded-md border p-2 text-sm">
+                    <p className="font-medium truncate">{name}</p>
+                    <p className="text-xs text-muted-foreground">{s.out} {t("pharm.txOut")} · {s.qty} u. · <span className="font-semibold text-foreground">{Math.round(s.total).toLocaleString()} F</span></p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -767,11 +1003,12 @@ function TransactionsTab({ transactions, drugs, patients }: { transactions: Drug
               <TableHead>{t("pharm.exitReason")}</TableHead>
               <TableHead>{t("pharm.batchNumber")}</TableHead>
               <TableHead>{t("pharm.performedBy")}</TableHead>
+              <TableHead className="text-right">{t("pharm.receipt")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">{t("common.noData")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">{t("common.noData")}</TableCell></TableRow>
             ) : filtered.slice(0, 100).map(tx => (
               <TableRow key={tx.id}>
                 <TableCell className="text-xs whitespace-nowrap">{fmtDateTime(tx.createdAt)}</TableCell>
@@ -786,6 +1023,22 @@ function TransactionsTab({ transactions, drugs, patients }: { transactions: Drug
                 <TableCell className="text-xs">{tx.exitReason ? t(`pharm.exitReason.${tx.exitReason}`) : "—"}</TableCell>
                 <TableCell className="text-xs font-mono">{tx.batchNumber || "—"}</TableCell>
                 <TableCell className="text-xs">{tx.performedBy || "—"}</TableCell>
+                <TableCell className="text-right">
+                  {tx.type === "out" && (
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title={t("pharm.reprint")} onClick={() => {
+                      const p = patients.find(x => x.id === tx.patientId);
+                      const amount = tx.price * tx.quantity;
+                      generateThermalReceipt({
+                        receiptNumber: String(tx.id).padStart(7, "0"), date: fmtDateTime(tx.createdAt),
+                        patientName: p ? `${p.firstName} ${p.lastName}`.trim() : (t("pharm.walkIn") || "Client comptant"),
+                        patientId: p?.patientId, cashier: tx.performedBy,
+                        items: [{ description: drugName(tx.drugId), quantity: tx.quantity, unitPrice: tx.price }],
+                        paymentMethod: "cash", status: tx.paymentStatus === "paid" ? "paid" : tx.paymentStatus === "partial" ? "partial" : "unpaid",
+                        amountPaid: tx.paymentStatus === "paid" ? amount : 0, amountDue: amount,
+                      });
+                    }}><Printer className="w-3.5 h-3.5" /></Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

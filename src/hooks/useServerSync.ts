@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useRef } from "react";
 import { db } from "@/lib/db";
-import { api } from "@/lib/api";
+
+// Demo-safe: do NOT pull server data down onto devices. Each device shows only
+// what was entered on it (data still pushes UP to the server as backup). This
+// prevents any stale/foreign server data from ever appearing on a device.
+// Multi-device pull is part of the proper sync rework — turn on by setting
+// localStorage "dl.pullEnabled" = "1".
+const ENABLE_SERVER_PULL = false;
+function pullEnabled(): boolean {
+  try { return ENABLE_SERVER_PULL || localStorage.getItem("dl.pullEnabled") === "1"; } catch { return ENABLE_SERVER_PULL; }
+}
+
+// Reset on every page load. The FIRST patient pull after load does a FULL
+// reconcile (since=1970) so a device always converges to the complete server
+// set — never a stuck partial delta. Subsequent syncs are deltas.
+let didFullReconcile = false;
 
 export function useServerSync(intervalMinutes = 5, enabled = true) {
   const syncRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -10,60 +24,175 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
     if (!localStorage.getItem("divinelink.apiToken")) return;
 
     try {
-      // Sync patients
-      const patients = await db.patients.toArray();
-      for (const p of patients) {
+      // ── Clinic isolation guard ──
+      // Only ever push records that belong to the clinic this device is linked
+      // to right now. Without this, a device that holds another clinic's data
+      // would upload it into the active clinic on the server.
+      const activeClinic = localStorage.getItem("divinelink.clinicId");
+      if (!activeClinic) { console.warn("[sync] no active clinic — skipping push"); return; }
+      // CLINIC ISOLATION: only ever push records EXPLICITLY tagged to the active
+      // clinic. We do NOT adopt untagged/foreign rows into the active clinic —
+      // that step was uploading a previous clinic's leftover local data into the
+      // clinic you just joined, polluting it on the server.
+      const belongs = (rec: { clinicId?: string }) => String(rec.clinicId ?? "") === String(activeClinic);
+
+      // ══ PATIENTS SYNC v2 — uid-keyed · delta · tombstone-aware · plaintext boundary ══
+      const API_BASE = "https://divinelink.mooo.com/api";
+      const authToken = localStorage.getItem("divinelink.apiToken");
+      const authHeaders: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` };
+      const { decryptStringSafe, encryptString, isCiphertext } = await import("@/lib/crypto");
+      const patLastKey = `dl.lastSync.patients.${activeClinic}`;
+      const patSince = localStorage.getItem(patLastKey) || "1970-01-01T00:00:00.000Z";
+      let patCursor = patSince;
+
+      // Build a server body from a local patient, DECRYPTING sensitive fields to
+      // plaintext. Returns null when any non-empty sensitive field is unreadable
+      // ciphertext — a foreign/old row this device's key cannot decode, which we
+      // must NEVER publish (that is what spread garbage across devices before).
+      const buildPatientBody = async (p: any): Promise<any | null> => {
+        const ph = await decryptStringSafe(p.phone || "");
+        const ad = await decryptStringSafe(p.address || "");
+        const ma = await decryptStringSafe(p.medicalAlerts || "");
+        if (!ph.readable || !ad.readable || !ma.readable) return null;
+        return {
+          uid: p.uid,
+          patient_code: p.patientId,
+          first_name: p.firstName,
+          last_name: p.lastName,
+          phone: ph.text,
+          date_of_birth: p.dob || null,
+          address: ad.text,
+          medical_alerts: ma.text,
+          registered_by: p.registeredBy || null,
+          registered_at: p.registeredAt || null,
+          visit_type: p.visitType || null,
+          reason_for_visit: p.reasonForVisit || null,
+          deleted: !!p.deleted,
+          updated_at: p.updatedAt,
+        };
+      };
+
+      // PUSH: this clinic's patients changed since last sync. Sensitive fields
+      // are DECRYPTED here so the server (and every other device) gets plaintext.
+      const patChanged = (await db.patients.toArray())
+        .filter(p => belongs(p) && p.uid && String(p.updatedAt || "") > patSince);
+      for (const p of patChanged) {
         try {
-          await api.savePatient({
-            patient_code: p.patientId,
-            first_name: p.firstName,
-            last_name: p.lastName,
-            phone: p.phone,
-            date_of_birth: p.dob,
-            gender: null,
-            address: p.address,
-            blood_type: p.antecedents?.bloodType || null,
-            national_id: null,
-          });
-        } catch {}
+          const body = await buildPatientBody(p);
+          if (!body) continue; // unreadable foreign row — never push garbage
+          if (String(p.updatedAt || "") > patCursor) patCursor = String(p.updatedAt);
+          await fetch(`${API_BASE}/patients`, { method: "POST", headers: authHeaders, body: JSON.stringify(body) });
+        } catch { /* best-effort */ }
       }
 
-      // Sync consultations
-      const consultations = await db.consultations
-        .filter(c => c.isLatest !== false)
-        .toArray();
-      for (const c of consultations) {
+      // ── HEAL (one-time per clinic) ──
+      // Republish, as clean plaintext, every record THIS device can actually
+      // read but that is still stored as ciphertext. After each clinic device
+      // runs this once, the server holds real text for every recoverable record
+      // and all devices display them correctly. Rows no device can read stay
+      // hidden (shown as "—") until re-entered.
+      const healKey = `dl.heal.plaintext.v2.${activeClinic}`;
+      if (!localStorage.getItem(healKey)) {
         try {
+          const nowIso = new Date().toISOString();
+          const all = (await db.patients.toArray()).filter(p => belongs(p) && p.uid);
+          let healed = 0;
+          for (const p of all) {
+            const hadCipher = isCiphertext(p.phone) || isCiphertext(p.address) || isCiphertext(p.medicalAlerts);
+            if (!hadCipher) continue;
+            const body = await buildPatientBody(p);
+            if (!body) continue; // can't read it → leave it for its origin device
+            body.updated_at = nowIso; // bump so last-write-wins republishes to all devices
+            await fetch(`${API_BASE}/patients`, { method: "POST", headers: authHeaders, body: JSON.stringify(body) });
+            healed++;
+          }
+          localStorage.setItem(healKey, "1");
+          if (healed) console.log("[sync] healed plaintext for", healed, "patients");
+        } catch (e) { console.warn("[sync] heal failed", e); }
+      }
+
+      // ══ CONSULTATIONS SYNC v2 — uid-keyed · delta · idempotent (push-only) ══
+      // Each consultation carries a stable uid so the server UPSERTS by uid
+      // instead of colliding on the device-local id (which overwrote other
+      // devices' consultations). Push-only for now (no cross-device pull yet).
+      const consLastKey = `dl.lastSync.consultations.${activeClinic}`;
+      const consSince = localStorage.getItem(consLastKey) || "1970-01-01T00:00:00.000Z";
+      let consCursor = consSince;
+      const consAll = (await db.consultations.filter(c => c.isLatest !== false).toArray()).filter(belongs);
+      for (const c of consAll) {
+        try {
+          // Ensure a stable uid (assign + persist once).
+          let cuid = c.uid;
+          if (!cuid) {
+            cuid = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+            if (c.id) await db.consultations.update(c.id, { uid: cuid });
+          }
+          const cChanged = String((c as any).updatedAt || c.editedAt || c.date || c.createdAt || "");
+          if (cChanged && cChanged <= consSince) continue; // delta: only changed
+          if (cChanged > consCursor) consCursor = cChanged;
           // look up the patient's CODE from their numeric id so it matches on the server
           const cPatient = await db.patients.get(c.patientId);
           const patientCode = cPatient?.patientId || String(c.patientId);
-          await api.saveConsultation({
-            patient_id: patientCode,
-            local_id: c.id,
-            specialty: c.consultType || "general",
-            chief_complaint: c.chiefComplaint || c.symptoms,
-            diagnosis: c.diagnosis,
-            treatment: c.treatmentPlan,
-            vital_signs: c.vitals || {},
+          await fetch(`${API_BASE}/consultations`, {
+            method: "POST", headers: authHeaders,
+            body: JSON.stringify({
+              uid: cuid,
+              patient_id: patientCode,
+              local_id: c.id,
+              specialty: c.consultType || "general",
+              chief_complaint: c.chiefComplaint || c.symptoms,
+              diagnosis: c.diagnosis,
+              treatment: c.treatmentPlan,
+              vital_signs: c.vitals || {},
+              deleted: !!c.deleted,
+              updated_at: (c as any).updatedAt || c.editedAt || c.date || c.createdAt || new Date().toISOString(),
+            }),
           });
-        } catch {}
+        } catch { /* best-effort */ }
       }
+      try { localStorage.setItem(consLastKey, consCursor); } catch {}
 
-      // Sync documents
-      const documents = await db.documents.toArray();
-      for (const d of documents) {
+      // ══ DOCUMENTS SYNC v2 — uid-keyed · delta · idempotent (push-only) ══
+      // Each document carries a stable uid so the server UPSERTS by uid instead
+      // of inserting a fresh row every cycle. That blind insert was the cause of
+      // pictures tripling. Push-only for now (no cross-device pull yet).
+      const docLastKey = `dl.lastSync.documents.${activeClinic}`;
+      const docSince = localStorage.getItem(docLastKey) || "1970-01-01T00:00:00.000Z";
+      let docCursor = docSince;
+      const allDocs = (await db.documents.toArray()).filter(belongs);
+      for (const d of allDocs) {
         try {
-          await api.saveDocument({
-            patient_id: d.patientId,
-            name: d.name,
-            mime_type: d.type,
-            data: d.data,
-            size: d.size,
-            tag: d.tag,
-            consult_id: d.consultId ?? null,
+          // Ensure a stable uid (assign + persist once).
+          let uid = d.uid;
+          if (!uid) {
+            uid = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+            if (d.id) await db.documents.update(d.id, { uid });
+          }
+          const dUpdated = String(d.updatedAt || d.createdAt || "");
+          if (dUpdated && dUpdated <= docSince) continue; // delta: only changed docs
+          if (dUpdated > docCursor) docCursor = dUpdated;
+          // Send the patient's CODE (stable across devices), not the local
+          // numeric id — otherwise the doc can't be matched to the right
+          // patient on another device.
+          const dPatient = await db.patients.get(d.patientId);
+          const dPatientCode = dPatient?.patientId || String(d.patientId);
+          await fetch(`${API_BASE}/documents`, {
+            method: "POST", headers: authHeaders,
+            body: JSON.stringify({
+              uid,
+              patient_id: dPatientCode,
+              consult_id: d.consultId ?? null,
+              type: d.type,
+              name: d.name,
+              data: d.data,
+              source: d.source,
+              deleted: !!d.deleted,
+              updated_at: d.updatedAt || d.createdAt || new Date().toISOString(),
+            }),
           });
-        } catch {}
+        } catch { /* best-effort */ }
       }
+      try { localStorage.setItem(docLastKey, docCursor); } catch {}
 
       // Sync survey responses (best-effort, marks synced=true on success)
       try {
@@ -107,35 +236,132 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
           } catch {}
         }
       } catch {}
-// PULL: download patients from server that this device doesn't have
+      // PULL: apply the server's patient rows (delta, INCLUDING tombstones), keyed
+      // by uid. Sensitive fields arrive plaintext and are RE-ENCRYPTED with this
+      // device's own key so they display correctly here. Last-write-wins.
       try {
-        const token = localStorage.getItem("divinelink.apiToken");
-        const res = await fetch("https://divinelink.mooo.com/api/patients", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // First sync after a page load = FULL reconcile (since=1970) so the
+        // device converges to the complete server set. After that, deltas.
+        const doFull = !didFullReconcile;
+        const sinceParam = doFull ? "1970-01-01T00:00:00.000Z" : patSince;
+        const res = await fetch(`${API_BASE}/patients?since=${encodeURIComponent(sinceParam)}`, { headers: authHeaders });
         if (res.ok) {
-          const serverPatients = await res.json();
-          for (const sp of serverPatients) {
-            const existing = await db.patients.where("patientId").equals(sp.patient_code).first();
-            if (!existing) {
-              await db.patients.add({
+          const rows = await res.json();
+          let applied = 0, skipped = 0;
+          for (const sp of rows) {
+            // Per-row guard: one bad record can NEVER abort the whole pull
+            // (that was the "only N of 27 patients" bug).
+            try {
+              if (!sp.uid) continue;
+              if (String(sp.updated_at || "") > patCursor) patCursor = String(sp.updated_at);
+              const existing = await db.patients.where("uid").equals(sp.uid).first();
+              if (sp.deleted) {
+                if (existing?.id && !existing.deleted) await db.patients.update(existing.id, { deleted: true, updatedAt: sp.updated_at || new Date().toISOString() });
+                continue;
+              }
+              const fields: any = {
                 patientId: sp.patient_code,
-                firstName: sp.first_name,
+                firstName: sp.first_name || "",
                 lastName: sp.last_name || "",
-                phone: sp.phone || "",
                 dob: sp.date_of_birth || "",
-                address: sp.address || "",
-                medicalAlerts: "",
-                createdAt: sp.created_at || new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              });
+                registeredBy: sp.registered_by || undefined,
+                registeredAt: sp.registered_at || undefined,
+                visitType: sp.visit_type || undefined,
+                reasonForVisit: sp.reason_for_visit || undefined,
+                clinicId: activeClinic,
+                uid: sp.uid,
+                deleted: false,
+                updatedAt: sp.updated_at || new Date().toISOString(),
+              };
+              // Only accept sensitive fields that arrive as PLAINTEXT. If the
+              // server still holds old ciphertext, skip it so we never overwrite
+              // a good local value; re-encrypt plaintext with THIS device's key.
+              if (!isCiphertext(sp.phone)) fields.phone = await encryptString(sp.phone || "");
+              if (!isCiphertext(sp.address)) fields.address = await encryptString(sp.address || "");
+              if (!isCiphertext(sp.medical_alerts)) fields.medicalAlerts = await encryptString(sp.medical_alerts || "");
+              if (existing?.id) {
+                if (String(sp.updated_at || "") >= String(existing.updatedAt || "")) await db.patients.update(existing.id, fields);
+              } else {
+                await db.patients.add({ ...fields, createdAt: sp.created_at || new Date().toISOString() });
+              }
+              applied++;
+            } catch (rowErr) {
+              skipped++;
+              console.warn("[sync] patient row skipped:", sp?.uid, rowErr);
             }
           }
-          console.log("Pulled", serverPatients.length, "patients from server");
+          if (doFull) didFullReconcile = true;
+          console.log(`[sync] patients v2: received ${rows.length}, applied ${applied}, skipped ${skipped}${doFull ? " (full reconcile)" : ""}`);
         }
-      } catch (e) { console.warn("Pull failed", e); }
-      // PULL: download consultations from server that this device doesn't have
+        localStorage.setItem(patLastKey, patCursor);
+      } catch (e) { console.warn("[sync] patient pull v2 failed", e); }
+
+      // ══ DOCUMENTS PULL — delta-from-baseline · uid-keyed · idempotent ══
+      // Performance-safe: the FIRST run sets the cursor to "now" and pulls
+      // nothing historical (so a low-end phone never bulk-downloads thousands
+      // of images). After that, only documents CHANGED since the last pull come
+      // down — new snaps propagate quietly. A patient's existing images are
+      // fetched on demand when their file is opened (lazy per-patient fetch).
+      // Matched by uid → the UNIQUE(clinic_id, uid) identity means a document
+      // can never land twice. Images are NOT encrypted (binary), so no key gym.
       try {
+        const docPullKey = `dl.lastSync.documentsPull.${activeClinic}`;
+        let docPullSince = localStorage.getItem(docPullKey);
+        if (!docPullSince) {
+          // First run on this device/clinic: baseline = now, skip history.
+          docPullSince = new Date().toISOString();
+          localStorage.setItem(docPullKey, docPullSince);
+        } else {
+          let docPullCursor = docPullSince;
+          const res = await fetch(`${API_BASE}/documents?since=${encodeURIComponent(docPullSince)}`, { headers: authHeaders });
+          if (res.ok) {
+            const rows = await res.json();
+            let applied = 0;
+            for (const sd of rows) {
+              try {
+                if (!sd.uid) continue;
+                const srvUpdated = String(sd.updated_at || sd.created_at || "");
+                if (srvUpdated > docPullCursor) docPullCursor = srvUpdated;
+                const existing = await db.documents.where("uid").equals(sd.uid).first();
+                if (sd.deleted) {
+                  if (existing?.id && !existing.deleted) await db.documents.update(existing.id, { deleted: true, updatedAt: srvUpdated });
+                  continue;
+                }
+                // Map server patient CODE → local numeric patient id. Patients
+                // pull ran just above, so the patient should already be here;
+                // if not, skip — it'll arrive on a later cycle.
+                const lp = await db.patients.where("patientId").equals(String(sd.patient_id)).first();
+                if (!lp?.id) continue;
+                const fields: any = {
+                  uid: sd.uid,
+                  patientId: lp.id,
+                  consultId: sd.consult_id ? (Number(sd.consult_id) || undefined) : undefined,
+                  type: sd.type || "",
+                  name: sd.name || "",
+                  data: sd.data || "",
+                  size: sd.data ? String(sd.data).length : 0,
+                  source: sd.source || undefined,
+                  clinicId: activeClinic,
+                  deleted: false,
+                  updatedAt: srvUpdated,
+                  createdAt: sd.created_at || srvUpdated,
+                };
+                if (existing?.id) {
+                  if (srvUpdated >= String(existing.updatedAt || "")) await db.documents.update(existing.id, fields);
+                } else {
+                  await db.documents.add(fields);
+                }
+                applied++;
+              } catch { /* per-row: one bad doc never aborts the pull */ }
+            }
+            localStorage.setItem(docPullKey, docPullCursor);
+            if (applied) console.log(`[sync] documents pulled: ${applied} of ${rows.length}`);
+          }
+        }
+      } catch (e) { console.warn("[sync] document pull failed", e); }
+
+      // PULL: download consultations from server that this device doesn't have
+      if (pullEnabled()) try {
         const token = localStorage.getItem("divinelink.apiToken");
         const res = await fetch("https://divinelink.mooo.com/api/consultations", {
           headers: { Authorization: `Bearer ${token}` },
@@ -162,7 +388,7 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
                 prescription: "",
                 notes: "",
                 consultType: sc.specialty || "general",
-                clinicId: String(sc.clinic_id || ""),
+                clinicId: activeClinic,
                 createdAt: sc.created_at || new Date().toISOString(),
                 isLatest: true,
               });

@@ -80,6 +80,10 @@ export interface Antecedents {
 export interface Patient {
   id?: number;
   patientId: string;
+  /** Stable, cross-device unique id (UUID). The sync key. */
+  uid?: string;
+  /** Soft-delete tombstone. Deleted rows sync but are hidden from the UI. */
+  deleted?: boolean;
   /** Anonymous shareable code */
   anonCode?: string;
   /** External clinic ID (from Excel import) */
@@ -95,9 +99,43 @@ export interface Patient {
   /** Optional profile photo as base64 data URL */
   photo?: string;
   antecedents?: Antecedents;
+  /** Registration audit — who created this patient record, and when. */
+  registeredBy?: string;
+  registeredById?: number;
+  registeredAt?: string;
+  /** Intent captured at registration */
+  visitType?: PatientVisitType;
+  /** Treatment type / reason for the visit at registration (resolved label) */
+  reasonForVisit?: string;
+  /** Biological sex — M/F. Non-indexed, so no Dexie version bump needed. */
+  sex?: "M" | "F";
+  /** Quartier / neighbourhood — for catchment statistics. Non-indexed. */
+  quarter?: string;
+  /** Who referred / sent the patient (person, clinic, campaign…) — for statistics. Non-indexed. */
+  referredBy?: string;
+  /** Follow-up: this visit is a treatment control. Non-indexed. */
+  treatmentControl?: boolean;
+  /** Follow-up note: what was done / to do. Non-indexed. */
+  followUpNote?: string;
+  /** Services requested at this visit (Consultation, Échographie, Labo…). Non-indexed. */
+  servicesRequested?: string[];
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Why the patient is being registered right now. */
+export type PatientVisitType = "new_consultation" | "rendezvous" | "old_consultation";
+
+/** Configurable treatment type / reason for visit (échographie, dentaire, ophtalmo…). */
+export interface VisitReason {
+  id?: number;
+  clinicId?: string;
+  /** stable slug key */
+  value: string;
+  fr: string;
+  en: string;
+  createdAt: string;
 }
 
 export type PaymentStatus = "paid" | "partial" | "unpaid";
@@ -112,10 +150,24 @@ export interface PaymentInstallment {
   notes?: string;
 }
 
+/** A single billed line on a facture (service, lab, consumable or drug). */
+export interface PaymentLineItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  lot?: string;        // batch/LOT number (shown on the receipt)
+  drugId?: number;     // set when the line came from the pharmacy (stock was decremented)
+  category?: string;
+}
+
 export interface Payment {
   id?: number;
   patientId: number;
   consultationId?: number;
+  /** Human invoice number, e.g. "0005020". */
+  invoiceNumber?: string;
+  /** Itemized lines (new facture flow). Legacy payments may have none. */
+  items?: PaymentLineItem[];
   label?: string;
   amountDue: number;
   amountPaid: number;
@@ -126,6 +178,10 @@ export interface Payment {
   dueDate?: string;
   installments?: PaymentInstallment[];
   notes?: string;
+  /** Manual historical/back-fill entry (does NOT touch stock). Non-indexed. */
+  backfill?: boolean;
+  /** Cost of goods for this entry, for profit = amountPaid − costTotal. Non-indexed. */
+  costTotal?: number;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
@@ -177,7 +233,7 @@ export interface Appointment {
   updatedAt: string;
 }
 
-export type ConsultationType = "general" | "dental" | "orthodontic" | "prosthesis" | "other";
+export type ConsultationType = "general" | "dental" | "orthodontic" | "prosthesis" | "echography" | "other";
 
 export interface ProsthesisRecord {
   type?: string;
@@ -194,6 +250,10 @@ export interface ProsthesisRecord {
 
 export interface Consultation {
   id?: number;
+  /** Stable cross-device unique id (UUID) — the sync key. */
+  uid?: string;
+  /** Soft-delete tombstone. */
+  deleted?: boolean;
   patientId: number;
   doctorId: number;
   date: string;
@@ -244,7 +304,23 @@ export interface Consultation {
   customFields?: Record<string, any>;
   /** Prosthesis details (when consultType = prosthesis) */
   prosthesis?: ProsthesisRecord;
+  /** Public-health programme this visit belongs to (screening/ANC/etc.). Non-indexed. */
+  program?: PublicHealthProgram;
+  /** Screening result when the programme is a test (VIH, hépatite…). */
+  programResult?: "positif" | "negatif" | "indetermine";
+  /** CPN (antenatal) visit number 1–4+. */
+  cpnNumber?: number;
+  /** Visit purpose for stats: new case, follow-up, scheduled rdv, other. */
+  visitPurpose?: "nouveau" | "suivi" | "rendezvous" | "autre";
+  /** True when the patient already existed before today (returning visit). */
+  isReturning?: boolean;
+  /** Snapshot of the diagnosis from the patient's previous visit (context/stats). */
+  lastDiagnosis?: string;
 }
+
+/** Public-health programmes tracked for NGO / MoH reporting. */
+export type PublicHealthProgram =
+  | "vih" | "hepatite_b" | "hepatite_c" | "cpn" | "tb" | "pf" | "vaccination" | "paludisme";
 
 /* ── Observation templates ── */
 export type TemplateSpecialty = "general" | "dental" | "orthodontic" | "other";
@@ -332,9 +408,16 @@ export interface Drug {
   id?: number;
   name: string;
   category: string;
-  stock: number;
+  stock: number;             // stock au comptoir / pharmacie (dispensing), compté en unité de vente (ex: plaquette)
+  stockMagasin?: number;     // stock au magasin / réserve centrale
+  minStockMagasin?: number;  // seuil d'alerte magasin
   initialStock?: number;
-  unit: string;
+  unit: string;              // unité de VENTE (ex: plaquette, ampoule, flacon, unité)
+  packSize?: number;         // nb d'unités de vente par boîte d'achat (ex: 10 plaquettes/boîte); buyPrice = prix de la boîte
+  saleLabel?: string;        // libellé optionnel (ex: "500 F / plaquette")
+  uid?: string;              // identité stable inter-appareils (sync pharmacie)
+  syncBaseStock?: number;    // stock de référence au moment de l'enrôlement sync
+  syncBaseAt?: string;       // horodatage du stock de référence; stock dérivé = base + Σ(txs après)
   buyPrice: number;
   sellPrice: number;
   expiration?: string;
@@ -350,6 +433,8 @@ export interface Drug {
 
 export interface DrugTransaction {
   id?: number;
+  uid?: string;        // identité stable inter-appareils (événement append-only)
+  drugUid?: string;    // uid du médicament concerné (stable inter-appareils)
   drugId: number;
   type: TransactionType;
   quantity: number;
@@ -391,6 +476,10 @@ export type DocumentSource =
 
 export interface Document {
   id?: number;
+  /** Stable cross-device unique id (UUID) — the sync key. */
+  uid?: string;
+  /** Soft-delete tombstone. */
+  deleted?: boolean;
   patientId: number;
   name: string;
   type: string;
@@ -420,7 +509,9 @@ export interface UiPreference {
 export interface EquipmentItem {
   id?: number;
   name: string;
-  stock: number;
+  stock: number;              // quantité en service / au poste (subset)
+  stockMagasin?: number;      // réserve au magasin central
+  minStockMagasin?: number;   // seuil d'alerte magasin
   lowStockThreshold: number;
   priority?: number;
   /** Optional unit (e.g. "boîte", "kit", "unité") */
@@ -527,7 +618,11 @@ export type AuditEventType =
   | "audit_export"
   | "payment_create" | "payment_update" | "payment_delete" | "payment_installment"
   | "drug_create" | "drug_update" | "drug_delete"
-  | "drug_receive" | "drug_dispense";
+  | "drug_receive" | "drug_dispense"
+  | "lab_order" | "lab_result" | "lab_delete"
+  | "reagent_create" | "reagent_update" | "reagent_in" | "reagent_out" | "reagent_delete"
+  | "magasin_box" | "magasin_item" | "magasin_receive" | "magasin_transfer" | "magasin_delete"
+  | "invoice_create";
 
 export interface AuditLog {
   id?: number;
@@ -720,7 +815,135 @@ export const EQUIPMENT_LIST: string[] = [
   "Colles pour brackets",
 ];
 
+/** A box / category in the central store (Magasin). */
+export interface MagasinBox {
+  id?: number;
+  label: string;
+  order?: number;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A master article in the central store. Reserve that can be routed to the
+ *  pharmacy counter OR the equipment/supply side on transfer. */
+export interface MagasinItem {
+  id?: number;
+  name: string;
+  boxId?: number;
+  type?: string;            // Médicament / Consommable / Équipement / Autre
+  unit?: string;
+  stockMagasin: number;     // quantity held in the store
+  minStockMagasin?: number;
+  buyPrice?: number;
+  sellPrice?: number;
+  batchNumber?: string;
+  expiration?: string;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A laboratory order / result for a patient. */
+export interface LabResult {
+  id?: number;
+  uid?: string;
+  patientId: number;
+  examId: string;
+  examName: string;
+  category?: string;
+  values?: Record<string, string>;
+  notes?: string;
+  /** Free-text result body for custom (non-catalogue) analyses. */
+  freeResult?: string;
+  /** Reagents consumed for this analysis (deducted from reagent stock). */
+  reagentsUsed?: { reagentId: number; name: string; qty: number }[];
+  /** True once reagentsUsed has been deducted from stock (guards against double-deduct). */
+  reagentsDeducted?: boolean;
+  status: "ordered" | "completed";
+  /** Price billed for this analysis (for the lab receipt / facture). */
+  price?: number;
+  /** Facture number if this order was billed at creation. */
+  invoiceNumber?: string;
+  orderedBy?: string;
+  resultBy?: string;
+  orderedAt: string;
+  resultAt?: string;
+  deleted?: boolean;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A laboratory reagent (réactif) — stock tracked like pharmacy. */
+export interface LabReagent {
+  id?: number;
+  name: string;
+  unit?: string;
+  stock: number;
+  minStock?: number;
+  unitCost?: number;       // cost per unit (for cost-per-test)
+  expiration?: string;     // date de péremption (ISO or free text)
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** An in/out movement of a reagent (entrée / sortie). */
+export interface LabReagentMovement {
+  id?: number;
+  reagentId: number;
+  reagentName: string;
+  type: "in" | "out";       // entrée / sortie
+  quantity: number;
+  reason?: string;
+  patientId?: number;
+  performedBy?: string;
+  clinicId?: string;
+  createdAt: string;
+}
+
+/** A lab test / panel: groups analyses and the reagents it consumes (recipe). */
+export interface LabTest {
+  id?: number;
+  uid?: string;
+  name: string;
+  category?: string;
+  /** Analyses contained in this test, e.g. ["ASAT","ALAT","GGT"]. */
+  analyses?: string[];
+  /** Reagent recipe — what one test consumes, deducted at order time. */
+  recipe?: { reagentId: number; name: string; qty: number }[];
+  price?: number;
+  deleted?: boolean;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** A pharmacy prescription + dispensation for a patient. Records prescribed vs given. */
+export interface Prescription {
+  id?: number;
+  uid?: string;
+  patientId: number;
+  patientName?: string;
+  lines: { drugId?: number; name: string; unitPrice: number; qtyPrescribed: number; qtyDispensed: number; free?: boolean }[];
+  total: number;        // billable total (free lines excluded)
+  invoiceNumber?: string;
+  prescribedBy?: string;
+  deleted?: boolean;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 class DentaDB extends Dexie {
+  magasinItems!: Table<MagasinItem>;
+  magasinBoxes!: Table<MagasinBox>;
+  labResults!: Table<LabResult>;
+  labReagents!: Table<LabReagent>;
+  labReagentMovements!: Table<LabReagentMovement>;
+  labTests!: Table<LabTest>;
+  prescriptions!: Table<Prescription>;
   users!: Table<User>;
   patients!: Table<Patient>;
   appointments!: Table<Appointment>;
@@ -747,6 +970,7 @@ class DentaDB extends Dexie {
   privateDocs!: Table<PrivateDoc>;
   quickTemplates!: Table<QuickTemplate>;
   customCategories!: Table<CustomCategory>;
+  visitReasons!: Table<VisitReason>;
   wards!: Table<Ward>;
   beds!: Table<Bed>;
   admissions!: Table<Admission>;
@@ -1096,6 +1320,83 @@ class DentaDB extends Dexie {
       admissions: "++id, patientId, wardId, bedId, status, admittedAt, dischargedAt, clinicId",
       careNotes: "++id, admissionId, patientId, createdAt, clinicId",
     });
+    // v21: sync foundations — stable uid, deleted tombstone, updatedAt index on patients.
+    // Backfills uid/deleted/updatedAt for existing rows so every patient is syncable.
+    this.version(21).stores({
+      patients: "++id, uid, patientId, anonCode, externalId, firstName, lastName, phone, clinicId, deleted, updatedAt",
+    }).upgrade(async tx => {
+      await tx.table("patients").toCollection().modify((p: any) => {
+        if (!p.uid) p.uid = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        if (p.deleted === undefined) p.deleted = false;
+        if (!p.updatedAt) p.updatedAt = p.createdAt || new Date().toISOString();
+      });
+    });
+    // v22: registration metadata (registeredBy/At, visitType, reasonForVisit) +
+    // configurable visit-reason / treatment-type list. Additive.
+    this.version(22).stores({
+      patients: "++id, uid, patientId, anonCode, externalId, firstName, lastName, phone, clinicId, deleted, updatedAt, registeredAt, registeredBy",
+      visitReasons: "++id, value, clinicId, createdAt",
+    }).upgrade(async tx => {
+      await tx.table("patients").toCollection().modify((p: any) => {
+        if (!p.registeredAt) p.registeredAt = p.createdAt || new Date().toISOString();
+      });
+    });
+    // v23: documents get a stable uid + deleted tombstone (Phase 2 — stops the
+    // server-side duplication of pictures). Additive; backfills existing docs.
+    this.version(23).stores({
+      documents: "++id, uid, patientId, name, tag, treatmentCategory, createdAt, updatedAt, deleted, clinicId",
+    }).upgrade(async tx => {
+      await tx.table("documents").toCollection().modify((d: any) => {
+        if (!d.uid) d.uid = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        if (d.deleted === undefined) d.deleted = false;
+        if (!d.updatedAt) d.updatedAt = d.createdAt || new Date().toISOString();
+      });
+    });
+    // v24: consultations get a stable uid + deleted tombstone (Phase 2 — the
+    // server was colliding on the device-local id and overwriting other
+    // devices' consultations). Additive; backfills existing rows.
+    this.version(24).stores({
+      consultations: "++id, uid, patientId, doctorId, date, parentId, originalId, isLatest, templateId, deleted, clinicId",
+    }).upgrade(async tx => {
+      await tx.table("consultations").toCollection().modify((c: any) => {
+        if (!c.uid) c.uid = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        if (c.deleted === undefined) c.deleted = false;
+      });
+    });
+
+    // v25: central store (Magasin) — master articles + boxes, flexible routing.
+    this.version(25).stores({
+      magasinItems: "++id, name, boxId, type, clinicId, createdAt",
+      magasinBoxes: "++id, label, order, clinicId, createdAt",
+    });
+
+    // v26: laboratory orders & results.
+    this.version(26).stores({
+      labResults: "++id, uid, patientId, examId, status, clinicId, createdAt",
+    });
+
+    // v27: laboratory reagents (réactifs) — stock in/out tracking.
+    this.version(27).stores({
+      labReagents: "++id, name, clinicId, createdAt",
+      labReagentMovements: "++id, reagentId, type, patientId, clinicId, createdAt",
+    });
+
+    // v28: lab test catalogue — a test groups analyses + a reagent recipe (bill of materials).
+    this.version(28).stores({
+      labTests: "++id, uid, name, clinicId, createdAt",
+    });
+
+    // v29: pharmacy prescriptions / dispensations — prescribed vs actually dispensed per patient.
+    this.version(29).stores({
+      prescriptions: "++id, uid, patientId, clinicId, createdAt",
+    });
+
+    // v30: pharmacy multi-device sync — uid-keyed drugs + append-only, uid-keyed
+    // drug transactions (event-sourced stock). Added indexes only; additive.
+    this.version(30).stores({
+      drugs: "++id, name, category, status, clinicId, uid",
+      drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId, uid, drugUid",
+    });
   }
 }
 
@@ -1232,7 +1533,33 @@ export async function seedDatabase() {
     );
   }
 
+  await seedVisitReasons();
+
   await seedBuiltinTemplates();
+}
+
+/** Default treatment types / reasons for visit. Clinics can add their own. */
+const DEFAULT_VISIT_REASONS: Array<{ value: string; fr: string; en: string }> = [
+  { value: "general",       fr: "Consultation générale",     en: "General consultation" },
+  { value: "dental",        fr: "Consultation dentaire",     en: "Dental consultation" },
+  { value: "ophthalmology", fr: "Consultation ophtalmologue", en: "Ophthalmology consultation" },
+  { value: "ultrasound",    fr: "Échographie",               en: "Ultrasound (échographie)" },
+  { value: "lab",           fr: "Analyses / Laboratoire",    en: "Lab tests" },
+  { value: "prenatal",      fr: "Consultation prénatale",    en: "Prenatal consultation" },
+  { value: "vaccination",   fr: "Vaccination",               en: "Vaccination" },
+  { value: "dressing",      fr: "Pansement / Soins",         en: "Dressing / Wound care" },
+  { value: "followup",      fr: "Suivi / Contrôle",          en: "Follow-up" },
+];
+
+export async function seedVisitReasons() {
+  try {
+    const count = await db.visitReasons.count();
+    if (count > 0) return;
+    const now = new Date().toISOString();
+    await db.visitReasons.bulkAdd(
+      DEFAULT_VISIT_REASONS.map(r => ({ ...r, createdAt: now }))
+    );
+  } catch { /* non-fatal */ }
 }
 
 // ─── Built-in consultation templates (A / B / C) ─────────────────────────────

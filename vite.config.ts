@@ -14,6 +14,11 @@ export default defineConfig(() => ({
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
   build: {
+    // Keep previous builds' hashed assets in dist/ across deploys. A device
+    // still running an older index.html can then load its (older) chunks
+    // instead of hitting a 404 → "failed to fetch dynamically imported module".
+    // Prune dist/assets occasionally to reclaim space.
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         manualChunks: {

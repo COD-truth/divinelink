@@ -41,6 +41,59 @@ export function ClinicSettingsPage({ onSaved, embedded }: Props) {
     set("logo", data);
   };
 
+  // ── Join / switch to another clinic (wipes THIS clinic's data on THIS device) ──
+  const [switchName, setSwitchName] = useState("");
+  const [switchCode, setSwitchCode] = useState("");
+  const [switchPin, setSwitchPin] = useState("");
+  const [switchBusy, setSwitchBusy] = useState(false);
+
+  const wipeClinicalData = async () => {
+    const { db } = await import("@/lib/db");
+    const tables = ["patients", "consultations", "appointments", "documents", "payments", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
+    for (const t of tables) { try { await (db as any)[t]?.clear(); } catch { /* ignore */ } }
+    try { localStorage.removeItem("dl.lastSyncAt"); } catch { /* ignore */ }
+    // Reset per-clinic sync cursors so the new clinic re-downloads in full.
+    // Without this, the wiped device thinks it is already synced and pulls nothing.
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith("dl.lastSync."))
+        .forEach(k => localStorage.removeItem(k));
+    } catch { /* ignore */ }
+  };
+
+  const doSwitchClinic = async () => {
+    const cn = switchName.trim(), c = switchCode.trim();
+    if (!cn || !c || switchPin.length < 4) { toast.error(fr ? "Nom, code et PIN requis" : "Name, code and PIN required"); return; }
+    if (!window.confirm(fr ? "Changer de clinique effacera les données de la clinique actuelle sur CET appareil (elles restent sur le serveur). Continuer ?" : "Switching clinic will erase the current clinic's data on THIS device (it stays safe on the server). Continue?")) return;
+    setSwitchBusy(true);
+    try {
+      const res = await fetch("https://divinelink.mooo.com/api/clinic/verify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: c, pin: switchPin, name: cn }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.token) {
+        await wipeClinicalData();
+        localStorage.setItem("divinelink.apiToken", data.token);
+        localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
+        try {
+          const { hashPin, db } = await import("@/lib/db");
+          const role = (data.role || "receptionist") as any;
+          const pinHash = await hashPin(switchPin);
+          const existing = await db.users.where("role").equals(role).first();
+          if (existing?.id) await db.users.update(existing.id, { pinHash, active: true });
+        } catch { /* non-fatal */ }
+        saveClinicSettings({ ...((getClinicSettings() as any) || {}), clinicId: generateClinicId(), name: data.clinic_name || cn, currency: "FCFA", createdAt: new Date().toISOString() });
+        toast.success(fr ? `Basculé vers ${data.clinic_name} (${data.role})` : `Switched to ${data.clinic_name} (${data.role})`);
+        setTimeout(() => window.location.reload(), 900);
+      } else if (res.status === 401) toast.error(fr ? "PIN du personnel invalide" : "Invalid staff PIN");
+      else if (res.status === 409) toast.error(fr ? "Le nom ne correspond pas" : "Clinic name doesn't match");
+      else if (res.status === 404) toast.error(fr ? "Code clinique invalide" : "Invalid clinic code");
+      else toast.error(fr ? "Échec du changement" : "Switch failed");
+    } catch { toast.error(fr ? "Serveur injoignable" : "Server unreachable"); }
+    finally { setSwitchBusy(false); }
+  };
+
 const [clinicCode, setClinicCode] = useState("");
 const createWorkspace = async () => {
     if (!s.name.trim()) {
@@ -71,19 +124,35 @@ const createWorkspace = async () => {
       toast.error(fr ? "Nom de la clinique requis" : "Clinic name required");
       return;
     }
-    // If a clinic code is entered, verify against the server and link this device
+    // If a clinic code is entered, verify against the server and link this
+    // device. Linking now needs the staff PIN (the server decides the role).
     if (clinicCode.trim()) {
+      const pin = (window.prompt(fr ? "PIN du personnel (admin 1111 · médecin 2222 · secrétaire 3333) :" : "Staff PIN (admin 1111 · doctor 2222 · reception 3333):") || "").trim();
+      if (pin.length < 4) { toast.error(fr ? "PIN requis" : "PIN required"); return; }
       try {
         const res = await fetch("https://divinelink.mooo.com/api/clinic/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: clinicCode.trim() }),
+          body: JSON.stringify({ code: clinicCode.trim(), pin, name: s.name.trim() }),
         });
-        const data = await res.json();
-        if (data.token) {
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.token) {
           localStorage.setItem("divinelink.apiToken", data.token);
           localStorage.setItem("divinelink.clinicId", String(data.clinic_id));
-          toast.success(fr ? `Clinique liée: ${data.clinic_name}` : `Linked: ${data.clinic_name}`);
+          try {
+            const { db, hashPin } = await import("@/lib/db");
+            const role = (data.role || "receptionist") as any;
+            const pinHash = await hashPin(pin);
+            const existing = await db.users.where("role").equals(role).first();
+            if (existing?.id) await db.users.update(existing.id, { pinHash, active: true });
+          } catch { /* non-fatal */ }
+          toast.success(fr ? `Clinique liée: ${data.clinic_name} (${data.role})` : `Linked: ${data.clinic_name} (${data.role})`);
+        } else if (res.status === 401) {
+          toast.error(fr ? "PIN du personnel invalide" : "Invalid staff PIN");
+          return;
+        } else if (res.status === 409) {
+          toast.error(fr ? "Le nom ne correspond pas" : "Clinic name doesn't match");
+          return;
         } else {
           toast.error(fr ? "Code clinique invalide" : "Invalid clinic code");
           return;
@@ -118,6 +187,23 @@ const createWorkspace = async () => {
           <h1 className="text-2xl font-bold">{fr ? "Paramètres clinique" : "Clinic settings"}</h1>
         </div>
       )}
+
+      <Card className="p-5 mb-4 border-2 border-cyan-500/40 bg-cyan-50/40">
+        <h2 className="font-bold text-base mb-1">{fr ? "Rejoindre / changer de clinique" : "Join / switch clinic"}</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          {fr ? "Lier cet appareil à une autre clinique. Les données de la clinique actuelle sur cet appareil seront effacées (elles restent sur le serveur)." : "Link this device to another clinic. The current clinic's data on this device will be erased (it stays safe on the server)."}
+        </p>
+        <div className="space-y-2">
+          <Input value={switchName} onChange={e => setSwitchName(e.target.value)} placeholder={fr ? "Nom exact de la clinique" : "Exact clinic name"} />
+          <Input value={switchCode} onChange={e => setSwitchCode(e.target.value.toUpperCase())} placeholder={fr ? "Code clinique" : "Clinic code"} />
+          <Input type="password" inputMode="numeric" maxLength={6} value={switchPin}
+            onChange={e => setSwitchPin(e.target.value.replace(/\D/g, ""))}
+            placeholder={fr ? "PIN (admin 1111 · médecin 2222 · secrétaire 3333)" : "PIN (admin 1111 · doctor 2222 · reception 3333)"} />
+          <Button onClick={doSwitchClinic} disabled={switchBusy} className="w-full">
+            {switchBusy ? "…" : (fr ? "Rejoindre cette clinique" : "Join this clinic")}
+          </Button>
+        </div>
+      </Card>
 
       <Card className="p-5 space-y-4">
         {s.clinicId && (

@@ -1,10 +1,15 @@
 /* ============================================================
-   DivineLink Service Worker v7
-   Strategy: cache-first for static assets, stale-while-revalidate
-   for navigation. Offline fallback page for failed navigations.
+   DivineLink Service Worker
+   Strategy: NETWORK-FIRST for the HTML shell (so a fresh build's
+   index — with current chunk hashes — always wins when online),
+   cache-first for hashed static assets. Offline fallback page.
+
+   CACHE_NAME MUST contain the literal "divinelink-BUILD_VERSION":
+   the deploy stamps it with a unique version each build so the
+   browser sees a changed SW, updates, and drops the stale cache.
    ============================================================ */
 
-const CACHE_NAME = "divinelink-v7";
+const CACHE_NAME = "divinelink-BUILD_VERSION";
 
 /* Static shell — always precached on install */
 const PRECACHE_URLS = [
@@ -74,35 +79,24 @@ self.addEventListener("fetch", (event) => {
   /* Skip Chrome extension and dev tool requests */
   if (url.pathname.startsWith("/__") || url.pathname.startsWith("/chrome-extension")) return;
 
-  /* ── Navigation requests (page loads) ─────────────────────── */
+  /* ── Navigation requests (page loads) — NETWORK-FIRST ─────────
+     Always try to fetch the fresh index.html so a device online
+     gets the CURRENT build's chunk references (no stale index →
+     no "failed to fetch dynamically imported module"). Fall back
+     to the cached shell only when the network is unavailable. */
   if (request.mode === "navigate") {
     event.respondWith(
       (async () => {
-        /* Try cache first (instant load) */
+        try {
+          const networkRes = await fetch(request);
+          if (networkRes && networkRes.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put("/index.html", networkRes.clone()).catch(() => {});
+            return networkRes;
+          }
+        } catch { /* offline — fall through to cache */ }
         const cached = await caches.match("/index.html");
-
-        /* Revalidate in background */
-        const networkPromise = fetch(request)
-          .then(async (res) => {
-            if (res.ok) {
-              const cache = await caches.open(CACHE_NAME);
-              cache.put("/index.html", res.clone()).catch(() => {});
-            }
-            return res;
-          })
-          .catch(() => null);
-
-        if (cached) {
-          /* Serve cache immediately, update silently */
-          event.waitUntil(networkPromise);
-          return cached;
-        }
-
-        /* Not in cache yet — try network */
-        const networkRes = await networkPromise;
-        if (networkRes && networkRes.ok) return networkRes;
-
-        /* Truly offline and not cached — show offline page */
+        if (cached) return cached;
         const offlinePage = await caches.match("/offline.html");
         return offlinePage || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
       })()

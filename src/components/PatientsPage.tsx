@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { db, generatePatientId, generateAnonCode, type Patient } from "@/lib/db";
+import { db, generatePatientId, generateAnonCode, seedVisitReasons, type Patient, type VisitReason, type PatientVisitType } from "@/lib/db";
 import { useLang } from "@/contexts/LangContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { getClinicId } from "@/lib/clinicSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, TriangleAlert as AlertTriangle, Trash2, Upload, X, Download, Copy, Share2, CalendarPlus, Camera, QrCode, Printer } from "lucide-react";
 import { getClinicSettings } from "@/lib/clinicSettings";
@@ -21,8 +24,13 @@ import { PatientProfile } from "@/components/PatientProfile";
 import { AttachmentsField, readFileAsDataUrl } from "@/components/AttachmentsField";
 
 export function PatientsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const { user } = useAuth();
+  const tr = (fr: string, en: string) => (lang === "en" ? en : fr);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [visitReasons, setVisitReasons] = useState<VisitReason[]>([]);
+  const [addingReason, setAddingReason] = useState(false);
+  const [newReason, setNewReason] = useState("");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -32,19 +40,36 @@ export function PatientsPage() {
   const [paySummary, setPaySummary] = useState<Record<number, { status: "paid"|"partial"|"unpaid"; balance: number }>>({});
   const [lastVisitMap, setLastVisitMap] = useState<Record<number, { days: number; lastDx: string }>>({});
 
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  const nowTimeStr = () => new Date().toTimeString().slice(0, 5);
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
     dob: "",
     age: "",
+    sex: "" as "M" | "F" | "",
     address: "",
+    quarter: "",
+    referredBy: "",
+    treatmentControl: false,
+    followUpNote: "",
+    services: [] as string[],
     medicalAlerts: "",
     photo: "" as string | undefined,
+    visitType: "new_consultation" as PatientVisitType,
+    reason: "",            // resolved label of the treatment type / reason
+    reasonValue: "",       // slug of the selected VisitReason (or "custom")
+    visitDate: todayStr(),
+    visitTime: nowTimeStr(),
   });
   const [pendingDocs, setPendingDocs] = useState<File[]>([]);
 
   const load = async () => {
-    const all = await db.patients.reverse().toArray();
+    // Clinic isolation: show only patients belonging to the active clinic
+    // (untagged rows are still shown; rows tagged to ANOTHER clinic are hidden).
+    const activeClinic = localStorage.getItem("divinelink.clinicId");
+    const inClinic = (p: Patient) => !activeClinic || !p.clinicId || String(p.clinicId) === String(activeClinic);
+    const all = (await db.patients.reverse().toArray()).filter(p => !p.deleted && inClinic(p));
     const dec = await decryptPatients(all);
     setPatients(dec);
     const summary: Record<number, { status: "paid"|"partial"|"unpaid"; balance: number }> = {};
@@ -67,7 +92,13 @@ export function PatientsPage() {
     setLastVisitMap(visitMap);
   };
 
-  useEffect(() => { load(); }, []);
+  const loadReasons = async () => {
+    await seedVisitReasons();
+    const list = await db.visitReasons.toArray();
+    setVisitReasons(list);
+  };
+
+  useEffect(() => { load(); loadReasons(); }, []);
 
   const filtered = patients.filter(p => {
     const q = search.toLowerCase();
@@ -87,9 +118,34 @@ export function PatientsPage() {
     `DivineLink Referral\n--------------------\nAnonymous ID: ${p.anonCode || p.patientId}\nMedical alerts: ${p.medicalAlerts || "—"}\nDate: ${new Date().toLocaleDateString()}\n\n(No identifying personal data is shared.)`;
 
   const openNew = () => {
-    setForm({ fullName: "", phone: "", dob: "", age: "", address: "", medicalAlerts: "", photo: "" });
+    setForm({
+      fullName: "", phone: "", dob: "", age: "", sex: "", address: "", quarter: "", referredBy: "", treatmentControl: false, followUpNote: "", services: [], medicalAlerts: "", photo: "",
+      visitType: "new_consultation", reason: "", reasonValue: "",
+      visitDate: todayStr(), visitTime: nowTimeStr(),
+    });
+    setAddingReason(false);
+    setNewReason("");
     setPendingDocs([]);
     setDialogOpen(true);
+  };
+
+  const reasonLabel = (r: VisitReason) => (lang === "en" ? r.en : r.fr) || r.value;
+
+  const addCustomReason = async () => {
+    const label = newReason.trim();
+    if (!label) return;
+    const value = label.toLowerCase().replace(/\s+/g, "_").replace(/[^\w]/g, "").slice(0, 40) || `custom_${Date.now()}`;
+    const cid = getClinicId();
+    // Reuse an existing reason with the same label instead of duplicating.
+    const existing = visitReasons.find(r => r.fr.toLowerCase() === label.toLowerCase() || r.en.toLowerCase() === label.toLowerCase());
+    if (!existing) {
+      await db.visitReasons.add({ value, fr: label, en: label, clinicId: cid, createdAt: new Date().toISOString() });
+    }
+    const chosen = existing?.value || value;
+    await loadReasons();
+    setForm(f => ({ ...f, reasonValue: chosen, reason: label }));
+    setAddingReason(false);
+    setNewReason("");
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,6 +160,7 @@ export function PatientsPage() {
 
   const save = async () => {
     if (!form.fullName.trim()) { toast.error(t("patient.fullName")); return; }
+    if (!form.sex) { toast.error(tr("Sexe obligatoire (M/F)", "Sex is required (M/F)")); return; }
     const { firstName, lastName } = splitFullName(form.fullName);
     const ageNum = form.age ? parseInt(form.age) : undefined;
     const dob = form.dob || (ageNum !== undefined ? dobFromAge(ageNum) : "");
@@ -118,7 +175,57 @@ export function PatientsPage() {
     const patientId = await generatePatientId();
     const anonCode = generateAnonCode();
     const cid = localStorage.getItem("divinelink.clinicId") || undefined;
-    const newId = await db.patients.add({ ...(payload as any), patientId, anonCode, clinicId: cid, createdAt: now, updatedAt: now }) as number;
+    const uid = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    // Resolve the treatment type / reason label from the picker.
+    const chosen = visitReasons.find(r => r.value === form.reasonValue);
+    const reasonLbl = form.reason.trim() || (chosen ? ((lang === "en" ? chosen.en : chosen.fr) || chosen.value) : "");
+    const registeredBy = user?.name || "—";
+    const newId = await db.patients.add({
+      ...(payload as any), uid, deleted: false, patientId, anonCode, clinicId: cid,
+      sex: form.sex || undefined, quarter: form.quarter.trim() || undefined, referredBy: form.referredBy.trim() || undefined,
+      treatmentControl: form.treatmentControl || undefined, followUpNote: form.followUpNote.trim() || undefined, servicesRequested: form.services.length ? form.services : undefined,
+      registeredBy, registeredById: user?.id, registeredAt: now,
+      visitType: form.visitType, reasonForVisit: reasonLbl || undefined,
+      createdAt: now, updatedAt: now,
+    }) as number;
+    // Record the visit itself: an appointment for a rendez-vous, otherwise a
+    // consultation entry (new or historical) so it shows in the patient's
+    // visit history right away with who/when captured.
+    try {
+      const visitIso = form.visitDate
+        ? new Date(`${form.visitDate}T${form.visitType === "rendezvous" ? (form.visitTime || "09:00") : "00:00"}:00`).toISOString()
+        : now;
+      if (form.visitType === "rendezvous") {
+        await db.appointments.add({
+          patientId: newId,
+          doctorId: user?.id || 0,
+          date: form.visitDate || todayStr(),
+          time: form.visitTime || "09:00",
+          reason: reasonLbl || tr("Rendez-vous", "Appointment"),
+          status: "scheduled",
+          clinicId: cid,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } else {
+        await db.consultations.add({
+          patientId: newId,
+          doctorId: user?.id || 0,
+          date: visitIso,
+          symptoms: reasonLbl,
+          diagnosis: "",
+          treatmentPlan: "",
+          prescription: "",
+          notes: form.visitType === "old_consultation" ? tr("Consultation antérieure (saisie à l'enregistrement)", "Prior consultation (entered at registration)") : "",
+          consultType: form.reasonValue === "dental" ? "dental" : "general",
+          chiefComplaint: reasonLbl,
+          clinicId: cid,
+          createdAt: now,
+          editedBy: registeredBy,
+          isLatest: true,
+        });
+      }
+    } catch { /* linked visit record is best-effort */ }
     // Save initial documents attached during registration
     for (const f of pendingDocs) {
       try {
@@ -143,12 +250,16 @@ export function PatientsPage() {
   };
 
   const handleDelete = async (id: number) => {
+    // Soft delete (tombstone): mark deleted + bump updatedAt so the deletion
+    // syncs to the server and to every other device. Local child records are
+    // cleared for tidiness; the patient tombstone is what propagates.
+    const now = new Date().toISOString();
     await db.transaction("rw", [db.patients, db.consultations, db.appointments, db.documents, db.payments], async () => {
       await db.consultations.where("patientId").equals(id).delete();
       await db.appointments.where("patientId").equals(id).delete();
       await db.documents.where("patientId").equals(id).delete();
       await db.payments.where("patientId").equals(id).delete();
-      await db.patients.delete(id);
+      await db.patients.update(id, { deleted: true, updatedAt: now });
     });
     setDeleteConfirm(null);
     toast.success(t("common.delete"));
@@ -163,7 +274,13 @@ export function PatientsPage() {
       phone: p.phone || "",
       dob: p.dob || "",
       age: p.ageYears ?? ageFromDob(p.dob) ?? "",
+      sex: p.sex || "",
       address: p.address || "",
+      quarter: p.quarter || "",
+      referredBy: p.referredBy || "",
+      control: p.treatmentControl ? "Oui" : "",
+      followUp: p.followUpNote || "",
+      services: (p.servicesRequested || []).join("; "),
       medicalAlerts: p.medicalAlerts || "",
       createdAt: p.createdAt,
     }));
@@ -248,7 +365,7 @@ export function PatientsPage() {
 
       {/* New patient — minimal form */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("patient.register")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="flex items-center gap-4">
@@ -301,17 +418,134 @@ export function PatientsPage() {
               </div>
             </div>
             <div>
+              <Label>{tr("Sexe", "Sex")} *</Label>
+              <div className="flex gap-2 mt-1">
+                <Button type="button" variant={form.sex === "M" ? "default" : "outline"} className="flex-1" onClick={() => setForm(f => ({ ...f, sex: "M" }))}>M</Button>
+                <Button type="button" variant={form.sex === "F" ? "default" : "outline"} className="flex-1" onClick={() => setForm(f => ({ ...f, sex: "F" }))}>F</Button>
+              </div>
+            </div>
+            <div>
               <Label>{t("patient.phone")}</Label>
               <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{t("patient.address")}</Label>
+                <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+              </div>
+              <div>
+                <Label>{tr("Quartier", "Quarter")}</Label>
+                <Input value={form.quarter} onChange={e => setForm(f => ({ ...f, quarter: e.target.value }))} placeholder={tr("Quartier / zone", "Neighbourhood")} />
+              </div>
+            </div>
             <div>
-              <Label>{t("patient.address")}</Label>
-              <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+              <Label>{tr("Envoyé par (qui l'envoie)", "Referred by (who sent them)")}</Label>
+              <Input value={form.referredBy} onChange={e => setForm(f => ({ ...f, referredBy: e.target.value }))} placeholder={tr("Personne, clinique, campagne…", "Person, clinic, campaign…")} />
+            </div>
+            <div className="rounded-md border p-2 space-y-2">
+              <Label className="text-sm font-medium">{tr("Suivi & services", "Follow-up & services")}</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm flex-1">{tr("Contrôle de traitement ?", "Treatment control?")}</span>
+                <Button type="button" size="sm" variant={form.treatmentControl ? "default" : "outline"} className="h-7" onClick={() => setForm(f => ({ ...f, treatmentControl: !f.treatmentControl }))}>{form.treatmentControl ? tr("Oui", "Yes") : tr("Non", "No")}</Button>
+              </div>
+              <Input placeholder={tr("Ce qui a été fait / à faire…", "What was done / to do…")} value={form.followUpNote} onChange={e => setForm(f => ({ ...f, followUpNote: e.target.value }))} />
+              <div>
+                <span className="text-xs text-muted-foreground">{tr("Service(s) demandé(s)", "Service(s) requested")}</span>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {["Consultation", "Echographie", "Laboratoire", "Pharmacie", "Dentaire", "Autre"].map(s => {
+                    const on = form.services.includes(s);
+                    return <Button key={s} type="button" size="sm" variant={on ? "default" : "outline"} className="h-7 text-xs" onClick={() => setForm(f => ({ ...f, services: on ? f.services.filter(x => x !== s) : [...f.services, s] }))}>{s === "Echographie" ? "Échographie" : s}</Button>;
+                  })}
+                </div>
+              </div>
             </div>
             <div>
               <Label>{t("patient.alerts")}</Label>
               <Textarea value={form.medicalAlerts} onChange={e => setForm(f => ({ ...f, medicalAlerts: e.target.value }))} placeholder="Allergies, conditions..." />
             </div>
+
+            {/* ── Visit / consultation ── */}
+            <div className="pt-2 border-t space-y-3">
+              <Label className="text-sm font-semibold">{tr("Motif de la visite", "Reason for visit")}</Label>
+
+              {/* Visit type: new consultation / rendez-vous / old consultation */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {([
+                  { v: "new_consultation", label: tr("Nouvelle consultation", "New consultation") },
+                  { v: "rendezvous", label: tr("Rendez-vous", "Appointment") },
+                  { v: "old_consultation", label: tr("Ancienne consultation", "Past consultation") },
+                ] as { v: PatientVisitType; label: string }[]).map(opt => (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, visitType: opt.v }))}
+                    className={`text-xs rounded-md border px-2 py-2 leading-tight transition-colors ${form.visitType === opt.v ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-accent"}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Treatment type / reason with custom add */}
+              <div>
+                <Label className="text-xs text-muted-foreground">{tr("Type de soin / motif", "Treatment type / reason")}</Label>
+                {addingReason ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      value={newReason}
+                      onChange={e => setNewReason(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomReason(); } }}
+                      placeholder={tr("Ex : Kinésithérapie, ORL…", "e.g. Physiotherapy, ENT…")}
+                    />
+                    <Button type="button" size="sm" onClick={addCustomReason}>{tr("Ajouter", "Add")}</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => { setAddingReason(false); setNewReason(""); }}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Select
+                      value={form.reasonValue}
+                      onValueChange={v => {
+                        if (v === "__add__") { setAddingReason(true); return; }
+                        const r = visitReasons.find(x => x.value === v);
+                        setForm(f => ({ ...f, reasonValue: v, reason: r ? reasonLabel(r) : "" }));
+                      }}
+                    >
+                      <SelectTrigger className="flex-1"><SelectValue placeholder={tr("Choisir…", "Choose…")} /></SelectTrigger>
+                      <SelectContent>
+                        {visitReasons.map(r => (
+                          <SelectItem key={r.value} value={r.value}>{reasonLabel(r)}</SelectItem>
+                        ))}
+                        <SelectItem value="__add__">➕ {tr("Ajouter un type…", "Add a type…")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {/* When they came / appointment date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {form.visitType === "rendezvous" ? tr("Date du rendez-vous", "Appointment date") : tr("Date de la consultation", "Consultation date")}
+                  </Label>
+                  <Input type="date" value={form.visitDate} onChange={e => setForm(f => ({ ...f, visitDate: e.target.value }))} />
+                </div>
+                {form.visitType === "rendezvous" && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">{tr("Heure", "Time")}</Label>
+                    <Input type="time" value={form.visitTime} onChange={e => setForm(f => ({ ...f, visitTime: e.target.value }))} />
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                {tr("Enregistré par", "Registered by")} <span className="font-medium">{user?.name || "—"}</span> · {new Date().toLocaleString()}
+              </p>
+            </div>
+
             <div className="pt-2 border-t">
               <AttachmentsField
                 files={pendingDocs}

@@ -427,7 +427,13 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
 
 /* ---------------- Info Tab ---------------- */
 function InfoTab({ p, setP, onSave }: { p: Patient; setP: (p: Patient) => void; onSave: (p: Patient) => Promise<void> }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const tri = (fr: string, en: string) => (lang === "en" ? en : fr);
+  const visitTypeLabel = (v?: string) =>
+    v === "rendezvous" ? tri("Rendez-vous", "Appointment")
+    : v === "old_consultation" ? tri("Ancienne consultation", "Past consultation")
+    : v === "new_consultation" ? tri("Nouvelle consultation", "New consultation")
+    : "";
   const [fullName, setFullName] = useState(joinFullName(p));
   const [age, setAge] = useState<string>(p.ageYears?.toString() ?? (ageFromDob(p.dob)?.toString() ?? ""));
 
@@ -484,6 +490,19 @@ function InfoTab({ p, setP, onSave }: { p: Patient; setP: (p: Patient) => void; 
         <Textarea value={p.medicalAlerts || ""} onChange={e => setP({ ...p, medicalAlerts: e.target.value })} />
       </div>
       <Button onClick={save} className="w-full">{t("common.save")}</Button>
+
+      {/* Registration audit — read-only */}
+      {(p.registeredBy || p.reasonForVisit || p.visitType || p.registeredAt) && (
+        <div className="mt-2 rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+          {p.reasonForVisit && (
+            <p><span className="font-medium text-foreground">{tri("Motif", "Reason")}:</span> {p.reasonForVisit}{p.visitType ? ` · ${visitTypeLabel(p.visitType)}` : ""}</p>
+          )}
+          <p>
+            <span className="font-medium text-foreground">{tri("Enregistré par", "Registered by")}:</span> {p.registeredBy || "—"}
+            {p.registeredAt ? ` · ${new Date(p.registeredAt).toLocaleString()}` : (p.createdAt ? ` · ${new Date(p.createdAt).toLocaleString()}` : "")}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

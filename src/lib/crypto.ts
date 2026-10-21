@@ -191,11 +191,44 @@ export async function encryptString(plain: string): Promise<string> {
   return encryptWith(masterKeyBytes!, plain);
 }
 
-export async function decryptString(value: string): Promise<string> {
-  if (!value || typeof value !== "string" || !value.startsWith(PREFIX)) return value || "";
+/**
+ * Heuristic: does a decrypted string look like real text (not wrong-key garbage)?
+ * Wrong-key decryption yields random bytes → replacement chars / control chars.
+ * Reliable for anything but 1–2 character fields (phone/address/alerts are long).
+ */
+export function looksReadable(s: string | null | undefined): boolean {
+  if (s == null || s === "") return true;
+  if (s.includes("�")) return false;
+  let bad = 0;
+  for (const ch of s) {
+    const c = ch.codePointAt(0)!;
+    if (c < 9 || (c > 13 && c < 32)) bad++; // control chars (allow \t \n \r)
+  }
+  return bad === 0;
+}
+
+/**
+ * Decrypt and report whether the result is trustworthy. `readable:false` means
+ * the value is ciphertext this device's key cannot decode (a foreign/old row) —
+ * callers must NOT display it or push it as plaintext.
+ */
+export async function decryptStringSafe(value: string): Promise<{ text: string; readable: boolean }> {
+  if (!value || typeof value !== "string" || !value.startsWith(PREFIX)) return { text: value || "", readable: true };
   if (!masterKeyBytes) await initCrypto();
   const out = await decryptWith(masterKeyBytes!, value);
-  return out ?? "";
+  if (out == null) return { text: "", readable: false };
+  return { text: out, readable: looksReadable(out) };
+}
+
+export async function decryptString(value: string): Promise<string> {
+  const { text, readable } = await decryptStringSafe(value);
+  // Never surface wrong-key garbage to the UI — show empty instead.
+  return readable ? text : "";
+}
+
+/** True if a stored value is our ciphertext format (regardless of readability). */
+export function isCiphertext(v: unknown): boolean {
+  return typeof v === "string" && v.startsWith(PREFIX);
 }
 
 export function isEncrypted(v: unknown): boolean {

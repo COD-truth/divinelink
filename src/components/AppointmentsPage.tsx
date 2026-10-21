@@ -104,13 +104,16 @@ export function AppointmentsPage() {
       try {
         const data = file.type.startsWith("image/") ? await compressImage(file) : await fileToDataUrl(file);
         await db.documents.add({
+          uid: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`),
           patientId: patientIdNum,
           name: file.name,
           type: file.type || "application/octet-stream",
           data,
           size: file.size,
           tag: "referral",
+          clinicId: localStorage.getItem("divinelink.clinicId") || undefined,
           createdAt: now,
+          updatedAt: now,
         });
       } catch {
         toast.error(`Upload failed: ${file.name}`);

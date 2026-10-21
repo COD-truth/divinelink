@@ -147,21 +147,34 @@ export async function autoRestoreIfNeeded(): Promise<boolean> {
     const snap = pickBestSnapshot();
     if (!snap || snapshotIsEmpty(snap)) return false;
 
+    // Clinic isolation: only restore records that belong to the clinic this
+    // device is currently linked to. This stops another clinic's data from
+    // being resurrected after a clinic switch (the snapshot is clinic-blind).
+    const activeClinic = localStorage.getItem("divinelink.clinicId");
+    const keep = (arr: any[] | undefined) =>
+      (arr || []).filter((r: any) => !activeClinic || !r.clinicId || String(r.clinicId) === activeClinic);
+    const rPatients = keep(snap.data.patients);
+    const rConsults = keep(snap.data.consultations);
+    const rAppts = keep(snap.data.appointments);
+    const rDocs = keep(snap.data.documents);
+
+    if (rPatients.length + rConsults.length + rAppts.length + rDocs.length === 0) return false;
+
     await db.transaction("rw",
       [db.users, db.patients, db.appointments, db.consultations, db.documents, db.auditLogs],
       async () => {
-        if (snap.data.users?.length)         await db.users.bulkPut(snap.data.users);
-        if (snap.data.patients?.length)      await db.patients.bulkPut(snap.data.patients);
-        if (snap.data.appointments?.length)  await db.appointments.bulkPut(snap.data.appointments);
-        if (snap.data.consultations?.length) await db.consultations.bulkPut(snap.data.consultations);
-        if (snap.data.documents?.length)     await db.documents.bulkPut(snap.data.documents);
-        if (snap.data.auditLogs?.length)     await db.auditLogs.bulkPut(snap.data.auditLogs);
+        if (snap.data.users?.length)  await db.users.bulkPut(snap.data.users);
+        if (rPatients.length)         await db.patients.bulkPut(rPatients);
+        if (rAppts.length)            await db.appointments.bulkPut(rAppts);
+        if (rConsults.length)         await db.consultations.bulkPut(rConsults);
+        if (rDocs.length)             await db.documents.bulkPut(rDocs);
+        if (snap.data.auditLogs?.length) await db.auditLogs.bulkPut(snap.data.auditLogs);
       }
     );
 
     setTimeout(() => {
       toast.success("Données restaurées automatiquement ✓", {
-        description: `${snap.data.patients?.length || 0} patients, ${snap.data.consultations?.length || 0} consultations`,
+        description: `${rPatients.length} patients, ${rConsults.length} consultations`,
       });
     }, 800);
     return true;
