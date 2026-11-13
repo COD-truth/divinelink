@@ -1,4 +1,5 @@
 import { getClinicSettings } from "@/lib/clinicSettings";
+import { DOH_LOGO, DOH_HEADER } from "@/lib/dohHeader";
 
 export interface ReceiptLineItem {
   description: string;
@@ -24,6 +25,45 @@ export interface ReceiptData {
   notes?: string;
   isProforma?: boolean;
   cashier?: string;
+  /** Insurance split (tiers payant), shown when the insurer covers part. */
+  insurerName?: string;
+  coverageRate?: number;
+  insuranceCovered?: number;
+  /** Extra patient identity for the full A4 facture. */
+  patientAge?: string | number;
+  patientSex?: string;
+  patientPhone?: string;
+}
+
+/** Montant en toutes lettres (français) — up to a few millions. */
+export function montantEnLettres(n: number): string {
+  n = Math.round(n);
+  if (n === 0) return "zéro";
+  const u = ["", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
+  const d = ["", "", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante", "quatre-vingt", "quatre-vingt"];
+  const b100 = (x: number): string => {
+    if (x < 20) return u[x];
+    const t = Math.floor(x / 10), r = x % 10;
+    if (t === 7 || t === 9) return d[t] + (r + 10 === 10 ? "-dix" : "-" + u[r + 10]);
+    let s = t === 8 && r === 0 ? "quatre-vingts" : d[t];
+    if (r === 1 && t >= 2 && t <= 6) s += "-et-un";
+    else if (r > 0) s += "-" + u[r];
+    return s;
+  };
+  const b1000 = (x: number): string => {
+    const h = Math.floor(x / 100), r = x % 100;
+    let s = "";
+    if (h > 0) s += (h > 1 ? u[h] + " " : "") + "cent" + (h > 1 && r === 0 ? "s" : "");
+    if (r > 0) s += (s ? " " : "") + b100(r);
+    return s;
+  };
+  const parts: string[] = [];
+  const mil = Math.floor(n / 1000000); n %= 1000000;
+  const k = Math.floor(n / 1000); const rest = n % 1000;
+  if (mil > 0) parts.push((mil > 1 ? b1000(mil) + " " : "un ") + (mil > 1 ? "millions" : "million"));
+  if (k > 0) parts.push((k > 1 ? b1000(k) + " " : "") + "mille");
+  if (rest > 0) parts.push(b1000(rest));
+  return parts.join(" ").trim();
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -372,9 +412,19 @@ export function generateThermalReceipt(data: ReceiptData) {
       doc.text(label, mg, y); doc.text(val, W - mg, y, { align: "right" }); y += bold ? 5.5 : 4.2;
     };
     rowR("Sous-total HT:", money(subtotal));
+    const discAmt = (data.discount && data.discount > 0)
+      ? (data.discountType === "percent" ? Math.round(subtotal * data.discount / 100) : Math.min(data.discount, subtotal))
+      : 0;
+    if (discAmt > 0) rowR("Remise" + (data.discountType === "percent" ? " (" + data.discount + "%)" : "") + ":", "-" + money(discAmt));
     rowR("TVA 0%:", money(0));
     line(y); y += 4;
     rowR("Net À Payer:", money(due), true, 10);
+    const covered = data.insuranceCovered ?? 0;
+    if (covered > 0) {
+      const insurerLbl = `Assurance${data.insurerName ? " " + data.insurerName : ""}${data.coverageRate ? ` ${data.coverageRate}%` : ""}:`;
+      rowR(insurerLbl, "-" + money(covered));
+      rowR("Part patient:", money(Math.max(0, due - covered)), true, 9);
+    }
     rowR("Acompte:", money(paid));
     rowR("Reste:", money(reste), true, 9);
     y += 2;
@@ -515,5 +565,134 @@ export function generateCaisseReport(d: CaisseReportData) {
     doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(90);
     doc.text("Généré par DivineLink · " + new Date().toLocaleString("fr-FR"), W / 2, y, { align: "center" });
     doc.save("fermeture_caisse_" + new Date().toISOString().slice(0, 10) + ".pdf");
+  });
+}
+
+/**
+ * Full-page A4 "facture" modeled on the DOH'S Diagnostic Center layout:
+ * clinic header, patient block, a Désignation/Prix unitaire/Quantité/Total
+ * table, grand total, the amount written out in words, and a signature line.
+ * Header fields come from the clinic's own settings, so each clinic prints
+ * its own facture.
+ */
+export function generateFacture(data: ReceiptData) {
+  import("jspdf").then(({ jsPDF }) => {
+    const c = getClinicSettings();
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const W = 210, mg = 14, right = W - mg;
+    const money = (n: number) => Math.round(n).toLocaleString("fr-FR").replace(/ /g, " ") + " FCFA";
+    const money0 = (n: number) => Math.round(n).toLocaleString("fr-FR").replace(/ /g, " ");
+    let y = 14;
+
+    // ── Header: full DOH'S identity (logo + every line), centered, always. ──
+    const lw = 21, lh = 25;
+    // logo centered at top
+    const logoX = (W - lw) / 2;
+    try { doc.addImage(DOH_LOGO, "JPEG", logoX, y, lw, lh); } catch { /* ignore bad logo */ }
+    y += lh + 4;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(20);
+    doc.text(DOH_HEADER.name, W / 2, y, { align: "center" }); y += 5;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.setTextColor(90);
+    doc.text(DOH_HEADER.slogan, W / 2, y, { align: "center" }); y += 5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(70);
+    doc.text(`${DOH_HEADER.address1}`, W / 2, y, { align: "center" }); y += 3.8;
+    doc.text(`${DOH_HEADER.address2}`, W / 2, y, { align: "center" }); y += 3.8;
+    doc.text(`${DOH_HEADER.arrete}     ·     ${DOH_HEADER.taxId}`, W / 2, y, { align: "center" }); y += 3.8;
+    doc.text(`${DOH_HEADER.phone}     ·     Email: ${DOH_HEADER.email}`, W / 2, y, { align: "center" }); y += 3;
+    y += 2;
+
+    // ── FACTURE title band ──
+    doc.setDrawColor(30); doc.setLineWidth(0.5); doc.line(mg, y, right, y); y += 7;
+    doc.setFillColor(30, 41, 59); doc.rect(mg, y - 5, 46, 9, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(255);
+    doc.text("FACTURE", mg + 23, y + 1.3, { align: "center" });
+    doc.setTextColor(20); doc.setFontSize(9); doc.setFont("helvetica", "normal");
+    if (data.receiptNumber) doc.text("N° " + data.receiptNumber, right, y - 1, { align: "right" });
+    doc.text(data.date, right, y + 4, { align: "right" });
+    y += 12;
+
+    // ── Patient block ──
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(20);
+    doc.text("Nom: " + (data.patientName || "—"), mg, y); y += 5.5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+    const idLine = [data.patientAge ? "Âge: " + data.patientAge : "", data.patientSex ? "Sexe: " + data.patientSex : "", data.patientPhone ? "Tél: " + data.patientPhone : ""].filter(Boolean).join("     ");
+    if (idLine) { doc.text(idLine, mg, y); y += 5.5; }
+    if (data.patientId) { doc.text("Dossier: " + data.patientId, mg, y); y += 5.5; }
+    y += 2;
+
+    // ── Items table ──
+    const xDes = mg, xPU = 126, xQte = 152, xTot = right; // right edges for numeric cols
+    const rowH = 7.5;
+    const header = () => {
+      doc.setFillColor(238, 242, 247); doc.rect(mg, y, right - mg, rowH, "F");
+      doc.setDrawColor(200); doc.setLineWidth(0.2); doc.rect(mg, y, right - mg, rowH);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(40);
+      const ty = y + 5;
+      doc.text("Désignation", xDes + 2, ty);
+      doc.text("Prix unitaire", xPU, ty, { align: "right" });
+      doc.text("Qté", xQte, ty, { align: "center" });
+      doc.text("Total", xTot - 2, ty, { align: "right" });
+      y += rowH;
+    };
+    header();
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(30);
+    (data.items || []).forEach((it, i) => {
+      if (y > 262) { doc.addPage(); y = 16; header(); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(30); }
+      const lineTot = it.quantity * it.unitPrice;
+      if (i % 2 === 1) { doc.setFillColor(249, 250, 252); doc.rect(mg, y, right - mg, rowH, "F"); }
+      doc.setDrawColor(225); doc.setLineWidth(0.1); doc.rect(mg, y, right - mg, rowH);
+      const ty = y + 5;
+      const name = it.description.length > 52 ? it.description.slice(0, 51) + "…" : it.description;
+      doc.text(name, xDes + 2, ty);
+      doc.text(money0(it.unitPrice), xPU, ty, { align: "right" });
+      doc.text(String(it.quantity), xQte, ty, { align: "center" });
+      doc.text(money0(lineTot), xTot - 2, ty, { align: "right" });
+      y += rowH;
+    });
+
+    // ── Totals ──
+    const subtotal = (data.items || []).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+    const discountAmount = (data.discount && data.discount > 0)
+      ? (data.discountType === "percent" ? Math.round(subtotal * data.discount / 100) : Math.min(data.discount, subtotal))
+      : 0;
+    const due = data.amountDue ?? (subtotal - discountAmount);
+    const covered = data.insuranceCovered ?? 0;
+    // Sous-total + Remise lines (only when a remise applies)
+    if (discountAmount > 0) {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(60);
+      doc.text("Sous-total:", xDes + 2, y); doc.text(money(subtotal), xTot - 2, y, { align: "right" }); y += 5;
+      doc.text("Remise" + (data.discountType === "percent" ? " (" + data.discount + "%)" : "") + ":", xDes + 2, y);
+      doc.text("- " + money(discountAmount), xTot - 2, y, { align: "right" }); y += 6;
+    }
+    doc.setFillColor(30, 41, 59); doc.rect(mg, y, right - mg, rowH + 1, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(255);
+    doc.text("TOTAL", xDes + 2, y + 5.5);
+    doc.text(money(due), xTot - 2, y + 5.5, { align: "right" });
+    y += rowH + 5;
+
+    if (covered > 0) {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(60);
+      const insLbl = "Pris en charge" + (data.insurerName ? " (" + data.insurerName : " (assureur") + (data.coverageRate ? " " + data.coverageRate + "%" : "") + ")";
+      doc.text(insLbl + ":", xDes + 2, y); doc.text("- " + money(covered), xTot - 2, y, { align: "right" }); y += 5;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(20);
+      doc.text("Part patient:", xDes + 2, y); doc.text(money(Math.max(0, due - covered)), xTot - 2, y, { align: "right" }); y += 7;
+    }
+
+    // ── Amount in words ──
+    doc.setFont("helvetica", "italic"); doc.setFontSize(9.5); doc.setTextColor(30);
+    const words = montantEnLettres(covered > 0 ? Math.max(0, due - covered) : due).toUpperCase();
+    const sentence = `Arrêtée la présente facture à la somme de ${words} FRANCS CFA.`;
+    doc.text(doc.splitTextToSize(sentence, right - mg), mg, y + 2); y += 14;
+
+    // ── Signature ──
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(20);
+    doc.text("Le Responsable", right - 10, y, { align: "right" });
+    if (c?.doctorName) { doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(90); doc.text(c.doctorName, right - 10, y + 5, { align: "right" }); }
+
+    // ── Footer ──
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(130);
+    doc.text("Généré par DivineLink · " + new Date().toLocaleString("fr-FR"), W / 2, 288, { align: "center" });
+
+    doc.save("facture_" + (data.receiptNumber || "sans-num") + ".pdf");
   });
 }

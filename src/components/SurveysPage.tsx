@@ -599,7 +599,8 @@ function SurveyDashboard({ survey, onBack, onEdit, canEdit }: {
   };
   useEffect(() => {
     reload();
-    const id = setInterval(reload, 5000);
+    // Was every 5s (hammered IndexedDB). Now 30s, and paused when the tab is hidden.
+    const id = setInterval(() => { if (!document.hidden) reload(); }, 30000);
     return () => clearInterval(id);
   }, [survey.id]);
 

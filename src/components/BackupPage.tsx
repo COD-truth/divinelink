@@ -61,7 +61,7 @@ export function BackupPage() {
     setJsonBusy(true);
     try {
       const payload = {
-        version: 9,
+        version: 10,
         generatedAt: new Date().toISOString(),
         app: "DivineLink",
         data: {
@@ -74,6 +74,17 @@ export function BackupPage() {
           drugs: await db.drugs.toArray(),
           drugTransactions: await db.drugTransactions.toArray(),
           generatedDocs: await db.generatedDocs.toArray(),
+          // Full coverage so a backup never silently drops money, maternity or lab.
+          payments: await db.payments.toArray(),
+          expenses: await db.expenses.toArray(),
+          caisseDays: await db.caisseDays.toArray(),
+          maternityFiles: await db.maternityFiles.toArray(),
+          maternityRecords: await db.maternityRecords.toArray(),
+          ancVisits: await db.ancVisits.toArray(),
+          partographEntries: await db.partographEntries.toArray(),
+          labResults: await db.labResults.toArray(),
+          labTests: await db.labTests.toArray(),
+          labReagents: await db.labReagents.toArray(),
         },
       };
       const json = JSON.stringify(payload, null, 2);
@@ -174,6 +185,18 @@ export function BackupPage() {
         appointments: await db.appointments.toArray(),
         consultations: await db.consultations.toArray(),
         documents: await db.documents.toArray(),
+        drugs: await db.drugs.toArray(),
+        drugTransactions: await db.drugTransactions.toArray(),
+        payments: await db.payments.toArray(),
+        expenses: await db.expenses.toArray(),
+        caisseDays: await db.caisseDays.toArray(),
+        maternityFiles: await db.maternityFiles.toArray(),
+        maternityRecords: await db.maternityRecords.toArray(),
+        ancVisits: await db.ancVisits.toArray(),
+        partographEntries: await db.partographEntries.toArray(),
+        labResults: await db.labResults.toArray(),
+        labTests: await db.labTests.toArray(),
+        labReagents: await db.labReagents.toArray(),
         exportedAt: new Date().toISOString(),
       };
 

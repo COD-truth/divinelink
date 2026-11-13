@@ -5,7 +5,7 @@ import { LangToggle } from "@/components/LangToggle";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { InstallPWAButton } from "@/components/InstallPWAButton";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check, AlertTriangle, BedDouble, MapPin, Warehouse, FlaskConical, Zap, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Stethoscope, FileImage, UserCog, Database, LogOut, Menu, X, ChevronRight, ChevronDown, RefreshCw, ScrollText, ShieldCheck, ChartBar as BarChart3, PanelLeftClose, PanelLeftOpen, ClipboardList, LayoutGrid, Lock, Chrome as Home, Building2, Pill, Settings, Smile, Bell, BellRing, CreditCard, Package, Upload, GripVertical, ArrowUpDown, Check, AlertTriangle, BedDouble, MapPin, Warehouse, FlaskConical, Zap, TrendingUp, Baby } from "lucide-react";
 import { AppGuide } from "@/components/AppGuide";
 import { SyncStatus } from "@/components/SyncStatus";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,7 @@ export type Page =
   | "documents" | "diagnosis" | "users" | "backup" | "audit"
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
   | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties"
-  | "staff" | "myspace" | "docCategories" | "admissions"
+  | "staff" | "myspace" | "docCategories" | "admissions" | "maternity"
   | "minsante"
   | "expeditions"
   | "magasin"
@@ -57,7 +57,9 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === "1");
-  const [adminOpen, setAdminOpen] = useState(() => localStorage.getItem(ADMIN_GROUP_KEY) === "1");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem(ADMIN_GROUP_KEY) || "{}"); } catch { return {}; }
+  });
   const [switchOpen, setSwitchOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [pickedUser, setPickedUser] = useState<User | null>(null);
@@ -137,8 +139,21 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   }, [collapsed]);
 
   useEffect(() => {
-    localStorage.setItem(ADMIN_GROUP_KEY, adminOpen ? "1" : "0");
-  }, [adminOpen]);
+    localStorage.setItem(ADMIN_GROUP_KEY, JSON.stringify(openGroups));
+  }, [openGroups]);
+
+  // Anti-exfiltration: block long-press/right-click menus (stops "save image" and
+  // context-copy on sensitive records). Inputs keep normal text selection so the
+  // staff can still type and edit.
+  useEffect(() => {
+    const blockCtx = (e: Event) => e.preventDefault();
+    document.addEventListener("contextmenu", blockCtx);
+    const style = document.createElement("style");
+    style.setAttribute("data-dl-guard", "1");
+    style.textContent = "body{-webkit-user-select:none;user-select:none}input,textarea,[contenteditable='true']{-webkit-user-select:text;user-select:text}";
+    document.head.appendChild(style);
+    return () => { document.removeEventListener("contextmenu", blockCtx); style.remove(); };
+  }, []);
 
   useEffect(() => {
     if (switchOpen) {
@@ -172,30 +187,31 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
       items: [
         { page: "dashboard", icon: <LayoutDashboard className="w-5 h-5" />, label: t("nav.dashboard"), roles: ["admin", "doctor", "receptionist"] },
         { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "doctor", "receptionist"] },
-        { page: "massconsult", icon: <Zap className="w-5 h-5" />, label: t("nav.massconsult"), roles: ["admin", "doctor", "receptionist"] },
-        { page: "visit", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.visit"), roles: ["admin", "doctor", "receptionist"] },
         { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
         { page: "consultations", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
         { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
-        { page: "lab", icon: <FlaskConical className="w-5 h-5" />, label: t("nav.lab"), roles: ["admin", "doctor"] },
         { page: "admissions", icon: <BedDouble className="w-5 h-5" />, label: t("nav.admissions"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "maternity", icon: <Baby className="w-5 h-5" />, label: "Maternité", roles: ["admin", "doctor", "receptionist"] },
         { page: "documents", icon: <FileImage className="w-5 h-5" />, label: t("nav.documents"), roles: ["admin", "doctor"] },
       ],
     },
     {
-      key: "operations", title: "Pharmacie & Facturation",
+      key: "operations", title: "Pharmacie, Labo & Caisse",
       items: [
         { page: "magasin", icon: <Warehouse className="w-5 h-5" />, label: t("nav.magasin"), roles: ["admin", "doctor", "receptionist"] },
         { page: "pharmacy", icon: <Pill className="w-5 h-5" />, label: t("nav.pharmacy"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "lab", icon: <FlaskConical className="w-5 h-5" />, label: t("nav.lab"), roles: ["admin", "doctor"] },
         { page: "payments", icon: <CreditCard className="w-5 h-5" />, label: t("nav.payments"), roles: ["admin", "doctor", "receptionist"] },
         { page: "profits", icon: <TrendingUp className="w-5 h-5" />, label: lang === "en" ? "Profit & Back-fill" : "Bénéfices & Saisie", roles: ["admin", "doctor"] },
         { page: "equipment", icon: <Package className="w-5 h-5" />, label: t("nav.equipment"), roles: ["admin", "doctor"] },
       ],
     },
     {
-      key: "field", title: "Terrain & Recherche",
+      key: "field", title: "Terrain & Recherche", collapsible: true,
       items: [
         { page: "expeditions", icon: <MapPin className="w-5 h-5" />, label: t("nav.expeditions"), roles: ["admin", "doctor"] },
+        { page: "massconsult", icon: <Zap className="w-5 h-5" />, label: t("nav.massconsult"), roles: ["admin", "doctor", "receptionist"] },
+        { page: "visit", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.visit"), roles: ["admin", "doctor", "receptionist"] },
         { page: "surveys", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.surveys"), roles: ["admin", "doctor"] },
         { page: "research", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.statistics"), roles: ["admin", "doctor"] },
         { page: "minsante", icon: <BarChart3 className="w-5 h-5" />, label: t("nav.minsante"), roles: ["admin"] },
@@ -213,15 +229,11 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
         { page: "users", icon: <UserCog className="w-5 h-5" />, label: t("nav.users"), roles: ["admin"] },
         { page: "staff", icon: <UserCog className="w-5 h-5" />, label: t("nav.staff"), roles: ["admin", "doctor", "receptionist"] },
         { page: "clinic", icon: <Building2 className="w-5 h-5" />, label: t("nav.clinic"), roles: ["admin"] },
-        { page: "specialties", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.specialties"), roles: ["admin"] },
-        { page: "docCategories", icon: <FileImage className="w-5 h-5" />, label: t("nav.docCategories"), roles: ["admin"] },
-        { page: "templates", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.templates"), roles: ["admin"] },
         { page: "importPatients", icon: <Upload className="w-5 h-5" />, label: t("nav.importPatients"), roles: ["admin"] },
         { page: "security", icon: <ShieldCheck className="w-5 h-5" />, label: t("nav.security"), roles: ["admin"] },
         { page: "audit", icon: <ScrollText className="w-5 h-5" />, label: t("nav.audit"), roles: ["admin"] },
         { page: "backup", icon: <Database className="w-5 h-5" />, label: t("nav.backup"), roles: ["admin"] },
         { page: "sync", icon: <RefreshCw className="w-5 h-5" />, label: t("nav.sync"), roles: ["admin"] },
-        { page: "conflicts", icon: <AlertTriangle className="w-5 h-5" />, label: t("nav.conflicts"), roles: ["admin"] },
       ],
     },
   ];
@@ -381,7 +393,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
           {/* Grouped nav — each group under its own header; admin collapsible */}
           {visibleGroups.map((group, gi) => {
             const isAdminGroup = !!group.collapsible;
-            const open = !isAdminGroup || isCollapsed || adminOpen;
+            const open = !isAdminGroup || isCollapsed || !!openGroups[group.key];
             return (
               <div
                 key={group.key}
@@ -390,11 +402,11 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
                 {!isCollapsed && (
                   isAdminGroup ? (
                     <button
-                      onClick={() => setAdminOpen(o => !o)}
+                      onClick={() => setOpenGroups(g => ({ ...g, [group.key]: !g[group.key] }))}
                       className="w-full flex items-center justify-between px-3 py-1 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
                     >
                       <span className="flex items-center gap-1.5"><Settings className="w-3 h-3" />{group.title}</span>
-                      <ChevronDown className={`w-3 h-3 transition-transform ${adminOpen ? "" : "-rotate-90"}`} />
+                      <ChevronDown className={`w-3 h-3 transition-transform ${openGroups[group.key] ? "" : "-rotate-90"}`} />
                     </button>
                   ) : (
                     <div className="px-3 pt-1 pb-0.5 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 uppercase">
@@ -432,8 +444,22 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
     </>
   );
 
+  // Traceability watermark stamp (user + time), refreshes with the 30s tick.
+  const wmStamp = new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Traceability watermark over everything (incl. dialogs) — any screenshot
+          carries who viewed it and when. pointer-events-none = non-blocking. */}
+      {user && (
+        <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden select-none no-print" aria-hidden="true">
+          <div className="absolute -inset-1/3 flex flex-wrap gap-x-14 gap-y-9 rotate-[-28deg] opacity-[0.06]">
+            {Array.from({ length: 140 }).map((_, i) => (
+              <span key={i} className="text-[11px] font-semibold whitespace-nowrap text-foreground">{user.name} · {wmStamp}</span>
+            ))}
+          </div>
+        </div>
+      )}
       {/* ── Desktop sidebar: fixed, full height, never scrolls with content ── */}
       {!isMobile && (
         <>
@@ -507,7 +533,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
 
       {/* ── Main area: offset by sidebar width on desktop ── */}
       <div
-        className={`flex flex-col min-h-screen transition-all duration-300 ${
+        className={`flex flex-col h-[100dvh] transition-[padding] duration-300 ${
           !isMobile ? (collapsed ? "lg:pl-[60px]" : "lg:pl-[220px]") : ""
         }`}
       >
@@ -579,7 +605,7 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
         </header>
 
         {/* ── Page content: the ONLY thing that scrolls ── */}
-        <main className={`flex-1 p-4 md:p-6 overflow-auto animate-fade-in ${isMobile ? "pb-24" : ""}`}>
+        <main className={`flex-1 p-4 md:p-6 overflow-auto animate-fade-in ${isMobile ? "pb-40" : ""}`}>
           {children}
         </main>
       </div>

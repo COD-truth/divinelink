@@ -115,7 +115,7 @@ export function AnnotateImageModal({ open, src, onClose, onSave }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("annotate.title")}</DialogTitle>
         </DialogHeader>

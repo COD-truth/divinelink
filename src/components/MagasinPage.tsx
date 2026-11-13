@@ -277,7 +277,7 @@ export function MagasinPage() {
 
       {/* Item dialog */}
       <Dialog open={!!itemDialog} onOpenChange={v => { if (!v) setItemDialog(null); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{itemDialog && itemDialog !== "new" ? L.editItem : L.newItem}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2"><label className="text-sm">{L.name} *</label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>

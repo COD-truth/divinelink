@@ -57,8 +57,11 @@ export const LAB_CATALOGUE = [
     ]},
   ]},
   { category: "Infectiologie", exams: [
-    { id: "paludisme", name: "Test Paludisme (TDR/GE)", short: "PALU", fields: [
+    { id: "tdr_palu", name: "TDR Paludisme", short: "TDR", fields: [
       { key: "tdr_palu", label: "TDR Paludisme", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif (+)", "Positif (++)", "Positif (+++)"] },
+    ]},
+    { id: "goutte_epaisse", name: "Goutte épaisse (GE)", short: "GE", fields: [
+      { key: "ge_resultat", label: "Goutte épaisse", unit: "", min: 0, max: 0, isSelect: true, options: ["Negatif", "Positif"] },
       { key: "parasitemie", label: "Parasitemie", unit: "parasites/uL", min: 0, max: 0 },
       { key: "espece", label: "Espece parasitaire", unit: "", min: 0, max: 0, isText: true },
     ]},

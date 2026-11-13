@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { LabResultsPage } from "@/components/LabResultsPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PatientLabHistory } from "./PatientLabHistory";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -328,7 +329,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
   return (
     <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span>{joinFullName(p) || t("patient.profile")}</span>
@@ -379,7 +380,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
             <VitalSignsTrends patientId={p.id!} />
           </TabsContent>
           <TabsContent value="lab">
-            <div className="p-4"><LabResultsPage patientId={p.id!} /></div>
+            <div className="p-2"><PatientLabHistory patientId={p.id!} /></div>
           </TabsContent>
           <TabsContent value="docs">
             <DocumentsTab patientId={p.id!} />
@@ -407,7 +408,7 @@ export function PatientProfile({ patient, open, onClose, onChanged }: Props) {
 
         {/* Document generation dialog */}
         <Dialog open={docGenOpen} onOpenChange={setDocGenOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("docgen.export")}</DialogTitle></DialogHeader>
             <DocGenPanel patient={p} />
           </DialogContent>
@@ -488,6 +489,48 @@ function InfoTab({ p, setP, onSave }: { p: Patient; setP: (p: Patient) => void; 
       <div>
         <Label>{t("patient.alerts")}</Label>
         <Textarea value={p.medicalAlerts || ""} onChange={e => setP({ ...p, medicalAlerts: e.target.value })} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Sexe</Label>
+          <div className="flex gap-2 mt-1">
+            <Button type="button" size="sm" variant={p.sex === "M" ? "default" : "outline"} className="flex-1" onClick={() => setP({ ...p, sex: "M" })}>M</Button>
+            <Button type="button" size="sm" variant={p.sex === "F" ? "default" : "outline"} className="flex-1" onClick={() => setP({ ...p, sex: "F" })}>F</Button>
+          </div>
+        </div>
+        <div>
+          <Label>Tension artérielle</Label>
+          <Input value={p.bloodPressure || ""} onChange={e => setP({ ...p, bloodPressure: e.target.value })} placeholder="120/80" />
+        </div>
+        <div>
+          <Label>Quartier</Label>
+          <Input value={p.quarter || ""} onChange={e => setP({ ...p, quarter: e.target.value })} />
+        </div>
+        <div>
+          <Label>Envoyé par</Label>
+          <Input value={p.referredBy || ""} onChange={e => setP({ ...p, referredBy: e.target.value })} />
+        </div>
+        <div>
+          <Label>Poids (kg)</Label>
+          <Input type="number" min={0} value={p.weight ?? ""} onChange={e => setP({ ...p, weight: e.target.value ? parseFloat(e.target.value) : undefined })} />
+        </div>
+        <div>
+          <Label>Prise en charge</Label>
+          <Input value={p.coverageMode || ""} onChange={e => setP({ ...p, coverageMode: e.target.value })} placeholder="Espèces / Mutuelle…" />
+        </div>
+      </div>
+      <div className="rounded-md border p-2 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm flex-1">Patient mineur ?</span>
+          <Button type="button" size="sm" variant={p.isMinor ? "default" : "outline"} className="h-7" onClick={() => setP({ ...p, isMinor: !p.isMinor })}>{p.isMinor ? "Oui" : "Non"}</Button>
+        </div>
+        {p.isMinor && (
+          <div className="space-y-2">
+            <Input placeholder="Nom du tuteur / parent" value={p.guardianName || ""} onChange={e => setP({ ...p, guardianName: e.target.value })} />
+            <Input placeholder="Téléphone du tuteur" value={p.guardianPhone || ""} onChange={e => setP({ ...p, guardianPhone: e.target.value })} />
+            <Input placeholder="Détails (lien, pièce, adresse…)" value={p.guardianDetails || ""} onChange={e => setP({ ...p, guardianDetails: e.target.value })} />
+          </div>
+        )}
       </div>
       <Button onClick={save} className="w-full">{t("common.save")}</Button>
 

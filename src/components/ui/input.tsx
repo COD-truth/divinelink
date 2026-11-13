@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, onFocus, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -12,6 +12,15 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className,
         )}
         ref={ref}
+        onFocus={(e) => {
+          // On number fields, select the value so typing replaces it
+          // (fixes "can't clear the 1 to type a new quantity" on mobile).
+          if (type === "number") {
+            const el = e.currentTarget;
+            setTimeout(() => { try { el.select(); } catch { /* noop */ } }, 0);
+          }
+          onFocus?.(e);
+        }}
         {...props}
       />
     );

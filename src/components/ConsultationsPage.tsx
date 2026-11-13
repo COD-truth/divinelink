@@ -704,7 +704,7 @@ export function ConsultationsPage() {
 
       {/* ── Consultation dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={v => { if (!v) closeDialog(); }}>
-        <DialogContent className="w-full h-[100dvh] max-w-none rounded-none p-4 sm:p-6 sm:h-auto sm:max-w-3xl sm:max-h-[90vh] sm:rounded-lg overflow-y-auto">
+        <DialogContent className="w-full h-[100dvh] max-w-none rounded-none p-4 sm:p-6 sm:h-auto sm:max-w-3xl sm:max-h-[85dvh] sm:rounded-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <Stethoscope className="w-5 h-5" />
@@ -1193,7 +1193,7 @@ export function ConsultationsPage() {
 
       {/* ── Version history ── */}
       <Dialog open={historyDialog !== null} onOpenChange={() => setHistoryDialog(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("consult.history")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {historyDialog?.map(v => (

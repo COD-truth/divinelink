@@ -17,9 +17,12 @@ import { toast } from "sonner";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 import { logAudit } from "@/lib/audit";
 import { decryptPatients } from "@/lib/patientCrypto";
+import { PatientPicker } from "./PatientPicker";
+import { CaisseJournaliere } from "./CaisseJournaliere";
 import { COMMON_DRUGS } from "@/lib/seedCatalogues";
 import { generateThermalReceipt } from "./ReceiptGenerator";
 import { DispensePrescription } from "./DispensePrescription";
+import { OrdonnancesTab } from "./OrdonnancesTab";
 import { syncPharmacy, pharmaSyncEnabled, setPharmaSyncEnabled } from "@/lib/pharmaSync";
 import clinicStockDH from "@/lib/clinicStockDH.json";
 
@@ -67,7 +70,7 @@ export function PharmacyPage() {
   const [rxOpen, setRxOpen] = useState(false);
   const { t } = useLang();
   const { user } = useAuth();
-  const [tab, setTab] = useState("inventory");
+  const [tab, setTab] = useState("dispense");
   const [drugs, setDrugs] = useState<Drug[]>([]);
   const [transactions, setTransactions] = useState<DrugTransaction[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -244,10 +247,17 @@ export function PharmacyPage() {
       )}
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex-wrap h-auto">
+        <TabsList className="flex-wrap h-auto gap-1">
+          {/* Actions quotidiennes */}
+          <TabsTrigger value="dispense">{t("pharm.dispense")}</TabsTrigger>
+          <TabsTrigger value="ordonnances">Ordonnances</TabsTrigger>
+          <TabsTrigger value="recette">Recette</TabsTrigger>
+          <span aria-hidden className="w-px h-6 bg-border mx-1 self-center hidden sm:inline-block" />
+          {/* Stock */}
           <TabsTrigger value="inventory">{t("pharm.inventory")}</TabsTrigger>
           <TabsTrigger value="receive">{t("pharm.receive")}</TabsTrigger>
-          <TabsTrigger value="dispense">{t("pharm.dispense")}</TabsTrigger>
+          <span aria-hidden className="w-px h-6 bg-border mx-1 self-center hidden sm:inline-block" />
+          {/* Rapports */}
           <TabsTrigger value="transactions">{t("pharm.transactions")}</TabsTrigger>
           <TabsTrigger value="stats">{t("pharm.stats")}</TabsTrigger>
         </TabsList>
@@ -261,8 +271,14 @@ export function PharmacyPage() {
         <TabsContent value="dispense" className="mt-3">
           <DispenseTab drugs={drugs} patients={patients} onRefresh={load} />
         </TabsContent>
+        <TabsContent value="ordonnances" className="mt-3">
+          <OrdonnancesTab />
+        </TabsContent>
+        <TabsContent value="recette" className="mt-3">
+          <CaisseJournaliere />
+        </TabsContent>
         <TabsContent value="transactions" className="mt-3">
-          <TransactionsTab transactions={transactions} drugs={drugs} patients={patients} />
+          <TransactionsTab transactions={transactions} drugs={drugs} patients={patients} onRefresh={load} />
         </TabsContent>
         <TabsContent value="stats" className="mt-3">
           <PharmacyStatsTab stats={stats} />
@@ -413,8 +429,8 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
   // DrugForm as inline JSX to avoid remount on rerender
   const drugFormJSX = (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2"><Label>{t("pharm.name")} *</Label><Input id="df-name" list="common-drugs" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="sm:col-span-2"><Label>{t("pharm.name")} *</Label><Input id="df-name" list="common-drugs" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <datalist id="common-drugs">{COMMON_DRUGS.map(d => <option key={d} value={d} />)}</datalist>
         </div>
         <div>
@@ -595,7 +611,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
 
       {/* Add drug dialog */}
       <Dialog open={addOpen} onOpenChange={v => { setAddOpen(v); if (!v) resetForm(); }} key="add-drug-dialog">
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" onInteractOutside={e => e.preventDefault()}>
+        <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto" onInteractOutside={e => e.preventDefault()}>
           <DialogHeader><DialogTitle>{t("pharm.addDrug")}</DialogTitle></DialogHeader>
           {drugFormJSX}
           <DialogFooter>
@@ -607,7 +623,7 @@ function InventoryTab({ drugs, transactions, onRefresh }: { drugs: Drug[]; trans
 
       {/* Edit drug dialog */}
       <Dialog open={!!editDrug} onOpenChange={v => { if (!v) { setEditDrug(null); resetForm(); } }} key={editDrug?.id || "edit-drug-dialog"}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("common.edit")}: {editDrug?.name}</DialogTitle></DialogHeader>
           {drugFormJSX}
           <DialogFooter>
@@ -704,7 +720,7 @@ function ReceiveTab({ drugs, onRefresh }: { drugs: Drug[]; onRefresh: () => void
             <Button type="button" size="sm" variant={recvMode === "unit" ? "default" : "outline"} onClick={() => setRecvMode("unit")}>{selectedDrug.unit}</Button>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><Label>{t("pharm.qty")} * {pack > 1 ? `(${recvMode === "box" ? t("pharm.inBoxes") : selectedDrug?.unit})` : ""}</Label><Input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} />
             {selectedDrug && pack > 1 && qty && <p className="text-xs text-muted-foreground mt-1">= {addedUnits} {selectedDrug.unit} {t("pharm.addedToStock")}</p>}
           </div>
@@ -771,17 +787,19 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
   const [notes, setNotes] = useState("");
 
   const selectedDrug = drugs.find(d => d.id === parseInt(drugId));
-  const available = drugs.filter(d => d.stock > 0);
+  // Show ALL drugs — dispensing/selling is allowed even at zero stock.
+  const available = drugs;
 
   const save = async (print = false) => {
     if (!drugId || !qty) return;
     const q = parseInt(qty);
     if (!selectedDrug) return;
-    if (q > selectedDrug.stock) { toast.error(t("pharm.insufficientStock")); return; }
     const now = new Date().toISOString();
     const cid = localStorage.getItem("divinelink.clinicId") || undefined;
     const stockBefore = selectedDrug.stock;
-    const stockAfter = stockBefore - q;
+    // Allowed even when stock is 0 or insufficient (physical stock may exist
+    // without being entered). Stock never goes negative.
+    const stockAfter = Math.max(0, stockBefore - q);
     const unitPrice = parseFloat(price) || selectedDrug.sellPrice;
 
     await db.drugTransactions.add({
@@ -829,23 +847,22 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
           <Label>{t("pharm.drug")} *</Label>
           <DrugPicker drugs={available} value={drugId} placeholder="Rechercher un médicament…" onPick={d => { setDrugId(String(d.id)); setPrice(String(d.sellPrice)); }} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label>{t("pharm.qty")} *</Label>
-            <Input type="number" min={1} max={selectedDrug?.stock} value={qty} onChange={e => setQty(e.target.value)} />
+            <Input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} />
             {selectedDrug && qty && parseInt(qty) > selectedDrug.stock && (
-              <p className="text-xs text-destructive mt-1">{t("pharm.insufficientStock")} ({selectedDrug.stock} {selectedDrug.unit})</p>
+              <p className="text-xs text-amber-600 mt-1">⚠ Stock affiché : {selectedDrug.stock} {selectedDrug.unit}. Enregistré quand même ; le stock sera mis à 0.</p>
             )}
           </div>
           <div>
             <Label>{t("pharm.patient")}</Label>
-            <Select value={patientId} onValueChange={setPatientId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">—</SelectItem>
-                {patients.map(p => <SelectItem key={p.id} value={p.id!.toString()}>{p.firstName} {p.lastName}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <PatientPicker patients={patients} value={patientId === "__none__" ? "" : patientId} onPick={id => setPatientId(id)} placeholder="—" />
+              {patientId !== "__none__" && (
+                <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => setPatientId("__none__")} title="Effacer"><Trash2 className="w-4 h-4" /></Button>
+              )}
+            </div>
           </div>
           <div>
             <Label>{t("pharm.price")}</Label>
@@ -887,8 +904,8 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
         )}
         <div><Label>{t("pharm.notes")}</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => save(false)} disabled={!drugId || !qty || (!!selectedDrug && parseInt(qty) > selectedDrug.stock)} className="flex-1">{t("common.save")}</Button>
-          <Button onClick={() => save(true)} disabled={!drugId || !qty || (!!selectedDrug && parseInt(qty) > selectedDrug.stock)} className="flex-1 gap-1"><Printer className="w-4 h-4" /> {t("pharm.saveReceipt")}</Button>
+          <Button variant="secondary" onClick={() => save(false)} disabled={!drugId || !qty} className="flex-1">{t("common.save")}</Button>
+          <Button onClick={() => save(true)} disabled={!drugId || !qty} className="flex-1 gap-1"><Printer className="w-4 h-4" /> {t("pharm.saveReceipt")}</Button>
         </div>
       </CardContent>
     </Card>
@@ -896,11 +913,32 @@ function DispenseTab({ drugs, patients, onRefresh }: { drugs: Drug[]; patients: 
 }
 
 /* ============ Transactions Tab ============ */
-function TransactionsTab({ transactions, drugs, patients }: { transactions: DrugTransaction[]; drugs: Drug[]; patients: Patient[] }) {
+function TransactionsTab({ transactions, drugs, patients, onRefresh }: { transactions: DrugTransaction[]; drugs: Drug[]; patients: Patient[]; onRefresh: () => void }) {
   const { t } = useLang();
+  const { user } = useAuth();
   const [filterDrug, setFilterDrug] = useState("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [del, setDel] = useState<DrugTransaction | null>(null);
+
+  // Delete a transaction made in error and REVERSE its stock effect
+  // (an "out" put the drug back, an "in" removes it). Logged in the audit.
+  const doDelete = async (tx: DrugTransaction) => {
+    if (tx.drugId) {
+      const d = await db.drugs.get(tx.drugId);
+      if (d) {
+        const before = d.stock || 0;
+        const after = tx.type === "out" ? before + tx.quantity : Math.max(0, before - tx.quantity);
+        await db.drugs.update(tx.drugId, { stock: after, status: after > 0 ? "in_stock" : "out", updatedAt: new Date().toISOString() });
+      }
+    }
+    await db.drugTransactions.delete(tx.id!);
+    await logAudit("drug_tx_delete", user?.name || "—", { resource: "drug", resourceId: tx.drugId, message: `Suppression ${tx.type === "out" ? "sortie" : "entrée"} ${drugs.find(d => d.id === tx.drugId)?.name || "—"} ×${tx.quantity} · stock réajusté` });
+    setDel(null); onRefresh();
+    toast.success("Transaction supprimée · stock réajusté");
+  };
 
   const drugName = (id: number) => drugs.find(d => d.id === id)?.name || "—";
   const patientName = (id?: number) => {
@@ -912,6 +950,8 @@ function TransactionsTab({ transactions, drugs, patients }: { transactions: Drug
   const filtered = transactions.filter(tx => {
     if (filterDrug !== "all" && tx.drugId !== parseInt(filterDrug)) return false;
     if (filterType !== "all" && tx.type !== filterType) return false;
+    if (filterFrom && (tx.createdAt || "") < filterFrom) return false;
+    if (filterTo && (tx.createdAt || "") > filterTo + "T23:59:59") return false;
     if (search) {
       const s = search.toLowerCase();
       return drugName(tx.drugId).toLowerCase().includes(s) || patientName(tx.patientId).toLowerCase().includes(s);
@@ -963,6 +1003,31 @@ function TransactionsTab({ transactions, drugs, patients }: { transactions: Drug
         <Button variant="outline" onClick={exportCsv} className="gap-1 ml-auto"><Download className="w-4 h-4" />{t("pharm.exportCsv")}</Button>
       </div>
 
+      <div className="flex gap-2 flex-wrap items-center">
+        <span className="text-xs text-muted-foreground">Du</span>
+        <Input type="date" className="w-40 h-9" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+        <span className="text-xs text-muted-foreground">au</span>
+        <Input type="date" className="w-40 h-9" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+        <Button variant="outline" size="sm" className="h-9" onClick={() => { const d = new Date().toISOString().slice(0, 10); setFilterFrom(d); setFilterTo(d); }}>Aujourd'hui</Button>
+        {(filterFrom || filterTo) && <Button variant="ghost" size="sm" className="h-9" onClick={() => { setFilterFrom(""); setFilterTo(""); }}>Effacer les dates</Button>}
+      </div>
+
+      {(filterFrom || filterTo) && (() => {
+        const outs = filtered.filter(x => x.type === "out");
+        const ins = filtered.filter(x => x.type === "in");
+        const outTotal = outs.reduce((s, x) => s + x.price * x.quantity, 0);
+        const outQty = outs.reduce((s, x) => s + x.quantity, 0);
+        const label = filterFrom === filterTo ? fmtDateTime(filterFrom + "T00:00:00").slice(0, 10) : `${filterFrom || "…"} → ${filterTo || "…"}`;
+        return (
+          <Card><CardContent className="p-3 flex flex-wrap items-center gap-x-6 gap-y-1">
+            <span className="text-sm font-semibold">{label}</span>
+            <span className="text-sm">Sorties : <b>{outs.length}</b> lignes · <b>{outQty}</b> unités</span>
+            <span className="text-sm">Entrées : <b>{ins.length}</b></span>
+            <span className="text-sm ml-auto">Total sorties : <b className="text-primary">{outTotal.toLocaleString("fr-FR")} FCFA</b></span>
+          </CardContent></Card>
+        );
+      })()}
+
       {(() => {
         const byStaff: Record<string, { out: number; qty: number; total: number }> = {};
         filtered.filter(x => x.type === "out").forEach(x => {
@@ -1004,11 +1069,12 @@ function TransactionsTab({ transactions, drugs, patients }: { transactions: Drug
               <TableHead>{t("pharm.batchNumber")}</TableHead>
               <TableHead>{t("pharm.performedBy")}</TableHead>
               <TableHead className="text-right">{t("pharm.receipt")}</TableHead>
+              <TableHead className="text-right"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">{t("common.noData")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-6">{t("common.noData")}</TableCell></TableRow>
             ) : filtered.slice(0, 100).map(tx => (
               <TableRow key={tx.id}>
                 <TableCell className="text-xs whitespace-nowrap">{fmtDateTime(tx.createdAt)}</TableCell>
@@ -1039,11 +1105,34 @@ function TransactionsTab({ transactions, drugs, patients }: { transactions: Drug
                     }}><Printer className="w-3.5 h-3.5" /></Button>
                   )}
                 </TableCell>
+                <TableCell className="text-right">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title={t("common.delete") || "Supprimer"} onClick={() => setDel(tx)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete a transaction entered in error — reverses the stock. */}
+      <Dialog open={!!del} onOpenChange={v => !v && setDel(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Supprimer cette opération ?</DialogTitle></DialogHeader>
+          {del && (
+            <div className="space-y-2 text-sm">
+              <p><b>{drugName(del.drugId)}</b> — {del.type === "out" ? "Sortie" : "Entrée"} ×{del.quantity}</p>
+              <p className="text-muted-foreground">{fmtDateTime(del.createdAt)} · {del.performedBy || "—"}</p>
+              <p className="rounded-md border border-amber-400/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                Le stock sera {del.type === "out" ? "remis" : "retiré"} ({del.type === "out" ? "+" : "−"}{del.quantity}). Cette suppression est tracée dans l'audit.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDel(null)}>{t("common.cancel") || "Annuler"}</Button>
+            <Button variant="destructive" onClick={() => del && doDelete(del)}>{t("common.delete") || "Supprimer"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

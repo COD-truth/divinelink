@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { generateReceipt } from "@/components/ReceiptGenerator";
 import { InvoiceBuilder } from "@/components/InvoiceBuilder";
 import { CaisseClosing } from "@/components/CaisseClosing";
+import { CaisseJournaliere } from "@/components/CaisseJournaliere";
 import { Printer, CreditCard, Plus, Search, TrendingUp, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Clock, Download, Eye, Trash2, CirclePlus as PlusCircle } from "lucide-react";
 import { saveFile, toCsv, withDateStamp } from "@/lib/download";
 
@@ -279,9 +280,10 @@ export function PaymentsPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="w-full grid grid-cols-2">
+        <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="overview">Par patient</TabsTrigger>
           <TabsTrigger value="transactions">Toutes transactions</TabsTrigger>
+          <TabsTrigger value="caisse">Caisse du jour</TabsTrigger>
         </TabsList>
 
         {/* BY PATIENT */}
@@ -466,11 +468,16 @@ export function PaymentsPage() {
             })}
           </div>
         </TabsContent>
+
+        {/* CAISSE DU JOUR — fond de caisse + sorties */}
+        <TabsContent value="caisse" className="space-y-3 mt-3">
+          <CaisseJournaliere />
+        </TabsContent>
       </Tabs>
 
       {/* ADD PAYMENT DIALOG */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nouveau paiement</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Patient *</Label>

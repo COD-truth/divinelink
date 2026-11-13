@@ -127,7 +127,7 @@ export function WordConversionAssistant({ doc, onClose, onDone }: Props) {
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent className="w-full h-[100dvh] max-w-none rounded-none p-4 sm:p-6 sm:h-auto sm:max-w-5xl sm:max-h-[90vh] sm:rounded-lg overflow-y-auto">
+      <DialogContent className="w-full h-[100dvh] max-w-none rounded-none p-4 sm:p-6 sm:h-auto sm:max-w-5xl sm:max-h-[85dvh] sm:rounded-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Convertir en consultation — {doc.filename}</DialogTitle></DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -128,7 +128,7 @@ export function ObservationTemplatesPage() {
 
       {/* Editor dialog */}
       <Dialog open={!!editing && !previewOpen} onOpenChange={o => { if (!o) setEditing(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing?.id ? "Modifier le modèle" : "Nouveau modèle"}</DialogTitle></DialogHeader>
           {editing && (
             <div className="space-y-4">
@@ -198,7 +198,7 @@ export function ObservationTemplatesPage() {
 
       {/* Preview dialog */}
       <Dialog open={previewOpen} onOpenChange={o => { if (!o) { setPreviewOpen(false); setEditing(null); } }}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Aperçu — {editing?.name}</DialogTitle></DialogHeader>
           {editing && <TemplateRenderer fields={editing.fieldsDefinition} values={previewValues} onChange={setPreviewValues} />}
         </DialogContent>

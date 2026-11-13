@@ -136,7 +136,7 @@ export function StaffPage() {
 
       {/* Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? tr("Modifier", "Edit") : tr("Nouveau membre", "New member")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="flex items-center gap-3">

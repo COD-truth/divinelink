@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+*.tgz
+w
+node_modules/
+dist/
+.env

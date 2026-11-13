@@ -119,6 +119,23 @@ export interface Patient {
   followUpNote?: string;
   /** Services requested at this visit (Consultation, Échographie, Labo…). Non-indexed. */
   servicesRequested?: string[];
+  /** Minor patient — requires a guardian/tuteur. Non-indexed. */
+  isMinor?: boolean;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianDetails?: string;
+  /** Tension artérielle captured at registration (e.g. "120/80"). Non-indexed. */
+  bloodPressure?: string;
+  /** Poids (kg) captured at registration. Non-indexed. */
+  weight?: number;
+  /** Mode de prise en charge: Espèces / Mutuelle / Assurance… Non-indexed. */
+  coverageMode?: string;
+  /** Assurance: nom de l'assureur / mutuelle (ex: "CNPS", "Activa"). Non-indexed. */
+  insurerName?: string;
+  /** N° d'assuré / matricule / bon de prise en charge. Non-indexed. */
+  insurancePolicy?: string;
+  /** Taux de prise en charge en % (ex: 80 = l'assureur paie 80%). Non-indexed. */
+  coverageRate?: number;
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
@@ -178,10 +195,20 @@ export interface Payment {
   dueDate?: string;
   installments?: PaymentInstallment[];
   notes?: string;
+  /** Remise (discount) applied before coverage. amountDue stores the NET. Non-indexed. */
+  discount?: number;              // value entered (FCFA or %)
+  discountType?: "amount" | "percent";
+  grossTotal?: number;            // total before remise, for records
   /** Manual historical/back-fill entry (does NOT touch stock). Non-indexed. */
   backfill?: boolean;
   /** Cost of goods for this entry, for profit = amountPaid − costTotal. Non-indexed. */
   costTotal?: number;
+  /** Insurance split (tiers payant). All non-indexed. */
+  insurerName?: string;       // assureur / mutuelle billed for the covered part
+  insurancePolicy?: string;   // n° d'assuré / bon de prise en charge
+  coverageRate?: number;      // % the insurer covers (e.g. 80)
+  insuranceCovered?: number;  // FCFA owed by the insurer (to recover)
+  patientPart?: number;       // FCFA the patient actually paid now
   clinicId?: string;
   createdAt: string;
   updatedAt: string;
@@ -926,11 +953,202 @@ export interface Prescription {
   uid?: string;
   patientId: number;
   patientName?: string;
-  lines: { drugId?: number; name: string; unitPrice: number; qtyPrescribed: number; qtyDispensed: number; free?: boolean }[];
+  lines: { drugId?: number; name: string; unitPrice: number; qtyPrescribed: number; qtyDispensed: number; free?: boolean; posology?: string }[];
   total: number;        // billable total (free lines excluded)
   invoiceNumber?: string;
   prescribedBy?: string;
   deleted?: boolean;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type DeliveryType = "voie_basse" | "cesarienne" | "instrumentale";
+export type MaternalOutcome = "vivante" | "deces_maternel";
+export type NewbornStatus = "vivant" | "mort_ne" | "deces_neonatal";
+
+export interface Newborn {
+  sex: "M" | "F" | "";
+  status: NewbornStatus;
+  weight?: number;        // grammes
+  apgar?: string;         // ex "9/10"
+  birthTime?: string;     // "HH:MM"
+  name?: string;
+}
+
+export interface MaternityRecord {
+  id?: number;
+  uid?: string;
+  /** Mother — linked patient if known, plus a free name/age snapshot. */
+  motherPatientId?: number;
+  motherName: string;
+  motherAge?: number;
+  motherPhone?: string;
+  quarter?: string;       // quartier
+  gravidite?: number;     // G — nombre de grossesses
+  parite?: number;        // P — nombre d'accouchements
+  gestationalWeeks?: number; // SA — âge gestationnel (semaines d'aménorrhée)
+  admissionDate?: string; // ISO
+  deliveryDate: string;   // "YYYY-MM-DD"
+  deliveryTime?: string;  // "HH:MM"
+  deliveryType: DeliveryType;
+  accoucheur?: string;    // who delivered
+  maternalOutcome: MaternalOutcome;
+  complications?: string;
+  newborns: Newborn[];
+  notes?: string;
+  fileId?: number;        // linked MaternityFile (dossier), if the delivery came from a tracked pregnancy
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  deleted?: boolean;
+}
+
+// ---- Maternity EMR: longitudinal file (dossier) + visits (CPN / post-partum) ----
+export type MaternityFileStatus = "enceinte" | "accouchee" | "postpartum" | "clos";
+
+/** One dossier per mother-pregnancy: identity + obstetric summary, spans CPN → accouchement → post-partum. */
+export interface MaternityFile {
+  id?: number;
+  uid?: string;
+  motherPatientId?: number;   // linked patient file if known
+  motherName: string;
+  motherAge?: number;
+  motherPhone?: string;
+  quarter?: string;
+  bloodGroup?: string;        // groupe + rhésus, ex "O+"
+  ddr?: string;               // date des dernières règles "YYYY-MM-DD"
+  dpa?: string;               // date prévue d'accouchement (Naegele auto, ou manuelle)
+  gravidite?: number;         // G
+  parite?: number;            // P
+  riskFactors?: string;       // antécédents / facteurs de risque
+  status: MaternityFileStatus;
+  deliveryRecordId?: number;  // MaternityRecord.id once delivered
+  labourStartAt?: string;     // ISO — début du travail (ouvre le partogramme)
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  deleted?: boolean;
+}
+
+/** One timed observation on the partogramme (labour monitoring). */
+export interface PartographEntry {
+  id?: number;
+  uid?: string;
+  fileId?: number;            // MaternityFile.id
+  motherPatientId?: number;
+  time: string;               // ISO datetime of the observation
+  dilatation?: number;        // col utérin, cm (0–10)
+  descent?: number;           // tête palpable, /5 (5 = haute, 0 = engagée)
+  rcf?: number;               // rythme cardiaque fœtal, bpm
+  contractions?: number;      // nombre de contractions / 10 min
+  contractionDuration?: string; // "<20", "20-40", ">40" (sec)
+  liquide?: string;           // intact / clair / méconial / sanglant
+  moulage?: string;           // 0 / + / ++ / +++
+  bpSys?: number;
+  bpDia?: number;
+  pulse?: number;
+  temperature?: number;
+  oxytocin?: string;          // ocytocine (UI/goutte) ou médicament
+  notes?: string;
+  recordedBy?: string;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  deleted?: boolean;
+}
+
+export type AncVisitKind = "cpn" | "postnatal";
+
+/** A single visit on a maternity file — prénatal (CPN) or post-partum (CPoN). */
+export interface AncVisit {
+  id?: number;
+  uid?: string;
+  fileId?: number;            // MaternityFile.id
+  motherPatientId?: number;
+  kind: AncVisitKind;
+  date: string;               // "YYYY-MM-DD"
+  gaWeeks?: number;           // âge gestationnel (CPN)
+  daysPostpartum?: number;    // post-partum
+  // constantes
+  weight?: number;            // kg (mère)
+  bpSys?: number;             // TA systolique
+  bpDia?: number;             // TA diastolique
+  temperature?: number;       // °C
+  // obstétrical (CPN)
+  hauteurUterine?: number;    // cm
+  bcf?: number;               // bruits du cœur fœtal /min
+  presentation?: string;      // céphalique, siège, transverse
+  oedemes?: boolean;
+  albuminurie?: string;       // 0 / + / ++ / +++
+  glycosurie?: string;
+  // bilans
+  labHiv?: string;
+  labVdrl?: string;           // syphilis
+  labHb?: string;             // taux d'hémoglobine
+  labGroupeRh?: string;
+  labAgHbs?: string;
+  labGlycemie?: string;
+  labGe?: string;             // goutte épaisse / TDR palu
+  // prévention
+  vatDose?: string;           // VAT1..VAT5
+  tpiSpDose?: string;         // TPI-SP (dose palu)
+  ferFolate?: boolean;        // fer + acide folique
+  milda?: boolean;            // moustiquaire imprégnée remise
+  deparasitage?: boolean;     // albendazole
+  // post-partum (mère + bébé)
+  lochies?: string;
+  involution?: string;
+  allaitement?: string;       // exclusif / mixte
+  babyWeight?: number;        // g
+  babyTemp?: number;          // °C
+  babyIcterus?: boolean;
+  babyImmun?: string;         // BCG / VPO0 / HepB0
+  // notes
+  plaintes?: string;
+  observations?: string;
+  nextRdv?: string;           // prochain rendez-vous "YYYY-MM-DD"
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  deleted?: boolean;
+}
+
+// ---- Caisse: sorties (dépenses) + clôture journalière ----
+export type ExpenseMethod = "cash" | "orange_money" | "mtn_momo" | "bank" | "other";
+
+/** A money-out entry (sortie / dépense) — e.g. réappro pharmacie, salaire, loyer. */
+export interface Expense {
+  id?: number;
+  uid?: string;
+  date: string;            // "YYYY-MM-DD" (jour de la dépense)
+  category?: string;       // Réappro pharmacie, Salaires, Loyer…
+  label: string;           // motif / désignation
+  amount: number;          // FCFA
+  method: ExpenseMethod;   // moyen de sortie (espèces par défaut)
+  recordedBy?: string;
+  clinicId?: string;
+  createdAt: string;
+  updatedAt?: string;
+  deleted?: boolean;
+}
+
+/** One cash-reconciliation per clinic per day. Closing carries to next day's opening. */
+export interface CaisseDay {
+  id?: number;
+  uid?: string;
+  date: string;            // "YYYY-MM-DD"
+  opening: number;         // report de la veille (espèces)
+  recettesCash: number;    // encaissements espèces du jour
+  recettesTotal: number;   // tous moyens
+  sortiesCash: number;     // sorties espèces du jour
+  sortiesTotal: number;    // toutes sorties
+  theorique: number;       // opening + recettesCash − sortiesCash
+  reel?: number;           // montant réellement compté
+  ecart?: number;          // reel − theorique
+  closing: number;         // reporté au lendemain (reel si compté, sinon théorique)
+  closedBy?: string;
+  closedAt?: string;
   clinicId?: string;
   createdAt: string;
   updatedAt?: string;
@@ -962,6 +1180,12 @@ class DentaDB extends Dexie {
   surveys!: Table<Survey>;
   surveyResponses!: Table<SurveyResponse>;
   surveyInvites!: Table<SurveyInvite>;
+  maternityRecords!: Table<MaternityRecord>;
+  maternityFiles!: Table<MaternityFile>;
+  ancVisits!: Table<AncVisit>;
+  partographEntries!: Table<PartographEntry>;
+  expenses!: Table<Expense>;
+  caisseDays!: Table<CaisseDay>;
   voiceRecordings!: Table<VoiceRecording>;
   equipmentBoxes!: Table<EquipmentBox>;
   uiPreferences!: Table<UiPreference, string>;
@@ -1396,6 +1620,32 @@ class DentaDB extends Dexie {
     this.version(30).stores({
       drugs: "++id, name, category, status, clinicId, uid",
       drugTransactions: "++id, drugId, type, patientId, createdAt, clinicId, uid, drugUid",
+    });
+
+    // v31: Maternity unit — accouchements + nouveau-nés (event capture for the
+    // maternity bilan and birth declarations). New table.
+    this.version(31).stores({
+      maternityRecords: "++id, uid, deliveryDate, clinicId, createdAt",
+    });
+
+    // v32: Maternity EMR — longitudinal dossier per mother-pregnancy + visits
+    // (CPN prénatal / post-partum). Additive new tables; existing maternityRecords
+    // and all other data are untouched, so clinics upgrade with no data loss.
+    this.version(32).stores({
+      maternityFiles: "++id, uid, motherPatientId, status, clinicId, createdAt",
+      ancVisits: "++id, uid, fileId, motherPatientId, kind, date, clinicId, createdAt",
+    });
+
+    // v33: Caisse — sorties (dépenses) + clôture journalière avec report de la veille.
+    // Fond de caisse = report veille + recettes espèces − sorties espèces. Additif.
+    this.version(33).stores({
+      expenses: "++id, uid, date, category, clinicId, createdAt",
+      caisseDays: "++id, uid, date, clinicId, createdAt",
+    });
+
+    // v34: Partogramme — observations horodatées du travail (maternité). Additif.
+    this.version(34).stores({
+      partographEntries: "++id, uid, fileId, time, clinicId, createdAt",
     });
   }
 }

@@ -140,7 +140,7 @@ export function CaisseClosing({ open, onOpenChange }: { open: boolean; onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>{L.title}</DialogTitle></DialogHeader>
 
         <div className="space-y-3">

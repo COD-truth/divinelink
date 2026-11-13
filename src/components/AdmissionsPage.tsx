@@ -5,10 +5,11 @@ import { getClinicId } from "@/lib/clinicSettings";
 import { logAudit } from "@/lib/audit";
 
 /** Poll-based live query (works without dexie-react-hooks). */
-function useLive<T>(fn: () => Promise<T>, deps: React.DependencyList, intervalMs = 3000): T | undefined {
+function useLive<T>(fn: () => Promise<T>, deps: React.DependencyList, intervalMs = 30000): T | undefined {
   const [val, setVal] = useState<T | undefined>(undefined);
   const run = useCallback(async () => { try { setVal(await fn()); } catch {} }, deps); // eslint-disable-line
-  useEffect(() => { run(); const id = setInterval(run, intervalMs); return () => clearInterval(id); }, [run, intervalMs]);
+  // Was 3s (hammered IndexedDB). Now 30s, and paused when the tab is hidden.
+  useEffect(() => { run(); const id = setInterval(() => { if (!document.hidden) run(); }, intervalMs); return () => clearInterval(id); }, [run, intervalMs]);
   return val;
 }
 
@@ -363,7 +364,7 @@ function AdmissionDetailDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {patient ? `${patient.firstName} ${patient.lastName}` : "Patient"} — {ward?.name} · Lit {bed?.label}

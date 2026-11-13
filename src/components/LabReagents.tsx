@@ -124,22 +124,22 @@ export function LabReagents() {
         {filtered.map(r => {
           const low = (r.minStock ?? 0) > 0 && r.stock <= (r.minStock ?? 0);
           return (
-            <Card key={r.id}><CardContent className="p-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{r.name}</p>
-                <p className="text-xs text-muted-foreground">{r.unitCost ? `${f(r.unitCost)} FCFA/${r.unit}` : r.unit}{r.expiration ? ` · ${isExpired(r.expiration) ? "⚠ " : ""}${L.exp} ${r.expiration}` : ""}</p>
+            <Card key={r.id}><CardContent className="p-3 space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{r.name}</p>
+                  <p className="text-xs text-muted-foreground">{r.unitCost ? `${f(r.unitCost)} FCFA/${r.unit}` : r.unit}{r.expiration ? ` · ${isExpired(r.expiration) ? "⚠ " : ""}${L.exp} ${r.expiration}` : ""}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-[10px] text-muted-foreground">{L.stock}</p>
+                  <p className={`text-xl font-bold leading-none ${low ? "text-warning" : ""}`}>{r.stock} <span className="text-xs font-normal">{r.unit}</span></p>
+                </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-[10px] text-muted-foreground">{L.stock}</p>
-                <p className={`text-xl font-bold leading-none ${low ? "text-warning" : ""}`}>{r.stock} <span className="text-xs font-normal">{r.unit}</span></p>
-              </div>
-              <div className="flex flex-col gap-1 flex-shrink-0">
-                <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => { setMove({ r, type: "in" }); setMoveQty(""); setMoveReason(""); }}><ArrowDown className="w-3.5 h-3.5 text-green-600" /> {L.entry}</Button>
-                <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" disabled={r.stock <= 0} onClick={() => { setMove({ r, type: "out" }); setMoveQty(""); setMoveReason(""); }}><ArrowUp className="w-3.5 h-3.5 text-red-600" /> {L.exit}</Button>
-              </div>
-              <div className="flex flex-col gap-1 flex-shrink-0">
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openEdit(r)}><Pencil className="w-3 h-3" /></Button>
-                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setDel(r)}><Trash2 className="w-3 h-3" /></Button>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" className="h-9 flex-1 gap-1" onClick={() => { setMove({ r, type: "in" }); setMoveQty(""); setMoveReason(""); }}><ArrowDown className="w-4 h-4 text-green-600" /> {L.entry}</Button>
+                <Button size="sm" variant="outline" className="h-9 flex-1 gap-1" disabled={r.stock <= 0} onClick={() => { setMove({ r, type: "out" }); setMoveQty(""); setMoveReason(""); }}><ArrowUp className="w-4 h-4 text-red-600" /> {L.exit}</Button>
+                <Button size="icon" variant="ghost" className="h-9 w-9 flex-shrink-0" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-9 w-9 flex-shrink-0 text-destructive" onClick={() => setDel(r)}><Trash2 className="w-4 h-4" /></Button>
               </div>
             </CardContent></Card>
           );

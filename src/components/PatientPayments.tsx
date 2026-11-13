@@ -318,7 +318,7 @@ export function PatientPayments({ patientId, patientName, showSummaryOnly = fals
 
       {/* ADD PAYMENT DIALOG */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-sm max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nouvelle prestation</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { db, generatePatientId, generateAnonCode, seedVisitReasons, type Patient, type VisitReason, type PatientVisitType } from "@/lib/db";
 import { useLang } from "@/contexts/LangContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +37,9 @@ export function PatientsPage() {
   const [profile, setProfile] = useState<Patient | null>(null);
   const [referral, setReferral] = useState<Patient | null>(null);
   const [codeCard, setCodeCard] = useState<Patient | null>(null);
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupName, setDupName] = useState("");
+  const [dupMgrOpen, setDupMgrOpen] = useState(false);
   const [paySummary, setPaySummary] = useState<Record<number, { status: "paid"|"partial"|"unpaid"; balance: number }>>({});
   const [lastVisitMap, setLastVisitMap] = useState<Record<number, { days: number; lastDx: string }>>({});
 
@@ -54,6 +57,13 @@ export function PatientsPage() {
     treatmentControl: false,
     followUpNote: "",
     services: [] as string[],
+    isMinor: false,
+    guardianName: "",
+    guardianPhone: "",
+    guardianDetails: "",
+    bloodPressure: "",
+    weight: "",
+    coverage: "",
     medicalAlerts: "",
     photo: "" as string | undefined,
     visitType: "new_consultation" as PatientVisitType,
@@ -119,7 +129,7 @@ export function PatientsPage() {
 
   const openNew = () => {
     setForm({
-      fullName: "", phone: "", dob: "", age: "", sex: "", address: "", quarter: "", referredBy: "", treatmentControl: false, followUpNote: "", services: [], medicalAlerts: "", photo: "",
+      fullName: "", phone: "", dob: "", age: "", sex: "", address: "", quarter: "", referredBy: "", treatmentControl: false, followUpNote: "", services: [], isMinor: false, guardianName: "", guardianPhone: "", guardianDetails: "", bloodPressure: "", weight: "", coverage: "", insurer: "", policy: "", rate: "", medicalAlerts: "", photo: "",
       visitType: "new_consultation", reason: "", reasonValue: "",
       visitDate: todayStr(), visitTime: nowTimeStr(),
     });
@@ -158,9 +168,14 @@ export function PatientsPage() {
     e.target.value = "";
   };
 
-  const save = async () => {
+  const save = async (force = false) => {
     if (!form.fullName.trim()) { toast.error(t("patient.fullName")); return; }
     if (!form.sex) { toast.error(tr("Sexe obligatoire (M/F)", "Sex is required (M/F)")); return; }
+    if (!force) {
+      const fn = form.fullName.trim().toLowerCase();
+      const existing = patients.find(p => !p.deleted && `${p.firstName} ${p.lastName}`.trim().toLowerCase() === fn);
+      if (existing) { setDupName(form.fullName.trim()); setDupOpen(true); return; }
+    }
     const { firstName, lastName } = splitFullName(form.fullName);
     const ageNum = form.age ? parseInt(form.age) : undefined;
     const dob = form.dob || (ageNum !== undefined ? dobFromAge(ageNum) : "");
@@ -184,6 +199,16 @@ export function PatientsPage() {
       ...(payload as any), uid, deleted: false, patientId, anonCode, clinicId: cid,
       sex: form.sex || undefined, quarter: form.quarter.trim() || undefined, referredBy: form.referredBy.trim() || undefined,
       treatmentControl: form.treatmentControl || undefined, followUpNote: form.followUpNote.trim() || undefined, servicesRequested: form.services.length ? form.services : undefined,
+      isMinor: form.isMinor || undefined,
+      guardianName: form.isMinor ? (form.guardianName.trim() || undefined) : undefined,
+      guardianPhone: form.isMinor ? (form.guardianPhone.trim() || undefined) : undefined,
+      guardianDetails: form.isMinor ? (form.guardianDetails.trim() || undefined) : undefined,
+      bloodPressure: form.bloodPressure.trim() || undefined,
+      weight: form.weight ? (parseFloat(form.weight) || undefined) : undefined,
+      coverageMode: form.coverage || undefined,
+      insurerName: form.insurer.trim() || undefined,
+      insurancePolicy: form.policy.trim() || undefined,
+      coverageRate: form.rate ? (parseFloat(form.rate) || undefined) : undefined,
       registeredBy, registeredById: user?.id, registeredAt: now,
       visitType: form.visitType, reasonForVisit: reasonLbl || undefined,
       createdAt: now, updatedAt: now,
@@ -281,6 +306,15 @@ export function PatientsPage() {
       control: p.treatmentControl ? "Oui" : "",
       followUp: p.followUpNote || "",
       services: (p.servicesRequested || []).join("; "),
+      minor: p.isMinor ? "Oui" : "",
+      guardian: p.guardianName || "",
+      guardianPhone: p.guardianPhone || "",
+      bloodPressure: p.bloodPressure || "",
+      weight: p.weight ?? "",
+      coverage: p.coverageMode || "",
+      insurer: p.insurerName || "",
+      policy: p.insurancePolicy || "",
+      rate: p.coverageRate != null ? String(p.coverageRate) : "",
       medicalAlerts: p.medicalAlerts || "",
       createdAt: p.createdAt,
     }));
@@ -289,8 +323,71 @@ export function PatientsPage() {
     if (ok) toast.success(t("download.done"));
   };
 
+  const dupGroups = useMemo(() => {
+    const map = new Map<string, Patient[]>();
+    for (const p of patients) {
+      if (p.deleted) continue;
+      const key = `${p.firstName} ${p.lastName}`.trim().toLowerCase();
+      if (!key) continue;
+      const g = map.get(key); if (g) g.push(p); else map.set(key, [p]);
+    }
+    return Array.from(map.values()).filter(g => g.length > 1);
+  }, [patients]);
+
+  const mergeInto = async (keepId: number, dropId: number) => {
+    const now = new Date().toISOString();
+    const reassign = async (table: any) => {
+      const rows = (await table.toArray()).filter((r: any) => r.patientId === dropId);
+      for (const r of rows) await table.update(r.id, { patientId: keepId });
+    };
+    await reassign(db.consultations);
+    await reassign(db.labResults);
+    await reassign(db.payments);
+    await reassign(db.prescriptions);
+    await reassign(db.appointments);
+    await reassign(db.documents);
+    await db.patients.update(dropId, { deleted: true, updatedAt: now });
+  };
+  const mergeGroup = async (g: Patient[]) => {
+    const sorted = [...g].sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const keep = sorted[0];
+    for (const d of sorted.slice(1)) if (d.id && keep.id) await mergeInto(keep.id, d.id);
+    await load();
+    toast.success(tr("Doublons fusionnés", "Duplicates merged"));
+  };
+
   return (
     <div className="space-y-4">
+      <Dialog open={dupOpen} onOpenChange={setDupOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{tr("Patient déjà existant ?", "Patient already exists?")}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{tr(`Un patient nommé « ${dupName} » existe déjà. Vérifiez d'abord avec la recherche. Créer quand même un nouveau dossier ?`, `A patient named "${dupName}" already exists. Check with search first. Create a new record anyway?`)}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDupOpen(false)}>{tr("Annuler", "Cancel")}</Button>
+            <Button onClick={() => { setDupOpen(false); save(true); }}>{tr("Créer quand même", "Create anyway")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dupMgrOpen} onOpenChange={setDupMgrOpen}>
+        <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{tr("Doublons de patients", "Duplicate patients")}</DialogTitle></DialogHeader>
+          {dupGroups.length === 0 ? <p className="text-sm text-muted-foreground">{tr("Aucun doublon.", "No duplicates.")}</p> : (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">{tr("Fusionner combine les dossiers d'un même patient en un seul (le plus ancien est gardé ; consultations, analyses et paiements rattachés).", "Merging combines a patient's records into one (the oldest is kept; consultations, labs and payments reattached).")}</p>
+              {dupGroups.map((g, gi) => (
+                <div key={gi} className="rounded-md border p-2 space-y-1">
+                  <p className="font-medium text-sm">{g[0].firstName} {g[0].lastName} <span className="text-xs text-muted-foreground">({g.length})</span></p>
+                  {g.map(p => <p key={p.id} className="text-[11px] text-muted-foreground">#{p.patientId} · {new Date(p.createdAt).toLocaleDateString()}</p>)}
+                  <Button size="sm" className="h-7 text-xs w-full mt-1" onClick={() => mergeGroup(g)}>{tr("Fusionner", "Merge")}</Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter><Button variant="outline" onClick={() => setDupMgrOpen(false)}>{tr("Fermer", "Close")}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -299,6 +396,11 @@ export function PatientsPage() {
         <Button variant="outline" onClick={exportAll} className="gap-2">
           <Download className="w-4 h-4" /> {t("download.patients")}
         </Button>
+        {dupGroups.length > 0 && (
+          <Button variant="outline" onClick={() => setDupMgrOpen(true)} className="gap-2 border-amber-400 text-amber-700">
+            {tr("Doublons", "Duplicates")} ({dupGroups.length})
+          </Button>
+        )}
         <Button onClick={openNew} className="gap-2">
           <Plus className="w-4 h-4" /> {t("patient.register")}
         </Button>
@@ -365,7 +467,7 @@ export function PatientsPage() {
 
       {/* New patient — minimal form */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("patient.register")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="flex items-center gap-4">
@@ -409,12 +511,12 @@ export function PatientsPage() {
                 <Input type="date" value={form.dob} onChange={e => {
                   const dob = e.target.value;
                   const a = ageFromDob(dob);
-                  setForm(f => ({ ...f, dob, age: a !== undefined ? String(a) : f.age }));
+                  setForm(f => ({ ...f, dob, age: a !== undefined ? String(a) : f.age, isMinor: (a !== undefined && a < 18) ? true : f.isMinor }));
                 }} />
               </div>
               <div>
                 <Label>{t("patient.age")} ({t("patient.years")})</Label>
-                <Input type="number" min={0} max={150} value={form.age} onChange={e => setForm(f => ({ ...f, age: e.target.value }))} />
+                <Input type="number" min={0} max={150} value={form.age} onChange={e => { const v = e.target.value; const a = parseInt(v); setForm(f => ({ ...f, age: v, isMinor: (!isNaN(a) && a > 0 && a < 18) ? true : f.isMinor })); }} />
               </div>
             </div>
             <div>
@@ -423,6 +525,31 @@ export function PatientsPage() {
                 <Button type="button" variant={form.sex === "M" ? "default" : "outline"} className="flex-1" onClick={() => setForm(f => ({ ...f, sex: "M" }))}>M</Button>
                 <Button type="button" variant={form.sex === "F" ? "default" : "outline"} className="flex-1" onClick={() => setForm(f => ({ ...f, sex: "F" }))}>F</Button>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{tr("Tension artérielle", "Blood pressure")}</Label>
+                <Input value={form.bloodPressure} onChange={e => setForm(f => ({ ...f, bloodPressure: e.target.value }))} placeholder="120/80" />
+              </div>
+              <div>
+                <Label>{tr("Poids (kg)", "Weight (kg)")}</Label>
+                <Input type="number" min={0} value={form.weight} onChange={e => setForm(f => ({ ...f, weight: e.target.value }))} placeholder="kg" />
+              </div>
+            </div>
+            <div>
+              <Label>{tr("Mode de prise en charge", "Coverage / payment mode")}</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {["Espèces", "Mutuelle", "Assurance", "Autre"].map(m => (
+                  <Button key={m} type="button" size="sm" variant={form.coverage === m ? "default" : "outline"} className="h-7 text-xs" onClick={() => setForm(f => ({ ...f, coverage: f.coverage === m ? "" : m }))}>{m}</Button>
+                ))}
+              </div>
+              {(form.coverage === "Mutuelle" || form.coverage === "Assurance") && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                  <div><Label className="text-xs">{tr("Assureur / Mutuelle", "Insurer / Mutual")}</Label><Input className="h-8" value={form.insurer} onChange={e => setForm(f => ({ ...f, insurer: e.target.value }))} placeholder="CNPS, Activa…" /></div>
+                  <div><Label className="text-xs">{tr("N° assuré / bon", "Member / voucher no.")}</Label><Input className="h-8" value={form.policy} onChange={e => setForm(f => ({ ...f, policy: e.target.value }))} /></div>
+                  <div><Label className="text-xs">{tr("Taux pris en charge (%)", "Coverage rate (%)")}</Label><Input type="number" min={0} max={100} className="h-8" value={form.rate} onChange={e => setForm(f => ({ ...f, rate: e.target.value }))} placeholder="80" /></div>
+                </div>
+              )}
             </div>
             <div>
               <Label>{t("patient.phone")}</Label>
@@ -458,6 +585,19 @@ export function PatientsPage() {
                   })}
                 </div>
               </div>
+            </div>
+            <div className="rounded-md border p-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm flex-1">{tr("Patient mineur ?", "Minor patient?")}</span>
+                <Button type="button" size="sm" variant={form.isMinor ? "default" : "outline"} className="h-7" onClick={() => setForm(f => ({ ...f, isMinor: !f.isMinor }))}>{form.isMinor ? tr("Oui", "Yes") : tr("Non", "No")}</Button>
+              </div>
+              {form.isMinor && (
+                <div className="space-y-2">
+                  <Input placeholder={tr("Nom du tuteur / parent", "Guardian / parent name")} value={form.guardianName} onChange={e => setForm(f => ({ ...f, guardianName: e.target.value }))} />
+                  <Input placeholder={tr("Téléphone du tuteur", "Guardian phone")} value={form.guardianPhone} onChange={e => setForm(f => ({ ...f, guardianPhone: e.target.value }))} />
+                  <Input placeholder={tr("Détails (lien de parenté, pièce, adresse…)", "Details (relation, ID, address…)")} value={form.guardianDetails} onChange={e => setForm(f => ({ ...f, guardianDetails: e.target.value }))} />
+                </div>
+              )}
             </div>
             <div>
               <Label>{t("patient.alerts")}</Label>
@@ -557,7 +697,7 @@ export function PatientsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={save}>{t("common.save")}</Button>
+            <Button onClick={() => save()}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

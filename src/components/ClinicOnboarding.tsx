@@ -52,7 +52,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
         // Clean start on this clinic: wipe any previous clinic's data on this device.
         try {
           const { db: dbw } = await import("@/lib/db");
-          const tables = ["patients", "consultations", "appointments", "documents", "payments", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
+          const tables = ["patients", "consultations", "appointments", "documents", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
           for (const tbl of tables) { try { await (dbw as any)[tbl]?.clear(); } catch { /* ignore */ } }
           localStorage.removeItem("dl.lastSyncAt");
           // CRITICAL: also reset the per-clinic sync cursors. We just cleared the
@@ -112,7 +112,7 @@ export function ClinicOnboarding({ open, onDone }: Props) {
         // and reset the sync cursors, same as joining an existing clinic.
         try {
           const { db: dbw } = await import("@/lib/db");
-          const tables = ["patients", "consultations", "appointments", "documents", "payments", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
+          const tables = ["patients", "consultations", "appointments", "documents", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
           for (const tbl of tables) { try { await (dbw as any)[tbl]?.clear(); } catch { /* ignore */ } }
           localStorage.removeItem("dl.lastSyncAt");
           Object.keys(localStorage).filter(k => k.startsWith("dl.lastSync.")).forEach(k => localStorage.removeItem(k));

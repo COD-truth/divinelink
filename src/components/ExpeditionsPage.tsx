@@ -226,7 +226,7 @@ export function ExpeditionsPage() {
       </div>
 
       <Dialog open={newPatOpen} onOpenChange={setNewPatOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nouveau patient</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">

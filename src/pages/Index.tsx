@@ -45,6 +45,7 @@ const StaffPage = lazy(() => import("@/components/StaffPage").then(m => ({ defau
 const MySpacePage = lazy(() => import("@/components/MySpacePage").then(m => ({ default: m.MySpacePage })));
 const DocumentCategoriesPage = lazy(() => import("@/components/DocumentCategoriesPage").then(m => ({ default: m.DocumentCategoriesPage })));
 const AdmissionsPage = lazy(() => import("@/components/AdmissionsPage").then(m => ({ default: m.AdmissionsPage })));
+const MaternityPage = lazy(() => import("@/components/MaternityPage").then(m => ({ default: m.MaternityPage })));
 const ExpeditionsPage = lazy(() => import("@/components/ExpeditionsPage").then(m => ({ default: m.ExpeditionsPage })));
 const MinsanteReport = lazy(() => import("@/components/MinsanteReport").then(m => ({ default: m.MinsanteReport })));
 const ProfitReport = lazy(() => import("@/components/ProfitReport").then(m => ({ default: m.ProfitReport })));
@@ -146,6 +147,7 @@ function AppContent() {
     myspace: <Suspense fallback={<PageLoader />}><MySpacePage /></Suspense>,
     docCategories: adminOnly(<Suspense fallback={<PageLoader />}><DocumentCategoriesPage /></Suspense>),
     admissions: <Suspense fallback={<PageLoader />}><AdmissionsPage /></Suspense>,
+    maternity: <Suspense fallback={<PageLoader />}><MaternityPage /></Suspense>,
   };
 
   return (

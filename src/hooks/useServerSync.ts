@@ -397,6 +397,82 @@ export function useServerSync(intervalMinutes = 5, enabled = true) {
           console.log("Pulled", serverConsults.length, "consultations from server");
         }
       } catch (e) { console.warn("Consultation pull failed", e); }
+
+      // ══ MATERNITÉ SYNC — files · accouchements · CPN · partogramme ══
+      // JSONB-per-row on the server (uid-keyed, LWW, tombstones). Push AND pull.
+      // Children (records/visits/partograph) carry their file's UID so the local
+      // numeric fileId can be re-resolved per device (it differs across devices).
+      try {
+        const genUid = () => (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        const syncJson = async (table: any, endpoint: string, isChild: boolean) => {
+          // ----- PUSH (delta) -----
+          const pushKey = `dl.lastSync.${endpoint}.${activeClinic}`;
+          const pushSince = localStorage.getItem(pushKey) || "1970-01-01T00:00:00.000Z";
+          let pushCursor = pushSince;
+          // Ascending by updatedAt so the cursor means "everything up to here is pushed".
+          const all = (await table.toArray()).filter((r: any) => belongs(r))
+            .sort((a: any, b: any) => String(a.updatedAt || a.createdAt || "").localeCompare(String(b.updatedAt || b.createdAt || "")));
+          for (const rec of all) {
+            let uid = rec.uid;
+            if (!uid) { uid = genUid(); if (rec.id) await table.update(rec.id, { uid }); rec.uid = uid; }
+            const upd = String(rec.updatedAt || rec.createdAt || "");
+            if (upd && upd <= pushSince) continue; // delta: only changed
+            const { id, ...rest } = rec;
+            const data: any = { ...rest };
+            if (isChild && rec.fileId != null) {
+              const pf = await db.maternityFiles.get(rec.fileId);
+              if (pf?.uid) data.fileUid = pf.uid; // stable cross-device link
+            }
+            try {
+              const r = await fetch(`${API_BASE}${endpoint}`, {
+                method: "POST", headers: authHeaders,
+                body: JSON.stringify({ uid, data, deleted: !!rec.deleted, updated_at: rec.updatedAt || rec.createdAt || new Date().toISOString() }),
+              });
+              if (!r.ok) break;                 // rate-limited / server error → stop; resume next cycle from here
+              if (upd > pushCursor) pushCursor = upd; // advance ONLY on success → no gaps
+            } catch { break; }                  // network error → stop, keep cursor
+          }
+          try { localStorage.setItem(pushKey, pushCursor); } catch {}
+          // ----- PULL (delta, LWW) -----
+          try {
+            const pullKey = `dl.lastSyncPull.${endpoint}.${activeClinic}`;
+            const pullSince = localStorage.getItem(pullKey) || "1970-01-01T00:00:00.000Z";
+            let pullCursor = pullSince;
+            const res = await fetch(`${API_BASE}${endpoint}?since=${encodeURIComponent(pullSince)}`, { headers: authHeaders });
+            if (res.ok) {
+              const rows = await res.json();
+              for (const row of rows) {
+                try {
+                  if (!row.uid) continue;
+                  const srvUpd = String(row.updated_at || "");
+                  if (srvUpd > pullCursor) pullCursor = srvUpd;
+                  const existing = await table.where("uid").equals(row.uid).first();
+                  if (row.deleted) { if (existing?.id && !existing.deleted) await table.update(existing.id, { deleted: true, updatedAt: srvUpd }); continue; }
+                  const data: any = { ...(row.data || {}) };
+                  delete data.id; // never carry the origin device's local id
+                  data.uid = row.uid; data.clinicId = activeClinic; data.deleted = false; data.updatedAt = srvUpd;
+                  if (isChild && data.fileUid) {
+                    const lf = await db.maternityFiles.where("uid").equals(data.fileUid).first();
+                    if (lf?.id) data.fileId = lf.id; // resolve to THIS device's file id
+                  }
+                  if (existing?.id) {
+                    if (srvUpd >= String(existing.updatedAt || "")) await table.update(existing.id, data);
+                  } else {
+                    await table.add({ ...data, createdAt: (row.data && row.data.createdAt) || srvUpd });
+                  }
+                } catch { /* per-row: one bad row never aborts the pull */ }
+              }
+              localStorage.setItem(pullKey, pullCursor);
+            }
+          } catch (e) { console.warn(`[sync] ${endpoint} pull failed`, e); }
+        };
+        // Files FIRST so children resolve their fileUid → local fileId in the same cycle.
+        await syncJson(db.maternityFiles, "/api/maternity-files", false);
+        await syncJson(db.maternityRecords, "/api/maternity-records", true);
+        await syncJson(db.ancVisits, "/api/anc-visits", true);
+        await syncJson(db.partographEntries, "/api/partograph", true);
+      } catch (e) { console.warn("[sync] maternity sync failed", e); }
+
       try { localStorage.setItem("dl.lastSyncAt", String(Date.now())); } catch {}
       console.log("Server sync completed:", new Date().toISOString());
     } catch (err) {

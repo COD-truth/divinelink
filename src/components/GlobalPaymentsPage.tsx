@@ -234,7 +234,7 @@ export function GlobalPaymentsPage() {
 
       {/* Patient detail dialog */}
       <Dialog open={!!selectedPatientId} onOpenChange={() => setSelectedPatientId(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Compte patient — {selectedPatient?.name}

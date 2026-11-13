@@ -46,7 +46,7 @@ export function LoginScreen() {
         // Clean start on the new clinic: wipe any previous clinic's data on this device.
         try {
           const { db: dbw } = await import("@/lib/db");
-          const tables = ["patients", "consultations", "appointments", "documents", "payments", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
+          const tables = ["patients", "consultations", "appointments", "documents", "drugs", "drugTransactions", "generatedDocs", "importedDocuments", "admissions", "careNotes", "surveys", "surveyResponses", "surveyInvites", "equipmentItems", "equipmentMovements", "auditLogs"];
           for (const tbl of tables) { try { await (dbw as any)[tbl]?.clear(); } catch { /* ignore */ } }
           localStorage.removeItem("dl.lastSyncAt");
         } catch { /* non-fatal */ }
