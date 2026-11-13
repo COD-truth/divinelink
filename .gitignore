@@ -28,3 +28,5 @@ w
 node_modules/
 dist/
 .env
+api/.env
+api/node_modules/
