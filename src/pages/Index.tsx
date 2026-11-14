@@ -27,7 +27,6 @@ const LabPage = lazy(() => import("@/components/LabPage").then(m => ({ default: 
 const MassConsultPage = lazy(() => import("@/components/MassConsultPage").then(m => ({ default: m.MassConsultPage })));
 const VisitQuickPage = lazy(() => import("@/components/VisitQuickPage").then(m => ({ default: m.VisitQuickPage })));
 const DentalExamPage = lazy(() => import("@/components/DentalExamPage").then(m => ({ default: m.DentalExamPage })));
-const DentalQuotePage = lazy(() => import("@/components/DentalQuotePage").then(m => ({ default: m.DentalQuotePage })));
 const UsersPage = lazy(() => import("@/components/UsersPage").then(m => ({ default: m.UsersPage })));
 const BackupPage = lazy(() => import("@/components/BackupPage").then(m => ({ default: m.BackupPage })));
 const AuditLogPage = lazy(() => import("@/components/AuditLogPage").then(m => ({ default: m.AuditLogPage })));
@@ -118,8 +117,6 @@ function AppContent() {
     patients: <Suspense fallback={<PageLoader />}><PatientsPage /></Suspense>,
     appointments: <Suspense fallback={<PageLoader />}><AgendaPage /></Suspense>,
     consultations: <Suspense fallback={<PageLoader />}><ConsultationsPage /></Suspense>,
-    dentalExam: <Suspense fallback={<PageLoader />}><DentalExamPage /></Suspense>,
-    dentalQuote: <Suspense fallback={<PageLoader />}><DentalQuotePage /></Suspense>,
     documents: <Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense>,
     diagnosis: <Suspense fallback={<PageLoader />}><DiagnosisPage /></Suspense>,
     users: adminOnly(<Suspense fallback={<PageLoader />}><UsersPage /></Suspense>),

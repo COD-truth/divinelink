@@ -19,7 +19,6 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { isPushSupported, isSubscribed, enablePushNotifications, disablePushNotifications } from "@/lib/pushNotifications";
 import { getClinicId } from "@/lib/clinicSettings";
 import { toast } from "sonner";
-import { getClinicPages } from "@/lib/clinicSettings";
 
 export type Page =
   | "dashboard" | "patients" | "appointments" | "consultations"
@@ -27,7 +26,6 @@ export type Page =
   | "security" | "research" | "clinic" | "pharmacy" | "payments" | "workspace" | "equipment"
   | "templates" | "importPatients" | "sync" | "conflicts" | "surveys" | "specialties"
   | "staff" | "myspace" | "docCategories" | "admissions" | "maternity"
-  | "dentalExam" | "dentalQuote"
   | "minsante"
   | "expeditions"
   | "magasin"
@@ -191,8 +189,6 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
         { page: "patients", icon: <Users className="w-5 h-5" />, label: t("nav.patients"), roles: ["admin", "doctor", "receptionist"] },
         { page: "appointments", icon: <CalendarDays className="w-5 h-5" />, label: t("nav.appointments"), roles: ["admin", "doctor", "receptionist"] },
         { page: "consultations", icon: <ClipboardList className="w-5 h-5" />, label: t("nav.consultations"), roles: ["admin", "doctor"] },
-        { page: "dentalExam", icon: <Stethoscope className="w-5 h-5" />, label: lang === "en" ? "Dental exam" : "Examen dentaire", roles: ["admin", "doctor"] },
-        { page: "dentalQuote", icon: <ClipboardList className="w-5 h-5" />, label: lang === "en" ? "Dental estimate" : "Devis dentaire", roles: ["admin", "doctor", "receptionist"] },
         { page: "diagnosis", icon: <Stethoscope className="w-5 h-5" />, label: t("nav.diagnostics"), roles: ["admin", "doctor"] },
         { page: "admissions", icon: <BedDouble className="w-5 h-5" />, label: t("nav.admissions"), roles: ["admin", "doctor", "receptionist"] },
         { page: "maternity", icon: <Baby className="w-5 h-5" />, label: "Maternité", roles: ["admin", "doctor", "receptionist"] },
@@ -244,11 +240,8 @@ export function AppLayout({ currentPage, onNavigate, children }: Props) {
   const allNavItems: NavItem[] = navGroups.flatMap(g => g.items);
 
   const userPerms = user?.permissions;
-  const clinicPages = getClinicPages();
-  const administrationPages = new Set<Page>(["users","staff","clinic","security","audit","backup","sync","importPatients"]);
-  const allowedForSpecialty = (page: Page) => !clinicPages || clinicPages.includes(page) || administrationPages.has(page);
   const canAccess = (item: NavItem) => {
-    if (!hasRole(item.roles as any) || !allowedForSpecialty(item.page)) return false;
+    if (!hasRole(item.roles as any)) return false;
     if (!userPerms || userPerms.length === 0) return true;
     return userPerms.includes(item.page);
   };
