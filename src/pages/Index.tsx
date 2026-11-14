@@ -157,7 +157,9 @@ function AppContent() {
   return (
     <>
       {getClinicSettings()?.clinicType === "dental" ? (
-        <DentalWorkspace page={page} onNavigate={navigateTo} renderPage={p => pages[p]} />
+        <DentalWorkspace page={page} onNavigate={navigateTo}>
+          {pages[(["dentalExam","dentalQuote","consultations","documents","appointments","patients","payments","clinic","users","backup","sync"] as Page[]).includes(page) ? page : "dentalExam"]}
+        </DentalWorkspace>
       ) : (
         <AppLayout currentPage={page} onNavigate={navigateTo}>{pages[page]}</AppLayout>
       )}
