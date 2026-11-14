@@ -54,6 +54,7 @@ export interface User {
   id?: number;
   name: string;
   role: UserRole;
+  permissions?: string[];
   pinHash: string;
   active: boolean;
   /** Optional WhatsApp / phone number for doctor reminders */
@@ -649,7 +650,10 @@ export type AuditEventType =
   | "lab_order" | "lab_result" | "lab_delete"
   | "reagent_create" | "reagent_update" | "reagent_in" | "reagent_out" | "reagent_delete"
   | "magasin_box" | "magasin_item" | "magasin_receive" | "magasin_transfer" | "magasin_delete"
-  | "invoice_create";
+  | "invoice_create" | "expense_create" | "expense_delete" | "caisse_close"
+  | "drug_adjust" | "drug_tx_delete" | "anc_update" | "anc_create" | "anc_delete"
+  | "maternity_file_create" | "maternity_update" | "maternity_create" | "maternity_delete"
+  | "prescription_edit" | "prescription_delete" | "partograph_add";
 
 export interface AuditLog {
   id?: number;

@@ -190,7 +190,7 @@ export function LabResultsPage({ patient, patientId }: { patient?: Patient; pati
                         <div key={k} className="flex justify-between text-sm py-1 border-b border-muted/40">
                           <span className="text-muted-foreground">{field.label}</span>
                           <span className={abnormal ? "font-bold text-red-600" : "font-medium text-green-700"}>
-                            {v} {field.unit} {abnormal ? "!" : ""}
+                            {String(v)} {String(field.unit ?? "")} {abnormal ? "!" : ""}
                           </span>
                         </div>
                       );

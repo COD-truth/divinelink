@@ -113,9 +113,9 @@ export function ExpeditionsPage() {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({unit:"mm",format:"a4"});
     const W=210, m=15; let y=15;
-    const T=[13,148,136], D=[15,23,42];
+    const T: [number, number, number] = [13,148,136], D: [number, number, number] = [15,23,42];
 
-    doc.setFillColor(...T); doc.rect(0,0,W,30,"F");
+    doc.setFillColor(T[0],T[1],T[2]); doc.rect(0,0,W,30,"F");
     doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont("helvetica","bold");
     doc.text("RAPPORT D'EXPEDITION MEDICALE",W/2,12,{align:"center"});
     doc.setFontSize(10); doc.setFont("helvetica","normal");
@@ -123,8 +123,8 @@ export function ExpeditionsPage() {
     doc.text("Du "+selected.date_start+" au "+(selected.date_end||"..."),W/2,27,{align:"center"});
     y=38;
 
-    const sec=t=>{doc.setFillColor(...T);doc.rect(m,y,W-m*2,7,"F");doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(t.toUpperCase(),m+2,y+5);y+=9;};
-    const row=(l,v,shade=false)=>{if(shade){doc.setFillColor(240,253,250);doc.rect(m,y,W-m*2,7,"F");}doc.setTextColor(...D);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text(l,m+2,y+5);doc.setFont("helvetica","bold");doc.text(String(v),W-m-2,y+5,{align:"right"});y+=7;};
+    const sec=t=>{doc.setFillColor(T[0],T[1],T[2]);doc.rect(m,y,W-m*2,7,"F");doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(t.toUpperCase(),m+2,y+5);y+=9;};
+    const row=(l,v,shade=false)=>{if(shade){doc.setFillColor(240,253,250);doc.rect(m,y,W-m*2,7,"F");}doc.setTextColor(D[0],D[1],D[2]);doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text(l,m+2,y+5);doc.setFont("helvetica","bold");doc.text(String(v),W-m-2,y+5,{align:"right"});y+=7;};
 
     sec("1. Resume General");
     row("Total patients pris en charge",report.totalPatients,true);
@@ -153,7 +153,7 @@ export function ExpeditionsPage() {
     doc.text("Chef d'expedition",m+30,y+5,{align:"center"});
     doc.text("Responsable medical",W-m-30,y+5,{align:"center"});
 
-    doc.setFillColor(...T); doc.rect(0,285,W,12,"F");
+    doc.setFillColor(T[0],T[1],T[2]); doc.rect(0,285,W,12,"F");
     doc.setTextColor(255,255,255); doc.setFontSize(7);
     doc.text("Genere par DivineLink Field - "+selected.name+" - "+new Date().toLocaleDateString("fr-FR"),W/2,292,{align:"center"});
 
@@ -187,7 +187,7 @@ export function ExpeditionsPage() {
         <div className="grid grid-cols-3 gap-3">
           {[
             {l:"Patients",v:report.totalPatients,c:"text-teal-600"},
-            {l:"Actes",v:Object.values(report.procedures||{}).reduce((s,v)=>s+v,0),c:"text-blue-600"},
+            {l:"Actes",v:Object.values(report.procedures || {}).reduce<number>((s,v)=>s+Number(v || 0),0),c:"text-blue-600"},
             {l:"Suivis",v:report.followUps,c:"text-orange-600"},
           ].map((s,i)=>(
             <div key={i} className="bg-muted/40 rounded-lg p-3 text-center">

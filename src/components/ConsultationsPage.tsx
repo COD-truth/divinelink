@@ -30,6 +30,8 @@ import { formatDateTime } from "@/lib/dateFormat";
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 interface ConsultForm {
+  referredBy?: string;
+  referralNote?: string;
   // Identification
   patientId: string;
   consultType: ConsultationType;

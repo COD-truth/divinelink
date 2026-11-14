@@ -444,7 +444,7 @@ export function generateThermalReceipt(data: ReceiptData) {
     let totalW = 0;
     for (const ch of code) { const p = CODE39[ch] || CODE39["0"]; for (let i = 0; i < 9; i++) totalW += (p[i] === "1" ? wide : narrow); totalW += narrow; }
     let cx = (W - totalW) / 2;
-    doc.setFillColor(0);
+    doc.setFillColor(0,0,0);
     for (const ch of code) {
       const p = CODE39[ch] || CODE39["0"];
       for (let i = 0; i < 9; i++) { const w = p[i] === "1" ? wide : narrow; if (i % 2 === 0) doc.rect(cx, y, w, barH, "F"); cx += w; }

@@ -102,7 +102,7 @@ export function PartographPanel({ fileId, motherName, labourStartAt, onStartLabo
       doc.setFontSize(6.5); doc.setTextColor(0x0F, 0x62, 0x8A); doc.text("Alerte", mapX(5.6), mapYd(10) - 1);
       doc.setTextColor(0xB0, 0x1C, 0x1C); doc.text("Action", Math.min(gx1 - 8, mapX(9.6)), mapYd(10) - 1);
       // plot dilatation
-      doc.setDrawColor(20); doc.setLineWidth(0.5); doc.setFillColor(20);
+      doc.setDrawColor(20); doc.setLineWidth(0.5); doc.setFillColor(20,20,20);
       let prev: [number, number] | null = null;
       rows.forEach(r => { if (r.dilatation == null) return; const x = mapX(hoursSince(r.time)), y = mapYd(r.dilatation); if (prev) doc.line(prev[0], prev[1], x, y); doc.setFontSize(8); doc.text("X", x, y + 1, { align: "center" }); prev = [x, y]; });
 
@@ -121,7 +121,7 @@ export function PartographPanel({ fileId, motherName, labourStartAt, onStartLabo
       const cy0 = ry1 + 10, ch = 16; const cy1 = cy0 + ch;
       doc.setDrawColor(60); doc.setLineWidth(0.3); doc.rect(gx0, cy0, gw, ch);
       doc.setFontSize(8); doc.setTextColor(30); doc.text("Contractions / 10 min", gx0, cy0 - 2);
-      doc.setFillColor(80); const bw = Math.max(2, gw / (maxH * 4));
+      doc.setFillColor(80,80,80); const bw = Math.max(2, gw / (maxH * 4));
       rows.forEach(r => { if (!r.contractions) return; const x = mapX(hoursSince(r.time)); const bh = Math.min(ch, (r.contractions / 5) * ch); doc.rect(x - bw / 2, cy1 - bh, bw, bh, "F"); });
 
       // ---- Observations table ----
