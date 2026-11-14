@@ -24,7 +24,7 @@ export const CLINIC_TYPES = [
   { value: "general", label: "Clinique Generale / General Clinic", emoji: "🏥",
     pages: ["dashboard","patients","appointments","consultations","diagnosis","documents","payments","pharmacy","admissions","research","surveys","myspace"] },
   { value: "dental", label: "Cabinet Dentaire / Dental Practice", emoji: "🦷",
-    pages: ["dashboard","patients","appointments","consultations","documents","payments","pharmacy","research","myspace"] },
+    pages: ["dashboard","patients","appointments","consultations","dentalExam","dentalQuote","documents","payments","pharmacy","research","myspace"] },
   { value: "maternity", label: "Maternite / Maternity", emoji: "🤱",
     pages: ["dashboard","patients","appointments","consultations","documents","payments","pharmacy","admissions","research","surveys","myspace"] },
   { value: "specialty", label: "Cabinet de Specialite", emoji: "🔬",
