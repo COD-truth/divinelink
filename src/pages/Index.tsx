@@ -11,8 +11,7 @@ import { LoginScreen } from "@/components/LoginScreen";
 import { DashboardPage } from "@/components/DashboardPage";
 import { ClinicOnboarding } from "@/components/ClinicOnboarding";
 import { AppLayout, type Page } from "@/components/AppLayout";
-import { isClinicConfigured, getClinicSettings } from "@/lib/clinicSettings";
-import { DentalWorkspace } from "@/components/DentalWorkspace";
+import { isClinicConfigured } from "@/lib/clinicSettings";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
 
@@ -156,13 +155,9 @@ function AppContent() {
 
   return (
     <>
-      {getClinicSettings()?.clinicType === "dental" ? (
-        <DentalWorkspace page={page} onNavigate={navigateTo}>
-          {pages[(["dentalExam","dentalQuote","consultations","documents","appointments","patients","payments","clinic","users","backup","sync"] as Page[]).includes(page) ? page : "dentalExam"]}
-        </DentalWorkspace>
-      ) : (
-        <AppLayout currentPage={page} onNavigate={navigateTo}>{pages[page]}</AppLayout>
-      )}
+      <AppLayout currentPage={page} onNavigate={navigateTo}>
+        {pages[page]}
+      </AppLayout>
       <ClinicOnboarding open={showOnboarding} onDone={() => setShowOnboarding(false)} />
     </>
   );

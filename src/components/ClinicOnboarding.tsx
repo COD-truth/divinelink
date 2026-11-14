@@ -21,7 +21,6 @@ export function ClinicOnboarding({ open, onDone }: Props) {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
-  const [clinicType, setClinicType] = useState<"general" | "dental">("general");
 
   const persistLocal = (clinicName: string) => {
     const cur = getClinicSettings();
@@ -30,7 +29,6 @@ export function ClinicOnboarding({ open, onDone }: Props) {
       clinicId: cur?.clinicId || generateClinicId(),
       name: clinicName,
       currency: cur?.currency || "FCFA",
-      clinicType: cur?.clinicType || (mode === "create" ? clinicType : undefined),
       createdAt: cur?.createdAt || new Date().toISOString(),
     };
     saveClinicSettings(next);
@@ -245,7 +243,6 @@ export function ClinicOnboarding({ open, onDone }: Props) {
 
         {mode === "create" && (
           <div className="space-y-4">
-            <div><Label>Type d'établissement</Label><select className="w-full p-3 rounded border bg-background" aria-label="Type d'établissement" value={clinicType} onChange={e=>setClinicType(e.target.value as "general"|"dental")}><option value="general">Clinique générale</option><option value="dental">Cabinet dentaire</option></select><p className="text-xs text-muted-foreground mt-1">Le cabinet dentaire utilise son espace dédié et les paramètres.</p></div>
             <div>
               <Label>{fr ? "Nom de la clinique / équipe" : "Clinic / team name"}</Label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder={fr ? "Ma Clinique" : "My Clinic"} autoFocus

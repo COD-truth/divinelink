@@ -81,7 +81,7 @@ export function NotificationSettings() {
       const vRes = await fetch(`${API}/push/vapid-key`, { headers: { Authorization: `Bearer ${token}` } });
       const { publicKey } = await vRes.json();
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: new Uint8Array(urlBase64ToUint8Array(publicKey)) });
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
       setSubscription(sub);
       const subJson = sub.toJSON();
       const res = await fetch(`${API}/push/subscribe`, {
