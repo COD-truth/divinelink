@@ -91,6 +91,21 @@ export interface MergeReport {
   users: { added: number; updated: number; conflicts: number };
 }
 
+/**
+ * Copy of a record without its numeric `id`.
+ *
+ * Numeric ids are local to each device and must never travel with imported
+ * data. On `add` the local table assigns its own id. On `update`, a payload
+ * that carries an `id` key (even set to undefined) makes Dexie treat it as a
+ * primary key change: it deletes the row and re-inserts it under a new id,
+ * which detaches every consultation, appointment, document and payment that
+ * points at the old one.
+ */
+function withoutId<T extends { id?: number }>(rec: T): Omit<T, "id"> {
+  const { id: _id, ...rest } = rec;
+  return rest;
+}
+
 function recTime(r: any): number {
   return new Date(r?.updatedAt || r?.editedAt || r?.createdAt || r?.date || 0).getTime();
 }
@@ -163,9 +178,9 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
     const existing = incoming.patientId
       ? await db.patients.where("patientId").equals(incoming.patientId).first()
       : null;
-    const encrypted = await encryptPatientForSave({ ...incoming, id: undefined as any });
+    const encrypted = await encryptPatientForSave(withoutId(incoming));
     if (!existing) {
-      await db.patients.add({ ...(encrypted as Patient), id: undefined as any });
+      await db.patients.add(encrypted);
       report.patients.added++;
     } else if (isConflict(existing, incoming, since)) {
       await queueConflict({
@@ -178,7 +193,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
       });
       report.patients.conflicts++;
     } else if (recTime(incoming) > recTime(existing)) {
-      await db.patients.update(existing.id!, { ...(encrypted as Patient), id: undefined as any });
+      await db.patients.update(existing.id!, encrypted);
       report.patients.updated++;
     }
   }
@@ -193,7 +208,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
         .first();
     }
     if (!existing) {
-      await db.consultations.add({ ...incoming, id: undefined as any });
+      await db.consultations.add(withoutId(incoming));
       report.consultations.added++;
     } else if (isConflict(existing, incoming, since)) {
       await queueConflict({
@@ -206,7 +221,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
       });
       report.consultations.conflicts++;
     } else if (recTime(incoming) > recTime(existing)) {
-      await db.consultations.update(existing.id!, { ...incoming, id: undefined as any });
+      await db.consultations.update(existing.id!, withoutId(incoming));
       report.consultations.updated++;
     }
   }
@@ -218,7 +233,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
       .and(a => a.date === incoming.date && a.time === incoming.time)
       .first();
     if (!existing) {
-      await db.appointments.add({ ...incoming, id: undefined as any });
+      await db.appointments.add(withoutId(incoming));
       report.appointments.added++;
     } else if (isConflict(existing, incoming, since)) {
       await queueConflict({
@@ -231,7 +246,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
       });
       report.appointments.conflicts++;
     } else if (recTime(incoming) > recTime(existing)) {
-      await db.appointments.update(existing.id!, { ...incoming, id: undefined as any });
+      await db.appointments.update(existing.id!, withoutId(incoming));
       report.appointments.updated++;
     }
   }
@@ -243,7 +258,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
       .and(d => d.name === incoming.name && d.createdAt === incoming.createdAt)
       .first();
     if (!existing) {
-      await db.documents.add({ ...incoming, id: undefined as any });
+      await db.documents.add(withoutId(incoming));
       report.documents.added++;
     }
   }
@@ -255,7 +270,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
       .and(u => u.role === incoming.role)
       .first();
     if (!existing) {
-      await db.users.add({ ...incoming, id: undefined as any });
+      await db.users.add(withoutId(incoming));
       report.users.added++;
     } else if (isConflict(existing, incoming, since)) {
       await queueConflict({
@@ -268,7 +283,7 @@ export async function mergeSyncBundle(bundle: SyncBundle): Promise<MergeReport> 
       });
       report.users.conflicts++;
     } else if (recTime(incoming) > recTime(existing)) {
-      await db.users.update(existing.id!, { ...incoming, id: undefined as any });
+      await db.users.update(existing.id!, withoutId(incoming));
       report.users.updated++;
     }
   }
@@ -287,7 +302,7 @@ export async function resolveConflict(
   if (!c) return;
 
   const apply = async (data: any) => {
-    const stripId = { ...data, id: undefined as any };
+    const stripId = withoutId(data);
     switch (c.resource) {
       case "patient": {
         const encrypted = await encryptPatientForSave(stripId);
